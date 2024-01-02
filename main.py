@@ -20,6 +20,7 @@ def get_args():
     parser.add_argument('--average_interval', type=int, default=10)
     parser.add_argument('--device', default='cuda' if torch.cuda.is_available() else 'cpu')
     parser.add_argument('--patience', type=int, default=5)
+    parser.add_argument('--MNR', action='store_true')
     parser.add_argument('--specific', action='store_true')
     parser.add_argument('--balance', action='store_true')
     parser.add_argument('--c_scale', type=float, default=1.0)

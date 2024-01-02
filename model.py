@@ -109,16 +109,19 @@ class MoEBertOutputWithPoolingAndCrossAttentions(BaseModelOutputWithPoolingAndCr
 
 
 class MiniMoE(nn.Module):
-    def __init__(self, model, specific=True, balance=False, c_scale=1.0, r_scale=0.1):
+    def __init__(self, model, MNR=True, specific=True, balance=False, c_scale=1.0, r_scale=0.1):
         super().__init__()
-        from losses import specified_expert_loss, load_balancing_loss, MNR_loss
+        from losses import specified_expert_loss, load_balancing_loss, MNR_loss, clip_loss
         self.bert = model
+        self.MNR = MNR
         self.specific = specific
         self.balance = balance
         self.router_loss = specified_expert_loss if specific else load_balancing_loss
-        self.contrastive_loss = MNR_loss
+        self.contrastive_loss = MNR_loss if MNR else clip_loss
         self.c_scale = c_scale
         self.r_scale = r_scale
+        if clip_loss:
+            self.temp = nn.Parameter(torch.tensor(0.7))
     
     def forward(self, batch1, batch2, labels=None):
         if random.random() < 0.5:
@@ -131,7 +134,7 @@ class MiniMoE(nn.Module):
         emba = outputa.pooler_output
         embb = outputb.pooler_output
 
-        c_loss = self.contrastive_loss(emba, embb, scale=self.c_scale)
+        c_loss = self.contrastive_loss(emba, embb, self.c_scale) if self.MNR else self.contrastive_loss(emba, embb, self.temp)
 
         router_logits = tuple((a + b) / 2 for a, b in zip(outputa.router_logits, outputb.router_logits))
         if self.specific:

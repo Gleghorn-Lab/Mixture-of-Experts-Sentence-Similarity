@@ -51,3 +51,10 @@ if __name__ == '__main__':
     test_loader = TorchLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
     optimizer = torch.optim.AdamW(mini.parameters(), lr=args.lr)
     model = train(args, mini, optimizer, train_loader, valid_loader)
+    threshold, f1max, acc, dist = test(args, mini, test_loader)
+    print(f'\n-----Test Metrics-----\n')
+    print(f'Threshold: {threshold}')
+    print(f'F1 Max: {f1max}')
+    print(f'Accuracy: {acc}')
+    print(f'Distance: {dist}')
+    

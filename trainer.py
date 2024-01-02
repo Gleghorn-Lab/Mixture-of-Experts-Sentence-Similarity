@@ -5,7 +5,7 @@ from torch.utils.data import Dataset as TorchDataset
 from datasets import load_dataset
 from tqdm.auto import tqdm
 
-from metrics import calc_f1max
+from metrics import *
 
 
 class TextDataset(TorchDataset):
@@ -58,10 +58,10 @@ def get_datasets(data_paths, tokenizer, domains):
     return train_dataset, valid_dataset, test_dataset
 
 
-def validate(config, model, val_loader):
+def test(config, model, test_loader):
     model.eval()
     cosine_sims, labels = [], []
-    pbar = tqdm(val_loader, total=len(val_loader))
+    pbar = tqdm(test_loader, total=len(test_loader), desc='Testing')
     for (batch1, batch2, c_labels, r_labels) in pbar:
         r_labels = r_labels.to(config.device)
         batch1 = {k:v.squeeze(1).to(config.device) for k, v in batch1.items()}
@@ -72,8 +72,28 @@ def validate(config, model, val_loader):
         labels.extend(c_labels.tolist())
     cosine_sims_tensor = torch.tensor(cosine_sims, dtype=torch.float)
     labels_tensor = torch.tensor(labels, dtype=torch.float)
-    f1max = calc_f1max(cosine_sims_tensor, labels_tensor)
-    return f1max
+    threshold, f1max = calc_f1max(cosine_sims_tensor, labels_tensor)
+    acc = calc_accuracy(cosine_sims_tensor, labels_tensor, cutoff=threshold)
+    dist = calc_distance(cosine_sims_tensor, labels_tensor)
+    return threshold, f1max, acc, dist
+
+
+def validate(config, model, val_loader):
+    model.eval()
+    cosine_sims, labels = [], []
+    pbar = tqdm(val_loader, total=len(val_loader), desc='Validating')
+    for (batch1, batch2, c_labels, r_labels) in pbar:
+        r_labels = r_labels.to(config.device)
+        batch1 = {k:v.squeeze(1).to(config.device) for k, v in batch1.items()}
+        batch2 = {k:v.squeeze(1).to(config.device) for k, v in batch2.items()}
+        with torch.no_grad():
+            emba, embb, router_logits, c_loss, r_loss = model(batch1, batch2, r_labels)
+        cosine_sims.extend(F.cosine_similarity(emba, embb).tolist())
+        labels.extend(c_labels.tolist())
+    cosine_sims_tensor = torch.tensor(cosine_sims, dtype=torch.float)
+    labels_tensor = torch.tensor(labels, dtype=torch.float)
+    threshold, f1max = calc_f1max(cosine_sims_tensor, labels_tensor)
+    return threshold, f1max
 
 
 def train(config, model, optimizer, train_loader, val_loader):

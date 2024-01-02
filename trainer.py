@@ -102,8 +102,8 @@ def train(config, model, optimizer, train_loader, val_loader):
                 pbar.set_description(f'Epoch {epoch} Loss: {avg_loss:.4f} Cosine Similarity: {avg_cos_sim:.4f}')
 
             if batch_idx % config.validate_interval == 0:
-                val_f1 = validate(config, model, val_loader)
-                print(f'Epoch {epoch} Step {batch_idx} Val F1: ', val_f1)
+                threshold, val_f1 = validate(config, model, val_loader)
+                print(f'Epoch {epoch} Step {batch_idx} Threshold {threshold} Val F1 ', val_f1)
                 if val_f1 < best_val_f1:
                     best_val_f1 = val_f1
                     patience_counter = 0

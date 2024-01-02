@@ -51,8 +51,8 @@ def clip_loss(batch1: torch.Tensor, batch2: torch.Tensor, temp: float = 1.0) -> 
     """
     batch1, batch2 - both torch.Tensor (batch_size, hidden_size)
     This function takes two batches of vectors and returns the clip loss.
-    It uses cosine similarity as the similarity function.
-    The output of the similarity function can be divided by a temperature value.
+    It uses dot product as the similarity function.
+    The output of the similarity function can be divided by a learned temperature value.
     """
     logits = (batch1 @ batch2.T) / temp
     batch1_similarity = batch1 @ batch1.T

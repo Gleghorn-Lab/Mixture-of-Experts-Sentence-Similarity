@@ -113,7 +113,6 @@ def train(config, model, optimizer, train_loader, val_loader):
             router_predictions = torch.argmax(avg_logits, dim=1)
             accuracy = (router_predictions == r_labels).float().mean().item()
             accuracies.append(accuracy)
-
             if len(c_losses) > avg:
                 avg_c_loss = np.mean(c_losses[-avg:])
                 avg_r_loss = np.mean(r_losses[-avg:])
@@ -122,13 +121,15 @@ def train(config, model, optimizer, train_loader, val_loader):
                 pbar.set_description(f'Epoch {epoch} C_Loss: {avg_c_loss:.4f} R_Loss: {avg_r_loss:.4f} Cosine Similarity: {avg_cos_sim:.4f} Accuracy: {avg_accuracy:.4f}')
 
                 if config.wandb:
-                    wandb.log({'C_Loss': avg_c_loss, 'R_Loss': avg_r_loss, 'Cosine Similarity': avg_cos_sim, 'Accuracy': avg_accuracy})
+                    wandb.log({'C_Loss': avg_c_loss, 'R_Loss': avg_r_loss, 'Cosine Similarity': avg_cos_sim, 'Accuracy': avg_accuracy, 'Learning Rate': scheduler.get_last_lr()[0]})
 
             if batch_idx % config.validate_interval == 0 and batch_idx > 0:
                 threshold, val_f1 = validate(config, model, val_loader)
                 print(f'Epoch {epoch} Step {batch_idx} Threshold {threshold} Val F1 ', val_f1)
                 if config.wandb:
                     wandb.log({'Threshold': threshold, 'Val F1max': val_f1})
+                    if not config.MNR:
+                        wandb.log({'Temperature': model.temp.detach().item()})
                 if val_f1 < best_val_f1:
                     best_val_f1 = val_f1
                     patience_counter = 0

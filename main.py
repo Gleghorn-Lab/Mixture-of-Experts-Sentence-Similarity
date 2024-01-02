@@ -24,7 +24,7 @@ if __name__ == "__main__":
     #base_model.max_position_embeddings = 2048 # this would be a good addition
     loader = MiniMoELoadWeights(base_model=base_model, tokenizer=tokenizer, domains=config.domains)
     model, tokenizer = loader.get_seeded_model()
-    mini = MiniMoE(model)
+    mini = MiniMoE(model).to(config.device)
 
     train_dataset, valid_dataset, test_dataset = get_datasets(config.data_paths, tokenizer, config.domains)
     train_loader = TorchLoader(train_dataset, batch_size=config.batch_size, shuffle=True)

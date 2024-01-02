@@ -85,7 +85,7 @@ def train(config, model, optimizer, train_loader, val_loader):
                                                     max_lr=config.lr,
                                                     steps_per_epoch=len(train_loader),
                                                     epochs=config.epochs,
-                                                    pct_start=config.warmup_steps/len(train_loader))
+                                                    pct_start=(config.warmup_steps/len(train_loader))/config.epochs) # warmup steps as percentage
 
     if config.wandb:
         import wandb

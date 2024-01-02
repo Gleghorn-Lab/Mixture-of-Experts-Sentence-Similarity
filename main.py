@@ -43,7 +43,7 @@ if __name__ == '__main__':
     base_model.config.hidden_dropout_prob = args.dropout
     loader = MiniMoELoadWeights(base_model=base_model, tokenizer=tokenizer, domains=args.domains)
     model, tokenizer = loader.get_seeded_model()
-    mini = MiniMoE(model, specific=args.specific, c_scale=args.c_scale, r_scale=args.r_scale).to(args.device)
+    mini = MiniMoE(model, MNR=args.MNR, specific=args.specific, c_scale=args.c_scale, r_scale=args.r_scale).to(args.device)
 
     train_dataset, valid_dataset, test_dataset = get_datasets(args.data_paths, tokenizer, args.domains)
     train_loader = TorchLoader(train_dataset, batch_size=args.batch_size, shuffle=True)

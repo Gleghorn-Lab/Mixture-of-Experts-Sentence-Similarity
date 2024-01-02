@@ -61,4 +61,5 @@ def clip_loss(batch1: torch.Tensor, batch2: torch.Tensor, temp: float = 1.0) -> 
     batch1_loss = F.cross_entropy(logits, targets.argmax(dim=1))
     batch2_loss = F.cross_entropy(logits.T, targets.T.argmax(dim=1))
     loss =  (batch1_loss + batch2_loss) / 2.0
+    print(loss)
     return loss

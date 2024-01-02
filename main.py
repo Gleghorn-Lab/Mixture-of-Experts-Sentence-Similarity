@@ -8,7 +8,7 @@ from model import MiniMoELoadWeights, MiniMoE
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--project_name', typ=str, default='MiniMOE')
+    parser.add_argument('--project_name', type=str, default='MiniMOE')
     parser.add_argument('--model_path', type=str, default='sentence-transformers/all-MiniLM-L6-v2')
     parser.add_argument('--data_paths', nargs='+', default=['lhallee/abstract_domain_cvd', 'lhallee/abstract_domain_copd'])
     parser.add_argument('--epochs', type=int, default=100)

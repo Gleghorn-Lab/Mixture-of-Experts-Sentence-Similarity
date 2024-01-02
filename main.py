@@ -8,13 +8,16 @@ from model import MiniMoELoadWeights, MiniMoE
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model_path', default='sentence-transformers/all-MiniLM-L6-v2')
+    parser.add_argument('--project_name', typ=str, default='MiniMOE')
+    parser.add_argument('--model_path', type=str, default='sentence-transformers/all-MiniLM-L6-v2')
     parser.add_argument('--data_paths', nargs='+', default=['lhallee/abstract_domain_cvd', 'lhallee/abstract_domain_copd'])
     parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--domains', nargs='+', default=['[CVD]', '[COPD]'])
     parser.add_argument('--batch_size', type=int, default=20)
-    parser.add_argument('--lr', type=float, default=1e-4)
+    parser.add_argument('--lr', type=float, default=1e-3)
+    parser.add_argument('--warmup_steps', type=int, default=500)
     parser.add_argument('--validate_interval', type=int, default=1000)
+    parser.add_argument('--average_interval', type=int, default=10)
     parser.add_argument('--device', default='cuda' if torch.cuda.is_available() else 'cpu')
     parser.add_argument('--patience', type=int, default=5)
     parser.add_argument('--specific', action='store_true')
@@ -22,9 +25,11 @@ def get_args():
     parser.add_argument('--c_scale', type=float, default=1.0)
     parser.add_argument('--r_scale', type=float, default=0.1)
     parser.add_argument('--dropout', type=float, default=0.05)
+    parser.add_argument('--wandb', action='store_true')
     return parser.parse_args()
 
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     args = get_args()
     
     print('\n-----Config-----\n')

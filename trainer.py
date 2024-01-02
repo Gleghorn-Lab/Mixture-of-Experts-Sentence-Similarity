@@ -78,8 +78,19 @@ def validate(config, model, val_loader):
 
 def train(config, model, optimizer, train_loader, val_loader):
     best_val_f1 = float('inf')
+    avg = config.average_interval
     patience_counter = 0
     c_losses, r_losses, cos_sims, accuracies = [], [], [], []
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer,
+                                                    max_lr=config.lr,
+                                                    steps_per_epoch=len(train_loader),
+                                                    epochs=config.epochs,
+                                                    pct_start=config.warmup_steps/len(train_loader))
+
+    if config.wandb:
+        import wandb
+        wandb.init(project=config.project_name)
+        wandb.watch(model)
 
     for epoch in range(config.epochs):
         model.train()
@@ -93,24 +104,31 @@ def train(config, model, optimizer, train_loader, val_loader):
             loss = c_loss + r_loss
             loss.backward()
             optimizer.step()
+            scheduler.step()  # Update learning rate for warmup
 
             c_losses.append(c_loss.item())
             r_losses.append(r_loss.item())
             cos_sims.append(F.cosine_similarity(emba, embb).mean().item())
-            router_predictions = torch.argmax(router_logits, dim=1)
+            avg_logits = torch.stack(router_logits, dim=2).transpose(1, 2).mean(dim=1) # batch_size, num_experts
+            router_predictions = torch.argmax(avg_logits, dim=1)
             accuracy = (router_predictions == r_labels).float().mean().item()
             accuracies.append(accuracy)
 
-            if len(c_losses) > 10:
-                avg_c_loss = np.mean(c_losses[-10:])
-                avg_r_loss = np.mean(r_losses[-10:])
-                avg_cos_sim = np.mean(cos_sims[-10:])
-                avg_accuracy = np.mean(accuracies[-10:])
+            if len(c_losses) > avg:
+                avg_c_loss = np.mean(c_losses[-avg:])
+                avg_r_loss = np.mean(r_losses[-avg:])
+                avg_cos_sim = np.mean(cos_sims[-avg:])
+                avg_accuracy = np.mean(accuracies[-avg:])
                 pbar.set_description(f'Epoch {epoch} C_Loss: {avg_c_loss:.4f} R_Loss: {avg_r_loss:.4f} Cosine Similarity: {avg_cos_sim:.4f} Accuracy: {avg_accuracy:.4f}')
 
-            if batch_idx % config.validate_interval == 0:
+                if config.wandb:
+                    wandb.log({'C_Loss': avg_c_loss, 'R_Loss': avg_r_loss, 'Cosine Similarity': avg_cos_sim, 'Accuracy': avg_accuracy})
+
+            if batch_idx % config.validate_interval == 0 and batch_idx > 0:
                 threshold, val_f1 = validate(config, model, val_loader)
                 print(f'Epoch {epoch} Step {batch_idx} Threshold {threshold} Val F1 ', val_f1)
+                if config.wandb:
+                    wandb.log({'Threshold': threshold, 'Val F1max': val_f1})
                 if val_f1 < best_val_f1:
                     best_val_f1 = val_f1
                     patience_counter = 0

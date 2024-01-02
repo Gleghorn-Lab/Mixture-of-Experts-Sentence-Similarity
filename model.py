@@ -1,5 +1,6 @@
 import time
 import copy
+import random
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -120,8 +121,12 @@ class MiniMoE(nn.Module):
         self.r_scale = r_scale
     
     def forward(self, batch1, batch2, labels=None):
-        outputa = self.bert(**batch1)
-        outputb = self.bert(**batch2)
+        if random.random() < 0.5:
+            outputa = self.bert(**batch1)
+            outputb = self.bert(**batch2)
+        else:
+            outputa = self.bert(**batch2)
+            outputb = self.bert(**batch1)
 
         emba = outputa.pooler_output
         embb = outputb.pooler_output

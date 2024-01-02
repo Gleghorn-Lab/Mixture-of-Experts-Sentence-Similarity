@@ -35,7 +35,7 @@ if __name__ == '__main__':
     print('\n-----Config-----\n')
     for arg in vars(args):
         print(f'{arg}: {getattr(args, arg)}')
-
+    print('\n-----Load Model-----\n')
     tokenizer = BertTokenizer.from_pretrained(args.model_path)
     base_model = BertModel.from_pretrained(args.model_path)
     base_model.config.attention_probs_dropout_prob = args.dropout

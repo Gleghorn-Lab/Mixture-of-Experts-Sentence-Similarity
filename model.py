@@ -108,11 +108,12 @@ class MoEBertOutputWithPoolingAndCrossAttentions(BaseModelOutputWithPoolingAndCr
 
 
 class MiniMoE(nn.Module):
-    def __init__(self, model, specific=True, c_scale=1.0, r_scale=0.1):
+    def __init__(self, model, specific=True, balance=False, c_scale=1.0, r_scale=0.1):
         super().__init__()
         from losses import specified_expert_loss, load_balancing_loss, MNR_loss
         self.bert = model
         self.specific = specific
+        self.balance = balance
         self.router_loss = specified_expert_loss if specific else load_balancing_loss
         self.contrastive_loss = MNR_loss
         self.c_scale = c_scale
@@ -125,27 +126,24 @@ class MiniMoE(nn.Module):
         emba = outputa.pooler_output
         embb = outputb.pooler_output
 
-        loss = self.contrastive_loss(emba, embb, scale=self.c_scale)
+        c_loss = self.contrastive_loss(emba, embb, scale=self.c_scale)
 
+        router_logits = tuple((a + b) / 2 for a, b in zip(outputa.router_logits, outputb.router_logits))
         if self.specific:
-            router_logits = outputa.router_logits + outputb.router_logits
             r_loss = self.router_loss(router_logits, labels) * self.r_scale if labels is not None else 0
-            loss = loss + r_loss
-        else:
-            router_logits = outputa.router_logits + outputb.router_logits
+        elif self.balance:
             r_loss = self.router_loss(router_logits) * self.r_scale
-            loss = loss + r_loss
-        return emba, embb, loss
+        return emba, embb, router_logits, c_loss, r_loss
 
 
 class MiniMoELoadWeights:
-    def __init__(self, base_model, tokenizer, domains=['[COPD]', '[CVD]']):
-        self.bert_base = base_model
-        self.tokenizer = tokenizer
+    def __init__(self, base_model, tokenizer, domains):
+        self.bert_base = base_model # base bert model
+        self.tokenizer = tokenizer # bert tokenizer
+        self.domains = domains # list of special tokens to take place of CLS
         self.config = self.bert_base.config
-        self.model_type = 'Model'
-        self.domains = domains
-        self.config.num_experts = len(domains)
+        self.model_type = 'Model' # for weight assignment logic, refers to BertModel instead of BertForSequenceClassification, for example
+        self.config.num_experts = len(domains) # each domain gets a specific set of experts
 
     def get_seeded_model(self):
         start_time = time.time()

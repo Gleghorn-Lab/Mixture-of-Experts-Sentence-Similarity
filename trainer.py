@@ -61,13 +61,13 @@ def get_datasets(data_paths, tokenizer, domains):
 def validate(config, model, val_loader):
     model.eval()
     cosine_sims, labels = [], []
-    pbar = tqdm(enumerate(val_loader), total=len(val_loader))
-    for batch_idx, (batch1, batch2, c_labels, r_labels) in pbar:
+    pbar = tqdm(val_loader, total=len(val_loader))
+    for (batch1, batch2, c_labels, r_labels) in pbar:
         r_labels = r_labels.to(config.device)
         batch1 = {k:v.squeeze(1).to(config.device) for k, v in batch1.items()}
         batch2 = {k:v.squeeze(1).to(config.device) for k, v in batch2.items()}
         with torch.no_grad():
-            emba, embb, loss = model(batch1, batch2, r_labels)
+            emba, embb, router_logits, c_loss, r_loss = model(batch1, batch2, r_labels)
         cosine_sims.extend(F.cosine_similarity(emba, embb).tolist())
         labels.extend(c_labels.tolist())
     cosine_sims_tensor = torch.tensor(cosine_sims, dtype=torch.float)
@@ -79,7 +79,7 @@ def validate(config, model, val_loader):
 def train(config, model, optimizer, train_loader, val_loader):
     best_val_f1 = float('inf')
     patience_counter = 0
-    losses, cos_sims = [], []
+    c_losses, r_losses, cos_sims, accuracies = [], [], [], []
 
     for epoch in range(config.epochs):
         model.train()
@@ -89,17 +89,24 @@ def train(config, model, optimizer, train_loader, val_loader):
             batch1 = {k:v.squeeze(1).to(config.device) for k, v in batch1.items()}
             batch2 = {k:v.squeeze(1).to(config.device) for k, v in batch2.items()}
             optimizer.zero_grad()
-            emba, embb, loss = model(batch1, batch2, r_labels)
+            emba, embb, router_logits, c_loss, r_loss = model(batch1, batch2, r_labels)
+            loss = c_loss + r_loss
             loss.backward()
             optimizer.step()
 
-            losses.append(loss.item())
+            c_losses.append(c_loss.item())
+            r_losses.append(r_loss.item())
             cos_sims.append(F.cosine_similarity(emba, embb).mean().item())
+            router_predictions = torch.argmax(router_logits, dim=1)
+            accuracy = (router_predictions == r_labels).float().mean().item()
+            accuracies.append(accuracy)
 
-            if len(losses) > 10:
-                avg_loss = np.mean(losses[-10:])
+            if len(c_losses) > 10:
+                avg_c_loss = np.mean(c_losses[-10:])
+                avg_r_loss = np.mean(r_losses[-10:])
                 avg_cos_sim = np.mean(cos_sims[-10:])
-                pbar.set_description(f'Epoch {epoch} Loss: {avg_loss:.4f} Cosine Similarity: {avg_cos_sim:.4f}')
+                avg_accuracy = np.mean(accuracies[-10:])
+                pbar.set_description(f'Epoch {epoch} C_Loss: {avg_c_loss:.4f} R_Loss: {avg_r_loss:.4f} Cosine Similarity: {avg_cos_sim:.4f} Accuracy: {avg_accuracy:.4f}')
 
             if batch_idx % config.validate_interval == 0:
                 threshold, val_f1 = validate(config, model, val_loader)

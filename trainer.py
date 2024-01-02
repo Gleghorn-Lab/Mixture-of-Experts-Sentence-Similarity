@@ -96,9 +96,9 @@ def train(config, model, optimizer, train_loader, val_loader):
             losses.append(loss.item())
             cos_sims.append(F.cosine_similarity(emba, embb).mean().item())
 
-            if len(losses) > 100:
-                avg_loss = np.mean(losses[-100:])
-                avg_cos_sim = np.mean(cos_sims[-100:])
+            if len(losses) > 10:
+                avg_loss = np.mean(losses[-10:])
+                avg_cos_sim = np.mean(cos_sims[-10:])
                 pbar.set_description(f'Epoch {epoch} Loss: {avg_loss:.4f} Cosine Similarity: {avg_cos_sim:.4f}')
 
             if batch_idx % config.validate_interval == 0:

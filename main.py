@@ -14,9 +14,12 @@ def get_args():
     parser.add_argument('--domains', nargs='+', default=['[CVD]', '[COPD]'])
     parser.add_argument('--batch_size', type=int, default=20)
     parser.add_argument('--lr', type=float, default=1e-4)
-    parser.add_argument('--validate_interval', type=int, default=10000)
+    parser.add_argument('--validate_interval', type=int, default=1000)
     parser.add_argument('--device', default='cuda' if torch.cuda.is_available() else 'cpu')
     parser.add_argument('--patience', type=int, default=3)
+    parser.add_argument('--specific', type=bool, default=True)
+    parser.add_argument('--c_scale', type=float, default=1.0)
+    parser.add_argument('--r_scale', type=float, default=0.1)
     return parser.parse_args()
 
 if __name__ == "__main__":
@@ -27,7 +30,7 @@ if __name__ == "__main__":
     base_model.config.hidden_dropout_prob = 0.05
     loader = MiniMoELoadWeights(base_model=base_model, tokenizer=tokenizer, domains=args.domains)
     model, tokenizer = loader.get_seeded_model()
-    mini = MiniMoE(model).to(args.device)
+    mini = MiniMoE(model, specific=args.specific, c_scale=args.c_scale, r_scale=args.r_scale).to(args.device)
 
     train_dataset, valid_dataset, test_dataset = get_datasets(args.data_paths, tokenizer, args.domains)
     train_loader = TorchLoader(train_dataset, batch_size=args.batch_size, shuffle=True)

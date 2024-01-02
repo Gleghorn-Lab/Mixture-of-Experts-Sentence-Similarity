@@ -9,7 +9,7 @@ def calc_f1(ss, labels, cutoff):
 
 
 def calc_f1max(ss, labels, limits=torch.tensor([-1, 1]), increment=0.001):
-    cutoffs = torch.arange(limits[0], limits[1]+increment, increment)
+    cutoffs = torch.arange(limits[0], limits[1]-increment, increment)
     f1_scores = torch.tensor([calc_f1(ss, labels, cutoff.item()) for cutoff in cutoffs])
     max_index = torch.argmax(f1_scores)
     return cutoffs[max_index].item(), f1_scores[max_index].item() # return threshold and f1max

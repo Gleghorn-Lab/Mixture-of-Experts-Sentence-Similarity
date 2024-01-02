@@ -6,7 +6,6 @@ from transformers import BertModel, BertTokenizer
 from model import MiniMoELoadWeights, MiniMoE
 
 
-
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_path', default='sentence-transformers/all-MiniLM-L6-v2')
@@ -17,6 +16,7 @@ def get_args():
     parser.add_argument('--lr', type=float, default=1e-4)
     parser.add_argument('--validate_interval', type=int, default=10000)
     parser.add_argument('--device', default='cuda' if torch.cuda.is_available() else 'cpu')
+    parser.add_argument('--patience', type=int, default=3)
     return parser.parse_args()
 
 if __name__ == "__main__":

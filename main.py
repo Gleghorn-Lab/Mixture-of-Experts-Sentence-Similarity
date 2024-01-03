@@ -78,9 +78,16 @@ def load_model(args):
     if args.MOE:
         loader = BertMoELoadWeights(base_model=base_model, tokenizer=tokenizer, domains=args.domains)
         base_model, tokenizer = loader.get_seeded_model()
-        model = BertMoEForSentenceSimilarity(base_model, MNR=args.MNR, specific=args.specific, c_scale=args.c_scale, r_scale=args.r_scale).to(args.device)
+        model = BertMoEForSentenceSimilarity(base_model,
+                                             MNR=args.MNR,
+                                             specific=args.specific,
+                                             balance=args.balance,
+                                             c_scale=args.c_scale,
+                                             r_scale=args.r_scale).to(args.device)
     else:
-        model = BertForSentenceSimilarity(base_model, args.MNR, args.c_scale).to(args.device)
+        model = BertForSentenceSimilarity(base_model,
+                                          args.MNR,
+                                          args.c_scale).to(args.device)
     return model, tokenizer
 
 

@@ -108,7 +108,7 @@ class MoEBertOutputWithPoolingAndCrossAttentions(BaseModelOutputWithPoolingAndCr
     router_logits: Optional[Tuple[torch.FloatTensor]] = None
 
 
-class MiniMoE(nn.Module):
+class BertMoEForSentenceSimilarity(nn.Module):
     def __init__(self, model, MNR=True, specific=True, balance=False, c_scale=1.0, r_scale=0.1):
         super().__init__()
         from losses import specified_expert_loss, load_balancing_loss, MNR_loss, clip_loss
@@ -142,9 +142,35 @@ class MiniMoE(nn.Module):
         elif self.balance:
             r_loss = self.router_loss(router_logits) * self.r_scale
         return emba, embb, router_logits, c_loss, r_loss
+    
+
+class BertForSentenceSimilarity(nn.Module):
+    def __init__(self, model, MNR=True, c_scale=1.0):
+        super().__init__()
+        from losses import MNR_loss, clip_loss
+        self.bert = model
+        self.MNR = MNR
+        self.contrastive_loss = MNR_loss if MNR else clip_loss
+        self.c_scale = c_scale
+        if clip_loss:
+            self.temp = nn.Parameter(torch.tensor(0.7))
+    
+    def forward(self, batch1, batch2, labels=None):
+        if random.random() < 0.5:
+            outputa = self.bert(**batch1)
+            outputb = self.bert(**batch2)
+        else:
+            outputa = self.bert(**batch2)
+            outputb = self.bert(**batch1)
+
+        emba = outputa.pooler_output
+        embb = outputb.pooler_output
+
+        c_loss = self.contrastive_loss(emba, embb, self.c_scale) if self.MNR else self.contrastive_loss(emba, embb, self.temp)
+        return emba, embb, c_loss
 
 
-class MiniMoELoadWeights:
+class BertMoELoadWeights:
     def __init__(self, base_model, tokenizer, domains):
         self.bert_base = base_model # base bert model
         self.tokenizer = tokenizer # bert tokenizer
@@ -255,7 +281,7 @@ class BertExpert(nn.Module):
         return hidden_states
 
 
-class BertMoeBlock(nn.Module):
+class BertMoEBlock(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.hidden_dim = config.hidden_size
@@ -298,7 +324,7 @@ class BertLayer(nn.Module):
             if not self.is_decoder:
                 raise ValueError(f"{self} should be used as a decoder model if cross attention is added")
             self.crossattention = BertAttention(config, position_embedding_type="absolute")
-        self.moe_block = BertMoeBlock(config)
+        self.moe_block = BertMoEBlock(config)
         self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
 
     def forward(

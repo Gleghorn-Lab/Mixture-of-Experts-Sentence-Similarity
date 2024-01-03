@@ -31,7 +31,7 @@ class TextDataset(TorchDataset):
         return tokenized_a, tokenized_b, c_label, r_label
 
 
-def get_datasets(data_paths, tokenizer, domains):
+def get_datasets_train(data_paths, tokenizer, domains):
     train_a, train_b, train_c_label, train_r_label = [], [], [], []
     valid_a, valid_b, valid_c_label, valid_r_label = [], [], [], []
     test_a, test_b, test_c_label, test_r_label = [], [], [], []
@@ -58,16 +58,41 @@ def get_datasets(data_paths, tokenizer, domains):
     return train_dataset, valid_dataset, test_dataset
 
 
-def test(config, model, test_loader):
+def get_datasets_test(data_paths, tokenizer, domains):
+    valid_datasets = []
+    test_datasets = []
+    for i, data_path in enumerate(data_paths):
+        valid_a, valid_b, valid_c_label, valid_r_label = [], [], [], []
+        test_a, test_b, test_c_label, test_r_label = [], [], [], []
+        dataset = load_dataset(data_path)
+        valid = dataset['valid']
+        test = dataset['test']
+        valid_a.extend(valid['a'])
+        valid_b.extend(valid['b'])
+        valid_c_label.extend(valid['label'])
+        valid_r_label.extend([i] * len(valid['label']))
+        test_a.extend(test['a'])
+        test_b.extend(test['b'])
+        test_c_label.extend(test['label'])
+        test_r_label.extend([i] * len(test['label']))
+        valid_datasets.append(TextDataset(valid_a, valid_b, valid_c_label, valid_r_label, tokenizer, domains))
+        test_datasets.append(TextDataset(test_a, test_b, test_c_label, test_r_label, tokenizer, domains))
+    return valid_datasets, test_datasets
+
+
+def test(config, model, test_loader, domain='dataset'):
     model.eval()
     cosine_sims, labels = [], []
-    pbar = tqdm(test_loader, total=len(test_loader), desc='Testing')
+    pbar = tqdm(test_loader, total=len(test_loader), desc=f'Evaluating {domain}')
     for (batch1, batch2, c_labels, r_labels) in pbar:
         r_labels = r_labels.to(config.device)
         batch1 = {k:v.squeeze(1).to(config.device) for k, v in batch1.items()}
         batch2 = {k:v.squeeze(1).to(config.device) for k, v in batch2.items()}
         with torch.no_grad():
-            emba, embb, router_logits, c_loss, r_loss = model(batch1, batch2, r_labels)
+            try:
+                emba, embb, router_logits, c_loss, r_loss = model(batch1, batch2, r_labels)
+            except:
+                emba, embb, c_loss = model(batch1, batch2, r_labels)
         cosine_sims.extend(F.cosine_similarity(emba, embb).tolist())
         labels.extend(c_labels.tolist())
     cosine_sims_tensor = torch.tensor(cosine_sims, dtype=torch.float)
@@ -87,7 +112,10 @@ def validate(config, model, val_loader):
         batch1 = {k:v.squeeze(1).to(config.device) for k, v in batch1.items()}
         batch2 = {k:v.squeeze(1).to(config.device) for k, v in batch2.items()}
         with torch.no_grad():
-            emba, embb, router_logits, c_loss, r_loss = model(batch1, batch2, r_labels)
+            try:
+                emba, embb, router_logits, c_loss, r_loss = model(batch1, batch2, r_labels)
+            except:
+                emba, embb, c_loss = model(batch1, batch2, r_labels)
         cosine_sims.extend(F.cosine_similarity(emba, embb).tolist())
         labels.extend(c_labels.tolist())
     cosine_sims_tensor = torch.tensor(cosine_sims, dtype=torch.float)
@@ -96,7 +124,7 @@ def validate(config, model, val_loader):
     return threshold, f1max
 
 
-def train(config, model, optimizer, train_loader, val_loader):
+def train_moebert(config, model, optimizer, train_loader, val_loader, save_path='./best_model.pt'):
     best_val_f1 = float('inf')
     avg = config.average_interval
     patience_counter = 0
@@ -145,20 +173,83 @@ def train(config, model, optimizer, train_loader, val_loader):
 
             if batch_idx % config.validate_interval == 0 and batch_idx > 0:
                 threshold, val_f1 = validate(config, model, val_loader)
+                model.train()
                 print(f'Epoch {epoch} Step {batch_idx} Threshold {threshold} Val F1 ', val_f1)
                 if config.wandb:
                     wandb.log({'Threshold': threshold, 'Val F1max': val_f1})
                     if not config.MNR:
                         wandb.log({'Temperature': model.temp.detach().item()})
-                if val_f1 < best_val_f1:
+                if val_f1 > best_val_f1:
                     best_val_f1 = val_f1
                     patience_counter = 0
-                    torch.save(model.state_dict(), 'best_model.pt')
+                    torch.save(model.state_dict(), save_path)
                 else:
                     patience_counter += 1
                     if patience_counter > config.patience:
-                        print('Early stopping due to loss not improving')
-                        model.load_state_dict(torch.load('best_model.pt'))
+                        print('Early stopping due to evaluation not improving')
+                        model.load_state_dict(torch.load(save_path))
                         return model
-    model.load_state_dict(torch.load('best_model.pt'))
+    model.load_state_dict(torch.load(save_path))
+    return model
+
+
+def train_bert(config, model, optimizer, train_loader, val_loader, save_path='./best_model.pt'):
+    best_val_f1 = float('inf')
+    avg = config.average_interval
+    patience_counter = 0
+    c_losses, cos_sims = [], []
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer,
+                                                    max_lr=config.lr,
+                                                    steps_per_epoch=len(train_loader),
+                                                    epochs=config.epochs,
+                                                    pct_start=(config.warmup_steps/len(train_loader))/config.epochs) # warmup steps as percentage
+
+    if config.wandb:
+        import wandb
+        wandb.init(project=config.project_name)
+        wandb.watch(model)
+
+    for epoch in range(config.epochs):
+        model.train()
+        pbar = tqdm(enumerate(train_loader), total=len(train_loader))
+        for batch_idx, (batch1, batch2, c_labels, r_labels) in pbar:
+            r_labels = r_labels.to(config.device)
+            batch1 = {k:v.squeeze(1).to(config.device) for k, v in batch1.items()}
+            batch2 = {k:v.squeeze(1).to(config.device) for k, v in batch2.items()}
+            optimizer.zero_grad()
+            emba, embb, c_loss = model(batch1, batch2, r_labels)
+            c_loss.backward()
+            optimizer.step()
+            scheduler.step()  # Update learning rate for warmup
+
+            c_losses.append(c_loss.item())
+            cos_sims.append(F.cosine_similarity(emba, embb).mean().item())
+            if len(c_losses) > avg:
+                avg_c_loss = np.mean(c_losses[-avg:])
+                avg_cos_sim = np.mean(cos_sims[-avg:])
+                pbar.set_description(f'Epoch {epoch} C_Loss: {avg_c_loss:.4f} Cosine Similarity: {avg_cos_sim:.4f}')
+
+                if config.wandb:
+                    wandb.log({'C_Loss': avg_c_loss, 'Cosine Similarity': avg_cos_sim, 'Learning Rate': scheduler.get_last_lr()[0]})
+
+            if batch_idx % config.validate_interval == 0 and batch_idx > 0:
+                threshold, val_f1 = validate(config, model, val_loader)
+                model.train()
+                print(f'Epoch {epoch} Step {batch_idx} Threshold {threshold} Val F1 ', val_f1)
+                if config.wandb:
+                    wandb.log({'Threshold': threshold, 'Val F1max': val_f1})
+                    if not config.MNR:
+                        wandb.log({'Temperature': model.temp.detach().item()})
+                if val_f1 > best_val_f1:
+                    best_val_f1 = val_f1
+                    patience_counter = 0
+                    torch.save(model.state_dict(), save_path)
+                else:
+                    patience_counter += 1
+                    if patience_counter > config.patience:
+                        print('Early stopping due to evaluation not improving')
+                        model.load_state_dict(torch.load(save_path))
+                        return model
+    model.load_state_dict(torch.load(save_path))
+    print('Early stopping not reached. Training concluded.')
     return model

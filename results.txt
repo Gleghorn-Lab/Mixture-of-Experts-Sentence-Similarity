@@ -1,0 +1,53 @@
+Results
+
+Mini MOE Specific
+
+-----Validation Metrics [CVD]-----
+Threshold: 0.9990000128746033
+F1 Max: 0.669701874256134
+Accuracy: 0.5093804597854614
+Distance: 0.4999561607837677
+
+-----Validation Metrics [COPD]-----
+Threshold: -1.0
+F1 Max: 0.6666666865348816
+Accuracy: 0.5
+Distance: 0.4999845325946808
+
+-----Testing Metrics [CVD]-----
+Threshold: -1.0
+F1 Max: 1.0
+Accuracy: 1.0
+Distance: 0.00022534173331223428
+
+-----Testing Metrics [COPD]-----
+Threshold: -1.0
+F1 Max: 1.0
+Accuracy: 1.0
+Distance: 0.00015631018322892487
+
+Mini MOE Balance
+
+-----Validation Metrics [CVD]-----
+Threshold: -1.0
+F1 Max: 0.6666666865348816
+Accuracy: 0.5
+Distance: 0.4999997913837433
+
+-----Validation Metrics [COPD]-----
+Threshold: -1.0
+F1 Max: 0.6666666865348816
+Accuracy: 0.5
+Distance: 0.49998968839645386
+
+-----Testing Metrics [CVD]-----
+Threshold: -1.0
+F1 Max: 1.0
+Accuracy: 1.0
+Distance: 0.0001951754529727623
+
+-----Testing Metrics [COPD]-----
+Threshold: -1.0
+F1 Max: 1.0
+Accuracy: 1.0
+Distance: 0.00015661530778743327

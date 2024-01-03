@@ -40,7 +40,7 @@ def evaluate_model(args, trained_model, tokenizer):
     with open(args.log_path, 'w') as f:
         for i, val_dataset in enumerate(validation_datasets):
             val_loader = TorchLoader(val_dataset, batch_size=args.batch_size, shuffle=False)
-            threshold, f1max, acc, dist = test(args, trained_model, val_loader, args.domain[i])
+            threshold, f1max, acc, dist = test(args, trained_model, val_loader, args.domains[i])
             f.write(f'\n-----Validation Metrics {args.domains[i]}-----\n')
             f.write(f'Threshold: {threshold}\n')
             f.write(f'F1 Max: {f1max}\n')
@@ -49,7 +49,7 @@ def evaluate_model(args, trained_model, tokenizer):
 
         for i, test_dataset in enumerate(testing_datasets):
             test_loader = TorchLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
-            threshold, f1max, acc, dist = test(args, trained_model, test_loader, args.domain[i])
+            threshold, f1max, acc, dist = test(args, trained_model, test_loader, args.domains[i])
             f.write(f'\n-----Testing Metrics {args.domains[i]}-----\n')
             f.write(f'Threshold: {threshold}\n')
             f.write(f'F1 Max: {f1max}\n')

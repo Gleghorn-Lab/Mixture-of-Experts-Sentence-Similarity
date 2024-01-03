@@ -39,7 +39,7 @@ def evaluate_model(args, trained_model, tokenizer):
     validation_datasets, testing_datasets = get_datasets_test(args.data_paths, tokenizer, args.domains)
     with open(args.log_path, 'a') as f:
         for arg in vars(args):
-            f.write((f'{arg}: {getattr(args, arg)}'))
+            f.write((f'\n{arg}: {getattr(args, arg)}'))
         
         for i, val_dataset in enumerate(validation_datasets):
             val_loader = TorchLoader(val_dataset, batch_size=args.batch_size, shuffle=False)

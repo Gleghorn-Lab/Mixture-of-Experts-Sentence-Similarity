@@ -125,9 +125,8 @@ def validate(config, model, val_loader):
 
 
 def train_moebert(config, model, optimizer, train_loader, val_loader, save_path='./best_model.pt'):
-    best_val_f1 = float('inf')
+    best_val_f1, patience_counter = 0.0, 0
     avg = config.average_interval
-    patience_counter = 0
     c_losses, r_losses, cos_sims, accuracies = [], [], [], []
     scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer,
                                                     max_lr=config.lr,
@@ -194,9 +193,8 @@ def train_moebert(config, model, optimizer, train_loader, val_loader, save_path=
 
 
 def train_bert(config, model, optimizer, train_loader, val_loader, save_path='./best_model.pt'):
-    best_val_f1 = float('inf')
+    best_val_f1, patience_counter = 0.0, 0
     avg = config.average_interval
-    patience_counter = 0
     c_losses, cos_sims = [], []
     scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer,
                                                     max_lr=config.lr,

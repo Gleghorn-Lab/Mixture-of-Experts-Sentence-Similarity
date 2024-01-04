@@ -1,5 +1,32 @@
 Results
 
+SciBert MOE Specific
+
+-----Validation Metrics [CVD]-----
+Threshold: 0.9819999933242798
+F1 Max: 0.9678671360015869
+Accuracy: 0.9674956202507019
+Distance: 0.48442378640174866
+
+-----Validation Metrics [COPD]-----
+Threshold: 0.984000027179718
+F1 Max: 0.8016701936721802
+Accuracy: 0.786995530128479
+Distance: 0.4948957562446594
+
+-----Testing Metrics [CVD]-----
+Threshold: -1.0
+F1 Max: 1.0
+Accuracy: 1.0
+Distance: 0.006539714056998491
+
+-----Testing Metrics [COPD]-----
+Threshold: 0.9990000128746033
+F1 Max: nan
+Accuracy: 0.0
+Distance: 0.012203939259052277
+
+
 Mini MOE Specific
 
 -----Validation Metrics [CVD]-----
@@ -51,3 +78,143 @@ Threshold: -1.0
 F1 Max: 1.0
 Accuracy: 1.0
 Distance: 0.00015661530778743327
+
+project_name: MiniMOE
+model_path: sentence-transformers/all-MiniLM-L6-v2
+data_paths: ['lhallee/abstract_domain_cvd']
+log_path: ./results.txt
+save_path: mini_cvd.pt
+weight_path: ./best_model.pt
+epochs: 10
+domains: ['[CVD]']
+batch_size: 20
+lr: 1e-05
+warmup_steps: 500
+validate_interval: 1000
+average_interval: 25
+device: cudapatience: 5
+MNR: Falsespecific: False
+balance: FalseMOE: Falsee
+val: Falsec_scale: 1.0
+r_scale: 1.0
+dropout: 0.1
+wandb: True
+
+-----Validation Metrics [CVD]-----
+Threshold: 0.5110000371932983
+F1 Max: 0.9350041747093201
+Accuracy: 0.9332460761070251
+Distance: 0.23293736577033997
+
+-----Testing Metrics [CVD]-----
+Threshold: 0.9880000352859497
+F1 Max: nan
+Accuracy: 0.0
+Distance: 0.18577149510383606
+
+project_name: MiniMOE
+model_path: sentence-transformers/all-MiniLM-L6-v2
+data_paths: ['lhallee/abstract_domain_copd']
+log_path: ./results.txt
+save_path: mini_copd.pt
+weight_path: ./best_model.pt
+epochs: 10
+domains: ['[COPD]']
+batch_size: 20
+lr: 1e-05
+warmup_steps: 500
+validate_interval: 1000
+average_interval: 25
+device: cuda
+patience: 5
+MNR: False
+specific: False
+balance: False
+MOE: False
+eval: False
+c_scale: 1.0
+r_scale: 1.0
+dropout: 0.1
+wandb: True
+-----Validation Metrics [COPD]-----
+Threshold: 0.36000001430511475
+F1 Max: 0.8291316032409668
+Accuracy: 0.8176382780075073
+Distance: 0.33046823740005493
+
+-----Testing Metrics [COPD]-----
+Threshold: -1.0
+F1 Max: 1.0
+Accuracy: 1.0
+Distance: 0.47276097536087036
+
+project_name: MiniMOE
+model_path: allenai/scibert_scivocab_uncased
+data_paths: ['lhallee/abstract_domain_cvd']
+log_path: ./results.txt
+save_path: sci_cvd.pt
+weight_path: ./best_model.pt
+epochs: 10domains: ['[CVD]']
+batch_size: 20
+lr: 1e-05
+warmup_steps: 500
+validate_interval: 1000
+average_interval: 25
+device: cuda
+patience: 5
+MNR: False
+specific: False
+balance: False
+MOE: False
+eval: False
+c_scale: 1.0
+r_scale: 1.0
+dropout: 0.1
+wandb: True
+-----Validation Metrics [CVD]-----
+Threshold: 0.9800000190734863
+F1 Max: 0.9702109098434448
+Accuracy: 0.9701134562492371
+Distance: 0.4828985333442688
+
+-----Testing Metrics [CVD]-----
+Threshold: -1.0
+F1 Max: 1.0
+Accuracy: 1.0
+Distance: 0.008035332895815372
+
+project_name: MiniMOE
+model_path: allenai/scibert_scivocab_uncased
+data_paths: ['lhallee/abstract_domain_copd']
+log_path: ./results.txt
+save_path: sci_copd.pt
+weight_path: ./best_model.pt
+epochs: 10
+domains: ['[COPD]']
+batch_size: 20
+lr: 1e-05
+warmup_steps: 500
+validate_interval: 1000
+average_interval: 25
+device: cuda
+patience: 5
+MNR: False
+specific: False
+balance: False
+MOE: False
+eval: False
+c_scale: 1.0
+r_scale: 1.0
+dropout: 0.1
+wandb: True
+-----Validation Metrics [COPD]-----
+Threshold: 0.9939999580383301
+F1 Max: 0.8057928085327148
+Accuracy: 0.804559051990509
+Distance: 0.4980338215827942
+
+-----Testing Metrics [COPD]-----
+Threshold: -1.0
+F1 Max: 1.0
+Accuracy: 1.0
+Distance: 0.005718860775232315

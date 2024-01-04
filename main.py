@@ -38,6 +38,7 @@ def get_args():
 def evaluate_model(args, trained_model, tokenizer):
     validation_datasets, testing_datasets = get_datasets_test(args.data_paths, tokenizer, args.domains)
     with open(args.log_path, 'a') as f:
+        f.write('\n')
         for arg in vars(args):
             f.write((f'\n{arg}: {getattr(args, arg)}'))
         

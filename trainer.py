@@ -98,8 +98,8 @@ def test(config, model, test_loader, domain='dataset'):
     cosine_sims_tensor = torch.tensor(cosine_sims, dtype=torch.float)
     labels_tensor = torch.tensor(labels, dtype=torch.float)
     if config.limits:
-        lower = input('Input lower bound: ')
-        upper = input('Input upper bound: ')
+        lower = float(input('Input lower bound: '))
+        upper = float(input('Input upper bound: '))
     else:
         lower = -1
         upper = 1

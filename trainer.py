@@ -97,7 +97,13 @@ def test(config, model, test_loader, domain='dataset'):
         labels.extend(c_labels.tolist())
     cosine_sims_tensor = torch.tensor(cosine_sims, dtype=torch.float)
     labels_tensor = torch.tensor(labels, dtype=torch.float)
-    threshold, f1max = calc_f1max(cosine_sims_tensor, labels_tensor)
+    if config.limits:
+        lower = input('Input lower bound: ')
+        upper = input('Input upper bound: ')
+    else:
+        lower = -1
+        upper = 1
+    threshold, f1max = calc_f1max(cosine_sims_tensor, labels_tensor, limits=[lower, upper])
     acc = calc_accuracy(cosine_sims_tensor, labels_tensor, cutoff=threshold)
     dist = calc_distance(cosine_sims_tensor, labels_tensor)
     return threshold, f1max, acc, dist

@@ -28,6 +28,7 @@ def get_args():
     parser.add_argument('--balance', action='store_true')
     parser.add_argument('--MOE', action='store_true')
     parser.add_argument('--eval', action='store_true')
+    parser.add_argument('--limits', action='store_true', help='Lets user define limits for F1max')
     parser.add_argument('--c_scale', type=float, default=1.0)
     parser.add_argument('--r_scale', type=float, default=1.0)
     parser.add_argument('--dropout', type=float, default=0.1)

@@ -7,18 +7,21 @@ def calc_precision(ss, labels, cutoff):
     denominator = tp + fp
     return torch.where(denominator != 0, tp / denominator, torch.tensor(0.0))
 
+
 def calc_recall(ss, labels, cutoff):
     tp = torch.sum((ss >= cutoff) & (labels == 1))
     fn = torch.sum((ss < cutoff) & (labels == 1))
     denominator = tp + fn
     return torch.where(denominator != 0, tp / denominator, torch.tensor(0.0))
 
+
 def calc_f1(ss, labels, cutoff):
     recall = calc_recall(ss, labels, cutoff)
     precision = calc_precision(ss, labels, cutoff)
     return torch.where((precision + recall) != 0, (2 * precision * recall)/(precision + recall), torch.tensor(0.0))
 
-def calc_f1max(ss, labels, limits=torch.tensor([-1, 1]), increment=0.001):
+
+def calc_f1max(ss, labels, limits=[-1, 1], increment=0.001):
     if ss.nelement() == 0 or labels.nelement() == 0:
         return None, None
     cutoffs = torch.arange(limits[0], limits[1], increment)

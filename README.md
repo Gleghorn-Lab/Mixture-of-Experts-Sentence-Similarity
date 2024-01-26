@@ -1,21 +1,23 @@
 # Multi-Vocab-MOE
  
 This repository serves as the code base for the paper _Contrastive Learning and Mixture of Experts Enables Precise Vector Embeddings_
+
 Rohan Kapur*, Logan Hallee*, Arjun Patel, and Bohdan Bohdan Khomtchouk
+
 <sub><sup>* equal contribution</sup></sub>
 
 Preprint: doi
 
 Peer review: doi
 
-# Main findings
+## Main findings
 * Extending BERT models with N experts copied from their MLP section is highly effective for fine-tuning on downstream tasks, including multitask or multidomain data.
 * N experts are exactly as effective as N individual models trained on N domains for sentence similarity tasks.
 * Small BERT models are not more effective with N experts, likely due to small shared attention layers.
 * Enforced routing of experts can be handled with added special tokens for sentence-wise routing or token type IDs for token-wise routing, even when the router is a single linear layer. Enforced routing can also be accomplished by passing a list of desired indices.
 * Cocitation networks are highly effective for gathering similar niche papers.
 
-# Code Details
+## Code Details
 * data_compilation
 
 **citation_extraction.R**
@@ -44,5 +46,5 @@ All losses used in training, including various contrastive and router losses.
 
 Functions for PyTorch dataset compilation and training / evaluation of models, with versions for BERT or MOE-BERT.
 
-# Please cite
+## Please cite
 bibtex

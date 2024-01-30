@@ -6,9 +6,17 @@ Rohan Kapur*, Logan Hallee*, Arjun Patel, and Bohdan Bohdan Khomtchouk
 
 <sub><sup>* equal contribution</sup></sub>
 
-Preprint: doi
+Preprint: [Contrastive Learning and Mixture of Experts Enables Precise Vector Embeddings](https://arxiv.org/abs/2401.15713)
 
-Peer review: doi
+Peer review: _preparing submission_
+
+## Coming soon
+* Model checkpoints
+* Extended documentation / examples
+
+## Dataset availability
+CVD  - [Huggingface](https://huggingface.co/datasets/lhallee/abstract_domain_cvd)
+COPD - [Huggingface](https://huggingface.co/datasets/lhallee/abstract_domain_copd)
 
 ## Main findings
 * Extending BERT models with N experts copied from their MLP section is highly effective for fine-tuning on downstream tasks, including multitask or multidomain data.
@@ -53,4 +61,14 @@ All losses used in training, including various contrastive and router losses.
 Functions for PyTorch dataset compilation and training / evaluation of models, with versions for BERT or MOE-BERT.
 
 ## Please cite
-bibtex
+```
+@article{kapur2024contrastive,
+      title={Contrastive Learning and Mixture of Experts Enables Precise Vector Embeddings}, 
+      author={Rohan Kapur and Logan Hallee and Arjun Patel and Bohdan Khomtchouk},
+      year={2024},
+      eprint={2401.15713},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG}
+}
+```
+and upvote on [Huggingface](https://huggingface.co/papers/2401.15713)!

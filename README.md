@@ -1,4 +1,4 @@
-# Multi-Vocab-MOE
+# Mixture-of-Experts-Sentence-Similarity
  
 This repository serves as the code base for the paper _Contrastive Learning and Mixture of Experts Enables Precise Vector Embeddings_
 

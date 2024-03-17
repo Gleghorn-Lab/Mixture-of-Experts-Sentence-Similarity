@@ -54,9 +54,9 @@ training_args:
   logging_dir: !!str ./logs
   report_to: null
 
-  per_device_train_batch_size: !!int 20
-  per_device_eval_batch_size: !!int 20
-  gradient_accumulation_steps: !!int 1
+  per_device_train_batch_size: !!int 10
+  per_device_eval_batch_size: !!int 10
+  gradient_accumulation_steps: !!int 2
   learning_rate: !!float 1e-5
   lr_scheduler_type: !!str cosine
   weight_decay: !!float 0.01

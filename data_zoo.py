@@ -76,7 +76,7 @@ def get_datasets_train(args, tokenizer):
         test_r_label.extend([i] * len(test[label_col]))
     train_dataset = TextDataset(train_a, train_b, train_c_label, train_r_label,
                                 tokenizer, domains, max_length)
-    valid_dataset = TextDataset(valid_a[:10], valid_b[:10], valid_c_label[:10], valid_r_label[:10],
+    valid_dataset = TextDataset(valid_a, valid_b, valid_c_label, valid_r_label,
                                 tokenizer, domains, max_length)
     test_dataset = TextDataset(test_a, test_b, test_c_label, test_r_label,
                                tokenizer, domains, max_length)

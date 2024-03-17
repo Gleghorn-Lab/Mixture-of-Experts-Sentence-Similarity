@@ -5,7 +5,7 @@ general_args:
 
   moe_type: 'topk'
   MOE: true 
-  token_moe: false
+  token_moe: true
 
   contact_head: false
 
@@ -45,7 +45,7 @@ general_args:
   log_path: './results.txt'  # Path to save the log file
   weight_path: null  # Path to the model weights to load
 
-  patience: 3
+  patience: 5
   limits: false  # Lets user define limits for F1max
 
 
@@ -75,7 +75,7 @@ training_args:
   logging_strategy: steps
   logging_steps: !!int 100
 
-  bf16: false
+  bf16: true
   fp16: false
 
   seed: !!int 42

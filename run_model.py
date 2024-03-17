@@ -35,8 +35,11 @@ def train_model(yargs, model, tokenizer, compute_metrics):
                          compute_metrics=compute_metrics, data_collator=data_collator,
                          patience=args['patience'], MI=args['MI_loss'], **training_args)
     trainer.train()
+
     weight_path = args['weight_path']
-    torch.save(trainer.model, f=weight_path)
-    print(f'Model saved at {weight_path}')
+    if weight_path is not None:
+        torch.save(trainer.model, f=weight_path)
+        tokenizer.save_pretrained(weight_path.split('.')[0] + '_tokenizer')
+        print(f'Model saved at {weight_path}')
 
     evaluate_model(yargs, tokenizer, trainer=trainer, compute_metrics=compute_metrics)

@@ -16,10 +16,9 @@ general_args:
   contrastive_loss: clip
   MI_loss: false
 
-
   new_special_tokens: true  # Add new special tokens for each domain token seeded with CLS
   domains:  # List of domain tags
-    - '[CAN]'
+    - '[IMM]'
   
   wBAL: !!float 0.1
   wMI: !!float 0.1
@@ -27,7 +26,7 @@ general_args:
 
 #data_settings:
   data_paths:  # Paths to the datasets
-    - 'lhallee/abstract_domain_skincancer'
+    - 'lhallee/abstract_domain_autoimmune'
   a_col: 'a'  # First feature column name in datasets
   b_col: 'b'  # Second feature column name in datasets
   label_col: 'label'  # Label column name in datasets
@@ -43,7 +42,7 @@ general_args:
 #misc:
   project_name: 'SciMOE'  # Name of the project
   log_path: './results.txt'  # Path to save the log file
-  weight_path: 'cancer_single.pt'  # Path to the model weights to load
+  weight_path: 'autoimmune_single.pt'  # Path to the model weights to load
 
   patience: 3
   limits: false  # Lets user define limits for F1max

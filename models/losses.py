@@ -55,7 +55,6 @@ class MILoss(nn.Module):
         self.MI_task_gate = torch.zeros(config.num_tasks, config.num_experts)
         self.num_experts = config.num_experts
         self.topk = config.topk
-        self.token_moe = config.token_moe
 
     def update_MI_task_gate(self, probs, router_labels):
         """
@@ -93,17 +92,7 @@ class MILoss(nn.Module):
         router_logits = router_logits.detach().cpu()
         router_labels = router_labels.detach().cpu()
         probs = router_logits.softmax(dim=-1)
-
-        if self.token_moe:
-            # router_logits (batch_size, seq_len, num_experts)
-            # router_labels (batch_size, )
-            # reshape to 
-            # router_logits (batch_size * seq_len, num_experts)
-            # expand to
-            # router_labels (batch_size * seq_len, )
-            router_labels = router_labels.unsqueeze(1).expand(-1, probs.size(1)).contiguous().view(-1)
         probs = probs.view(-1, self.num_experts)
-        
         self.update_MI_task_gate(probs, router_labels)
 
     def forward(self, router_logits: torch.Tensor, router_labels: torch.Tensor) -> torch.Tensor:

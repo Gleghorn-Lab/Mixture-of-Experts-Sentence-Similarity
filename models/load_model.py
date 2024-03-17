@@ -1,9 +1,9 @@
 import time
 import copy
 import torch
-from modeling_moebert import MoEBertModel
-from configuration_moesm import MoEsmConfig
-from modeling_moesm import (
+from models.modeling_moebert import MoEBertModel
+from models.configuration_moesm import MoEsmConfig
+from models.modeling_moesm import (
     MoEsmModel,
     MoEsmForMaskedLM,
     MoEsmForSequenceClassification,
@@ -124,13 +124,11 @@ class MoEsmLoadWeights:
     """
     def __init__(self, args):
         self.args = args
-        self.model_path = args.model_path
-        self.model_type = args.model_type
-        self.num_experts = args.num_experts
-        self.topk = args.topk
-        self.router_loss_type = args.router_loss_type
-        self.output_hidden_states = args.output_hidden_states
-        self.num_labels = args.num_labels
+        self.model_path = args['model_path']
+        self.model_type = args['model_type']
+        self.num_experts = args['num_experts']
+        self.topk = args['topk']
+        self.num_labels = args['num_labels']
         self.esm_base = None
         self.config = None
 
@@ -139,7 +137,6 @@ class MoEsmLoadWeights:
         if self.model_type == 'Model':
             from transformers import EsmModel as EsmModelTransformers
             self.esm_base = EsmModelTransformers.from_pretrained(self.model_path)
-            self.config = self.get_config(self.esm_base)
             model = MoEsmModel(config=self.config)
 
         elif self.model_type == 'MaskedLM':
@@ -172,17 +169,11 @@ class MoEsmLoadWeights:
             self.config = self.get_config(self.esm_base)
             model = MoEsmForSentenceSimilarity(config=self.config)
 
-        elif self.model_type == 'PPI':
-            from transformers import EsmForSequenceClassification as EsmModelTransformers
-            self.esm_base = EsmModelTransformers.from_pretrained(self.model_path, num_labels=self.num_labels)
-            self.config = self.get_config(self.esm_base)
-            model = MoEsmForSequenceClassification(config=self.config)
-
-        else: print(f'You entered {self.model_type}\nValid options are:\nModel , MaskedLM , SequenceClassification , TokenClassification , MultiTask , SentenceSimilarity , PPI')
+        else: print(f'You entered {self.model_type}\nValid options are:\nModel , MaskedLM , SequenceClassification , TokenClassification , MultiTask , SentenceSimilarity')
         
         model = self.match_weights(model)
 
-        if self.args.domains is not None and self.model_type != 'PPI' and self.args.new_special_tokens:
+        if self.args.domains is not None and self.args.new_special_tokens:
             with torch.no_grad():
                 model.resize_token_embeddings(len(tokenizer) + len(self.args.domains))
                 # Add new tokens to the tokenizer
@@ -256,8 +247,6 @@ class MoEsmLoadWeights:
                 num_hidden_layers=esm_config.num_hidden_layers,
                 num_attention_heads=esm_config.num_attention_heads,
                 intermediate_size=esm_config.intermediate_size,
-                hidden_dropout_prob=esm_config.hidden_dropout_prob,
-                attention_probs_dropout_prob=esm_config.attention_probs_dropout_prob,
                 max_position_embeddings=esm_config.max_position_embeddings,
                 initializer_range=esm_config.initializer_range,
                 layer_norm_eps=esm_config.layer_norm_eps,
@@ -267,10 +256,10 @@ class MoEsmLoadWeights:
                 token_dropout=esm_config.token_dropout,
                 is_folding_model=esm_config.is_folding_model,
                 esmfold_config=esm_config.esmfold_config,
-                vocab_list=esm_config.vocab_list
+                vocab_list=esm_config.vocab_list,
+                **self.args
             )
-        for key, value in self.args.items():
-            setattr(self.config, key, value)
+        self.args = config
         return config
 
     def check_for_match(self, model): # Test for matching parameters

@@ -43,18 +43,19 @@ def log_metrics(log_path, metrics, details=None, header=None):
 def load_model(args):
     if args['ESM']:
         tokenizer = EsmTokenizer.from_pretrained(args['model_path'])
-        base_model = EsmModel.from_pretrained(args['model_path'])
-        base_model.config.attention_probs_dropout_prob = 0 # MOE relies on attention heavily so set 0
-        base_model.config.hidden_dropout_prob = args['dropout']
+        base_model = EsmModel.from_pretrained(args['model_path'],
+                                               hidden_dropout_prob = args['hidden_dropout_prob'],
+                                               attention_probs_dropout_prob = 0.0)
         if args['MOE']:
             loader = MoEsmLoadWeights(args)
+            model, tokenizer = loader.get_seeded_model(tokenizer=tokenizer)
         else:
-            pass
+            model = EsmForSentenceSimilarity(base_model.config, base_model)
     else:
         tokenizer = BertTokenizer.from_pretrained(args['model_path'])
-        base_model = BertModel.from_pretrained(args['model_path'])
-        base_model.config.attention_probs_dropout_prob = 0 # MOE relies on attention heavily so set 0
-        base_model.config.hidden_dropout_prob = args['dropout']
+        base_model = BertModel.from_pretrained(args['model_path'],
+                                               hidden_dropout_prob = args['hidden_dropout_prob'],
+                                               attention_probs_dropout_prob = 0.0)
         config = base_model.config
         for key, value in args.items():
             setattr(config, key, value)
@@ -65,3 +66,5 @@ def load_model(args):
         else:
             model = BertForSentenceSimilarity(config, base_model)
     return model, tokenizer
+
+

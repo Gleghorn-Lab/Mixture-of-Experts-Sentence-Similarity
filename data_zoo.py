@@ -47,7 +47,13 @@ class TextDataset(TorchDataset):
         }
 
 
-def get_datasets_train(data_paths, tokenizer, domains, max_length=512):
+def get_datasets_train(args, tokenizer):
+    data_paths = args['data_paths']
+    domains = args['domains']
+    max_length = args['max_length']
+    a_col = args['a_col']
+    b_col = args['b_col']
+    label_col = args['label_col']
     train_a, train_b, train_c_label, train_r_label = [], [], [], []
     valid_a, valid_b, valid_c_label, valid_r_label = [], [], [], []
     test_a, test_b, test_c_label, test_r_label = [], [], [], []
@@ -56,28 +62,35 @@ def get_datasets_train(data_paths, tokenizer, domains, max_length=512):
         train = dataset['train']
         valid = dataset['valid']
         test = dataset['test']
-        train_a.extend(train['a'])
-        train_b.extend(train['b'])
-        train_c_label.extend(train['label'])
-        train_r_label.extend([i] * len(train['label']))
-        valid_a.extend(valid['a'])
-        valid_b.extend(valid['b'])
-        valid_c_label.extend(valid['label'])
-        valid_r_label.extend([i] * len(valid['label']))
-        test_a.extend(test['a'])
-        test_b.extend(test['b'])
-        test_c_label.extend(test['label'])
-        test_r_label.extend([i] * len(test['label']))
+        train_a.extend(train[a_col])
+        train_b.extend(train[b_col])
+        train_c_label.extend(train[label_col])
+        train_r_label.extend([i] * len(train[label_col]))
+        valid_a.extend(valid[a_col])
+        valid_b.extend(valid[b_col])
+        valid_c_label.extend(valid[label_col])
+        valid_r_label.extend([i] * len(valid[label_col]))
+        test_a.extend(test[a_col])
+        test_b.extend(test[b_col])
+        test_c_label.extend(test[label_col])
+        test_r_label.extend([i] * len(test[label_col]))
     train_dataset = TextDataset(train_a, train_b, train_c_label, train_r_label,
                                 tokenizer, domains, max_length)
-    valid_dataset = TextDataset(valid_a, valid_b, valid_c_label, valid_r_label,
+    valid_dataset = TextDataset(valid_a[:10], valid_b[:10], valid_c_label[:10], valid_r_label[:10],
                                 tokenizer, domains, max_length)
     test_dataset = TextDataset(test_a, test_b, test_c_label, test_r_label,
                                tokenizer, domains, max_length)
     return train_dataset, valid_dataset, test_dataset
 
 
-def get_datasets_test(data_paths, tokenizer, domains, max_length=512):
+def get_datasets_test(args, tokenizer):
+    data_paths = args['data_paths']
+    domains = args['domains']
+    max_length = args['max_length']
+    a_col = args['a_col']
+    b_col = args['b_col']
+    label_col = args['label_col']
+
     valid_datasets = []
     test_datasets = []
     for i, data_path in enumerate(data_paths):
@@ -86,14 +99,14 @@ def get_datasets_test(data_paths, tokenizer, domains, max_length=512):
         dataset = load_dataset(data_path)
         valid = dataset['valid']
         test = dataset['test']
-        valid_a.extend(valid['a'])
-        valid_b.extend(valid['b'])
-        valid_c_label.extend(valid['label'])
-        valid_r_label.extend([i] * len(valid['label']))
-        test_a.extend(test['a'])
-        test_b.extend(test['b'])
-        test_c_label.extend(test['label'])
-        test_r_label.extend([i] * len(test['label']))
+        valid_a.extend(valid[a_col])
+        valid_b.extend(valid[b_col])
+        valid_c_label.extend(valid[label_col])
+        valid_r_label.extend([i] * len(valid[label_col]))
+        test_a.extend(test[a_col])
+        test_b.extend(test[b_col])
+        test_c_label.extend(test[label_col])
+        test_r_label.extend([i] * len(test[label_col]))
         valid_datasets.append(TextDataset(valid_a, valid_b, valid_c_label, valid_r_label,
                                           tokenizer, domains, max_length))
         test_datasets.append(TextDataset(test_a, test_b, test_c_label, test_r_label,

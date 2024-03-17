@@ -37,11 +37,10 @@ from transformers.modeling_outputs import (
 from transformers.modeling_utils import PreTrainedModel, find_pruneable_heads_and_indices, prune_linear_layer
 from transformers.utils import logging
 
-from configuration_moesm import MoEsmConfig
-
-from outputs import MoEsmOutputWithPastAndCrossAttentions, MoEsmOutputWithPoolingAndCrossAttentions, SentenceSimilarityOutput
-from moe_blocks import *
-from losses import *
+from models.configuration_moesm import MoEsmConfig
+from models.outputs import MoEsmOutputWithPastAndCrossAttentions, MoEsmOutputWithPoolingAndCrossAttentions, SentenceSimilarityOutput
+from models.moe_blocks import *
+from models.losses import *
 
 
 logger = logging.get_logger(__name__)
@@ -516,10 +515,9 @@ class MoEsmLayer(nn.Module):
 
         self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         if config.token_moe:
-            self.moe_block = TokenMultiTaskMoeBlock(config, expert=EsmExpert)
+            self.moe_block = TokenTopKMoeBlock(config, expert=EsmExpert)
         else:
-            if config.moe_type == 'multitask': self.moe_block = SentenceMultiTaskMoeBlock(config, expert=EsmExpert)
-            elif config.moe_type == 'switch': self.moe_block = SentenceSwitchMoeBlock(config, expert=EsmExpert)
+            if config.moe_type == 'switch': self.moe_block = SentenceSwitchMoeBlock(config, expert=EsmExpert)
             elif config.moe_type == 'topk': self.moe_block = SentenceTopKMoeBlock(config, expert=EsmExpert)
             elif config.moe_type == 'tokentype': self.moe_block = SentenceTokenTypeMoeBlock(config, expert=EsmExpert)
             else: print(f'Incorrect MOE type {config.moe_type}, try again')
@@ -626,7 +624,6 @@ class MoEsmEncoder(nn.Module):
         use_cache=None,
         output_attentions=False,
         output_hidden_states=False,
-        output_router_logits=True,
         return_dict=True,
     ):
         if self.gradient_checkpointing and self.training:
@@ -639,7 +636,7 @@ class MoEsmEncoder(nn.Module):
         all_hidden_states = () if output_hidden_states else None
         all_self_attentions = () if output_attentions else None
         all_cross_attentions = () if output_attentions and self.config.add_cross_attention else None
-        all_router_logits = () if output_router_logits else None
+        all_router_logits = ()
 
         next_decoder_cache = () if use_cache else None
         for i, layer_module in enumerate(self.layer):
@@ -683,8 +680,7 @@ class MoEsmEncoder(nn.Module):
                 all_self_attentions = all_self_attentions + (layer_outputs[1],)
                 if self.config.add_cross_attention:
                     all_cross_attentions = all_cross_attentions + (layer_outputs[2],)
-            if output_router_logits:
-                all_router_logits = all_router_logits + (router_logits,)
+            all_router_logits = all_router_logits + (router_logits,)
 
         if self.emb_layer_norm_after:
             hidden_states = self.emb_layer_norm_after(hidden_states)
@@ -879,7 +875,6 @@ class MoEsmModel(MoEsmPreTrainedModel):
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        output_router_logits: Optional[bool] = None,
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple[torch.Tensor], MoEsmOutputWithPoolingAndCrossAttentions]:
         r"""
@@ -973,12 +968,10 @@ class MoEsmModel(MoEsmPreTrainedModel):
             use_cache=use_cache,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
-            output_router_logits=output_router_logits,
             return_dict=return_dict,
         )
         sequence_output = encoder_outputs[0]
         pooled_output = self.pooler(sequence_output) if self.pooler is not None else None
-        router_logits = encoder_outputs.router_logits if output_router_logits else None
 
         if not return_dict:
             return (sequence_output, pooled_output) + encoder_outputs[1:]
@@ -990,7 +983,7 @@ class MoEsmModel(MoEsmPreTrainedModel):
             hidden_states=encoder_outputs.hidden_states,
             attentions=encoder_outputs.attentions,
             cross_attentions=encoder_outputs.cross_attentions,
-            router_logits=router_logits
+            router_logits=encoder_outputs.router_logits
             )
 
     def predict_contacts(self, tokens, attention_mask):
@@ -1069,7 +1062,6 @@ class MoEsmForMaskedLM(MoEsmPreTrainedModel):
         labels: Optional[torch.LongTensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        output_router_logits: Optional[bool] = None,
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple, MaskedLMOutput]:
         r"""
@@ -1092,7 +1084,6 @@ class MoEsmForMaskedLM(MoEsmPreTrainedModel):
             encoder_attention_mask=encoder_attention_mask,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
-            output_router_logits=output_router_logits,
             return_dict=return_dict,
         )
         sequence_output = outputs.last_hidden_state
@@ -1174,7 +1165,6 @@ class MoEsmForSequenceClassification(MoEsmPreTrainedModel):
         labels: Optional[torch.LongTensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        output_router_logits: Optional[bool] = None,
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple, SequenceClassifierOutput]:
         r"""
@@ -1194,7 +1184,6 @@ class MoEsmForSequenceClassification(MoEsmPreTrainedModel):
             inputs_embeds=inputs_embeds,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
-            output_router_logits=output_router_logits,
             return_dict=return_dict,
         )
         sequence_output = outputs.last_hidden_state
@@ -1273,7 +1262,6 @@ class MoEsmForTokenClassification(MoEsmPreTrainedModel):
         labels: Optional[torch.LongTensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        output_router_logits: Optional[bool] = None,
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple, TokenClassifierOutput]:
         r"""
@@ -1290,7 +1278,6 @@ class MoEsmForTokenClassification(MoEsmPreTrainedModel):
             inputs_embeds=inputs_embeds,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
-            output_router_logits=output_router_logits,
             return_dict=return_dict,
         )
 
@@ -1378,7 +1365,6 @@ class MoEsmForMultitaskLearning(MoEsmPreTrainedModel):
         labels: Optional[list] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        output_router_logits: Optional[bool] = None, # TODO add to output
     ) -> Union[Tuple, SequenceClassifierOutput]:
         outputs = self.esm(
             input_ids,
@@ -1389,7 +1375,6 @@ class MoEsmForMultitaskLearning(MoEsmPreTrainedModel):
             inputs_embeds=inputs_embeds,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
-            output_router_logits=True
         )
         sequence_output = outputs.last_hidden_state
         router_logits = outputs.router_logits

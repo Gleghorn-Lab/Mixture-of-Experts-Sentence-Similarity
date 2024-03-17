@@ -5,6 +5,7 @@ from utils import get_yaml, load_model
 from run_model import train_model, evaluate_model
 from metrics import compute_metrics_sentence_similarity
 
+
 def get_args():
     parser = argparse.ArgumentParser(description="MOE settings")
     parser.add_argument('--yaml_path', type=str, )
@@ -25,9 +26,10 @@ def main():
     compute_metrics = compute_metrics_sentence_similarity
 
     if parse.eval:
-        weight_path = args['weight_path']
-        model.load_state_dict(torch.load(weight_path))
-        print(f'Model loaded from {weight_path}')
+        if args['weight_path'] != None:
+            weight_path = args['weight_path']
+            model.load_state_dict(torch.load(weight_path))
+            print(f'Model loaded from {weight_path}')
         evaluate_model(yargs, tokenizer, compute_metrics=compute_metrics, model=model)
     else:
         train_model(yargs, model, tokenizer, compute_metrics=compute_metrics)

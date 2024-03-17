@@ -5,9 +5,9 @@ import torch.nn.functional as F
 
 from transformers.models.bert.modeling_bert import BertAttention, BertPreTrainedModel, BertEmbeddings
 
-from outputs import *
-from moe_blocks import *
-from losses import *
+from models.outputs import *
+from models.moe_blocks import *
+from models.losses import *
 
 
 class BertExpert(nn.Module):
@@ -120,13 +120,12 @@ class BertEncoder(nn.Module):
         use_cache=None,
         output_attentions=False,
         output_hidden_states=False,
-        output_router_logits=True,
         return_dict=True,
     ):
         all_hidden_states = () if output_hidden_states else None
         all_self_attentions = () if output_attentions else None
         all_cross_attentions = () if output_attentions and self.config.add_cross_attention else None
-        all_router_logits = () if output_router_logits else None
+        all_router_logits = ()
 
         next_decoder_cache = () if use_cache else None
         for i, layer_module in enumerate(self.layer):
@@ -170,8 +169,7 @@ class BertEncoder(nn.Module):
                 all_self_attentions = all_self_attentions + (layer_outputs[1],)
                 if self.config.add_cross_attention:
                     all_cross_attentions = all_cross_attentions + (layer_outputs[2],)
-            if output_router_logits:
-                all_router_logits = all_router_logits + (router_logits,)
+            all_router_logits = all_router_logits + (router_logits,)
 
         if output_hidden_states:
             all_hidden_states = all_hidden_states + (hidden_states,)

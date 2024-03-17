@@ -6,3 +6,4 @@
 *.pth
 *.safetensors
 *.bin
+*.tsv

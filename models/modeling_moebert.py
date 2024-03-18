@@ -15,9 +15,12 @@ class BertExpert(nn.Module):
         super().__init__()
         self.intermediate_up = nn.Linear(config.hidden_size, config.intermediate_size) # BertIntermediate dense
         self.intermediate_down = nn.Linear(config.intermediate_size, config.hidden_size) # BertOutput dense
-        self.new_linear = nn.Linear(config.hidden_size, config.intermediate_size)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.act = nn.GELU()
+
+        self.new_linear = nn.Linear(config.hidden_size, config.intermediate_size, bias=True)
+        self.new_linear.weight.data.zero_()
+        self.new_linear.bias.data.fill_(1.0)
     
     def forward(self, hidden_states):
         hidden_states = self.act(self.intermediate_up(hidden_states)) * self.new_linear(hidden_states)

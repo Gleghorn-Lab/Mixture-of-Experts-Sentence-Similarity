@@ -111,18 +111,21 @@ def create_position_ids_from_input_ids(input_ids, padding_idx, past_key_values_l
 class EsmExpert(nn.Module):
     """
     Combined Esm intermediate and output linear layers for MOE
+    Added linear layer for expressiveness inspired from Mixtral
     """
     def __init__(self, config):
         super().__init__()
-        self.intermediate_up = nn.Linear(config.hidden_size, config.intermediate_size) # EsmIntermediate dense
-        self.intermediate_down = nn.Linear(config.intermediate_size, config.hidden_size) # EsmOutput dense
+        self.intermediate_up = nn.Linear(config.hidden_size, config.intermediate_size) # BertIntermediate dense
+        self.intermediate_down = nn.Linear(config.intermediate_size, config.hidden_size) # BertOutput dense
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
+        self.new_linear = nn.Linear(config.hidden_size, config.intermediate_size, bias=True)
+        self.new_linear.weight.data.zero_()
+        self.new_linear.bias.data.fill_(1.0)
+    
     def forward(self, hidden_states):
-        hidden_states = self.intermediate_up(hidden_states)
-        hidden_states = gelu(hidden_states)
-        hidden_states = self.intermediate_down(hidden_states)
-        hidden_states = self.dropout(hidden_states)
+        hidden_states = gelu(self.intermediate_up(hidden_states)) * self.new_linear(hidden_states)
+        hidden_states = self.dropout(self.intermediate_down(hidden_states))
         return hidden_states
 
 

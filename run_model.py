@@ -7,6 +7,12 @@ def evaluate_model(yargs, tokenizer, compute_metrics, model=None, trainer=None):
     training_args = yargs['training_args']
     args = yargs['general_args']
     data_paths = args['data_paths']
+
+    if args['domains'] is not None and args['add_during_eval']:
+        added_tokens = {'additional_special_tokens' : args['domains']}
+        tokenizer.add_special_tokens(added_tokens)
+        print(tokenizer)
+    
     validation_datasets, testing_datasets = get_datasets_test(args, tokenizer)
     details = {
         'model_path': args['model_path'],

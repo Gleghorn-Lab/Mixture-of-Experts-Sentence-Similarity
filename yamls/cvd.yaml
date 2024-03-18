@@ -4,22 +4,22 @@ general_args:
   model_type: 'SentenceSimilarity'
 
   moe_type: 'topk'
-  MOE: true 
-  token_moe: true
+  MOE: false 
+  token_moe: false
 
   contact_head: false
 
-  num_experts: 4  # Number of experts
+  num_experts: 8  # Number of experts
   topk: 2  # Number of experts per block
-  num_tasks: 2  # Number of tasks for MulitTask learning
+  num_tasks: 5  # Number of tasks for MulitTask learning
   hidden_dropout_prob: 0.05  # Dropout rate for the model
   contrastive_loss: clip
-  MI_loss: true
+  MI_loss: false
 
+  add_during_eval: false # add tokens during eval
   new_special_tokens: true  # Add new special tokens for each domain token seeded with CLS
   domains:  # List of domain tags
     - '[CVD]'
-    - '[COPD]'
   
   wBAL: !!float 0.1
   wMI: !!float 0.1
@@ -28,7 +28,6 @@ general_args:
 #data_settings:
   data_paths:  # Paths to the datasets
     - 'lhallee/abstract_domain_cvd'
-    - 'lhallee/abstract_domain_copd'
   a_col: 'a'  # First feature column name in datasets
   b_col: 'b'  # Second feature column name in datasets
   label_col: 'label'  # Label column name in datasets
@@ -40,12 +39,13 @@ general_args:
   hf_token: null # Hugging Face API key
   hf_username: 'lhallee'  # Hugging Face username
 
+
 #misc:
   project_name: 'SciMOE'  # Name of the project
   log_path: './results.txt'  # Path to save the log file
-  weight_path: null  # Path to the model weights to load
+  weight_path: 'cvd_single.pt'  # Path to the model weights to load
 
-  patience: 5
+  patience: 3
   limits: false  # Lets user define limits for F1max
 
 
@@ -54,9 +54,9 @@ training_args:
   logging_dir: !!str ./logs
   report_to: null
 
-  per_device_train_batch_size: !!int 10
-  per_device_eval_batch_size: !!int 10
-  gradient_accumulation_steps: !!int 2
+  per_device_train_batch_size: !!int 20
+  per_device_eval_batch_size: !!int 20
+  gradient_accumulation_steps: !!int 1
   learning_rate: !!float 1e-5
   lr_scheduler_type: !!str cosine
   weight_decay: !!float 0.01
@@ -66,11 +66,11 @@ training_args:
   warmup_steps: !!int 500
 
   save_strategy: !!str steps
-  save_steps: !!int 1000
+  save_steps: !!int 5000
   save_total_limit: !!int 3
 
   evaluation_strategy: !!str steps
-  eval_steps: 1000
+  eval_steps: 5000
 
   logging_strategy: steps
   logging_steps: !!int 100

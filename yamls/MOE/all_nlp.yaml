@@ -11,15 +11,19 @@ general_args:
 
   num_experts: 8  # Number of experts
   topk: 2  # Number of experts per block
-  num_tasks: 2  # Number of tasks for MulitTask learning
+  num_tasks: 5  # Number of tasks for MulitTask learning
   hidden_dropout_prob: 0.05  # Dropout rate for the model
   contrastive_loss: clip
-  MI_loss: false
+  MI_loss: true
 
   add_during_eval: false # add tokens during eval
   new_special_tokens: true  # Add new special tokens for each domain token seeded with CLS
   domains:  # List of domain tags
+    - '[CVD]'
+    - '[COP]'
     - '[CAN]'
+    - '[IMM]'
+    - '[PAR]'
   
   wBAL: !!float 0.1
   wMI: !!float 0.1
@@ -27,7 +31,11 @@ general_args:
 
 #data_settings:
   data_paths:  # Paths to the datasets
+    - 'lhallee/abstract_domain_cvd'
+    - 'lhallee/abstract_domain_copd'
     - 'lhallee/abstract_domain_skincancer'
+    - 'lhallee/abstract_domain_autoimmune'
+    - 'lhallee/abstract_domain_parasitic'
   a_col: 'a'  # First feature column name in datasets
   b_col: 'b'  # Second feature column name in datasets
   label_col: 'label'  # Label column name in datasets
@@ -42,9 +50,9 @@ general_args:
 #misc:
   project_name: 'SciMOE'  # Name of the project
   log_path: './results.txt'  # Path to save the log file
-  weight_path: './best_model.pt'  # Path to the model weights to load
+  weight_path: 'sci_moe_all.pt'  # Path to the model weights to load
 
-  patience: 3
+  patience: 5
   limits: false  # Lets user define limits for F1max
 
 
@@ -53,9 +61,9 @@ training_args:
   logging_dir: !!str ./logs
   report_to: null
 
-  per_device_train_batch_size: !!int 20
-  per_device_eval_batch_size: !!int 20
-  gradient_accumulation_steps: !!int 1
+  per_device_train_batch_size: !!int 10
+  per_device_eval_batch_size: !!int 10
+  gradient_accumulation_steps: !!int 2
   learning_rate: !!float 1e-5
   lr_scheduler_type: !!str cosine
   weight_decay: !!float 0.01
@@ -65,16 +73,16 @@ training_args:
   warmup_steps: !!int 500
 
   save_strategy: !!str steps
-  save_steps: !!int 2500
+  save_steps: !!int 1000
   save_total_limit: !!int 3
 
   evaluation_strategy: !!str steps
-  eval_steps: 2500
+  eval_steps: 1000
 
   logging_strategy: steps
-  logging_steps: !!int 500
+  logging_steps: !!int 100
 
-  bf16: false
+  bf16: true
   fp16: false
 
   seed: !!int 42

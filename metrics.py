@@ -5,6 +5,8 @@ from transformers import EvalPrediction
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, hamming_loss, confusion_matrix
 from scipy.stats import spearmanr
 
+from models.losses import clip_loss
+
 
 def align_predictions(predictions, label_ids, id2tag):
     preds = predictions.argmax(dim=-1)
@@ -149,6 +151,11 @@ def compute_metrics_sentence_similarity(p: EvalPrediction):
     emb_b_tensor = torch.tensor(emb_b)
     labels_tensor = torch.tensor(labels)
 
+    losses = []
+    for i in range(20, len(emb_a_tensor), 20):
+        losses.append(clip_loss(emb_a_tensor[i-20:i], emb_b_tensor[i-20:i], temp=0.7).item())
+    loss = sum(losses) / len(losses)
+
     # Compute cosine similarity between the embeddings
     cosine_sim = F.cosine_similarity(emb_a_tensor, emb_b_tensor)
     # Compute max metrics
@@ -166,7 +173,8 @@ def compute_metrics_sentence_similarity(p: EvalPrediction):
         'precision_max': prec,
         'recall_max': recall,
         'threshold': thres,
-        'distance': dist
+        'distance': dist,
+        'clip_loss':loss,
     }
 
 

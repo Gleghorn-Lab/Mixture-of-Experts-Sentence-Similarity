@@ -5,24 +5,22 @@ general_args:
 
   moe_type: 'topk'
   MOE: true 
-  token_moe: false
+  token_moe: true
 
   contact_head: false
 
-  num_experts: 8  # Number of experts
+  num_experts: 4  # Number of experts
   topk: 2  # Number of experts per block
-  num_tasks: 5  # Number of tasks for MulitTask learning
+  num_tasks: 2  # Number of tasks for MulitTask learning
   hidden_dropout_prob: 0.05  # Dropout rate for the model
   contrastive_loss: clip
   MI_loss: true
 
+  add_during_eval: false # add tokens during eval
   new_special_tokens: true  # Add new special tokens for each domain token seeded with CLS
   domains:  # List of domain tags
     - '[CVD]'
-    - '[COP]'
-    - '[CAN]'
-    - '[IMM]'
-    - '[PAR]'
+    - '[COPD]'
   
   wBAL: !!float 0.1
   wMI: !!float 0.1
@@ -32,9 +30,6 @@ general_args:
   data_paths:  # Paths to the datasets
     - 'lhallee/abstract_domain_cvd'
     - 'lhallee/abstract_domain_copd'
-    - 'lhallee/abstract_domain_skincancer'
-    - 'lhallee/abstract_domain_autoimmune'
-    - 'lhallee/abstract_domain_parasitic'
   a_col: 'a'  # First feature column name in datasets
   b_col: 'b'  # Second feature column name in datasets
   label_col: 'label'  # Label column name in datasets
@@ -49,7 +44,7 @@ general_args:
 #misc:
   project_name: 'SciMOE'  # Name of the project
   log_path: './results.txt'  # Path to save the log file
-  weight_path: 'sci_moe_all.pt'  # Path to the model weights to load
+  weight_path: null  # Path to the model weights to load
 
   patience: 5
   limits: false  # Lets user define limits for F1max

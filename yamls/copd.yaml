@@ -1,24 +1,25 @@
 general_args:
-  model_path: 'facebook/esm2_t6_8M_UR50D'
-  ESM: true # ESM or BERT
+  model_path: 'allenai/scibert_scivocab_uncased'
+  ESM: false # ESM or BERT
   model_type: 'SentenceSimilarity'
 
   moe_type: 'topk'
-  MOE: true 
-  token_moe: true
+  MOE: false 
+  token_moe: false
 
   contact_head: false
 
-  num_experts: 4  # Number of experts
+  num_experts: 8  # Number of experts
   topk: 2  # Number of experts per block
-  num_tasks: 2  # Number of tasks for MulitTask learning
+  num_tasks: 5  # Number of tasks for MulitTask learning
   hidden_dropout_prob: 0.05  # Dropout rate for the model
   contrastive_loss: clip
   MI_loss: false
 
+  add_during_eval: false # add tokens during eval
   new_special_tokens: true  # Add new special tokens for each domain token seeded with CLS
   domains:  # List of domain tags
-    - '[TEST]'
+    - '[COPD]'
   
   wBAL: !!float 0.1
   wMI: !!float 0.1
@@ -26,12 +27,11 @@ general_args:
 
 #data_settings:
   data_paths:  # Paths to the datasets
-    - 'lhallee/MetalIonBinding_reg'
-  a_col: 'seqs'  # First feature column name in datasets
-  b_col: 'seqs'  # Second feature column name in datasets
-  label_col: 'labels'  # Label column name in datasets
-  max_length: 8  # Maximum length of the sequences
-  num_labels: 2
+    - 'lhallee/abstract_domain_copd'
+  a_col: 'a'  # First feature column name in datasets
+  b_col: 'b'  # Second feature column name in datasets
+  label_col: 'label'  # Label column name in datasets
+  max_length: 512  # Maximum length of the sequences
 
 
 #id_settings:
@@ -39,10 +39,11 @@ general_args:
   hf_token: null # Hugging Face API key
   hf_username: 'lhallee'  # Hugging Face username
 
+
 #misc:
   project_name: 'SciMOE'  # Name of the project
   log_path: './results.txt'  # Path to save the log file
-  weight_path: null  # Path to the model weights to load
+  weight_path: 'copd_single.pt'  # Path to the model weights to load
 
   patience: 3
   limits: false  # Lets user define limits for F1max
@@ -53,8 +54,8 @@ training_args:
   logging_dir: !!str ./logs
   report_to: null
 
-  per_device_train_batch_size: !!int 2
-  per_device_eval_batch_size: !!int 2
+  per_device_train_batch_size: !!int 20
+  per_device_eval_batch_size: !!int 20
   gradient_accumulation_steps: !!int 1
   learning_rate: !!float 1e-5
   lr_scheduler_type: !!str cosine
@@ -65,16 +66,16 @@ training_args:
   warmup_steps: !!int 500
 
   save_strategy: !!str steps
-  save_steps: !!int 2500
+  save_steps: !!int 5000
   save_total_limit: !!int 3
 
   evaluation_strategy: !!str steps
-  eval_steps: 100
+  eval_steps: 5000
 
   logging_strategy: steps
   logging_steps: !!int 100
 
-  bf16: false
+  bf16: true
   fp16: false
 
   seed: !!int 42

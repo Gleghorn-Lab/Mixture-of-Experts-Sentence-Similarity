@@ -1,11 +1,11 @@
 general_args:
-  model_path: 'sentence-transformers/all-MiniLM-L6-v2'
+  model_path: 'allenai/scibert_scivocab_uncased'
   ESM: false # ESM or BERT
   model_type: 'SentenceSimilarity'
 
   moe_type: 'topk'
-  MOE: true 
-  token_moe: true
+  MOE: false
+  token_moe: false
 
   contact_head: false
 
@@ -16,9 +16,9 @@ general_args:
   contrastive_loss: clip
   MI_loss: true
 
+  add_during_eval: false # add tokens during eval
   new_special_tokens: true  # Add new special tokens for each domain token seeded with CLS
   domains:  # List of domain tags
-    - '[CAN]'
     - '[COPD]'
   
   wBAL: !!float 0.1
@@ -27,12 +27,11 @@ general_args:
 
 #data_settings:
   data_paths:  # Paths to the datasets
-    - 'lhallee/abstract_domain_skincancer'
     - 'lhallee/abstract_domain_copd'
   a_col: 'a'  # First feature column name in datasets
   b_col: 'b'  # Second feature column name in datasets
   label_col: 'label'  # Label column name in datasets
-  max_length: 8  # Maximum length of the sequences
+  max_length: 512  # Maximum length of the sequences
 
 
 #id_settings:
@@ -43,7 +42,7 @@ general_args:
 #misc:
   project_name: 'SciMOE'  # Name of the project
   log_path: './results.txt'  # Path to save the log file
-  weight_path: null  # Path to the model weights to load
+  weight_path: weights/sci_copd.pt  # Path to the model weights to load
 
   patience: 3
   limits: false  # Lets user define limits for F1max
@@ -75,7 +74,7 @@ training_args:
   logging_strategy: steps
   logging_steps: !!int 100
 
-  bf16: true
+  bf16: false
   fp16: false
 
   seed: !!int 42
@@ -84,4 +83,4 @@ training_args:
   group_by_length: false
   length_column_name: !!str length
   save_safetensors: true
-  metric_for_best_model: !!str loss
+  metric_for_best_model: !!str clip_loss

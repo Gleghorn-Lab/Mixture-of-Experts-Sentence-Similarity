@@ -65,6 +65,7 @@ def load_model(args):
             model = MoEBertForSentenceSimilarity(config, base_model)
         else:
             model = BertForSentenceSimilarity(config, base_model)
+    print(model)
     return model, tokenizer
 
 

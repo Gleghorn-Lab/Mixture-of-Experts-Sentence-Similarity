@@ -82,8 +82,8 @@ training_args:
   logging_strategy: steps
   logging_steps: !!int 100
 
-  bf16: true
-  fp16: false
+  bf16: false
+  fp16: true
 
   seed: !!int 42
 

@@ -66,17 +66,17 @@ training_args:
   warmup_steps: !!int 100
 
   save_strategy: !!str steps
-  save_steps: !!int 1000
+  save_steps: !!int 5000
   save_total_limit: !!int 3
 
   evaluation_strategy: !!str steps
-  eval_steps: 1000
+  eval_steps: 5000
 
   logging_strategy: steps
-  logging_steps: !!int 10
+  logging_steps: !!int 100
 
   bf16: false
-  fp16: false
+  fp16: true
 
   seed: !!int 42
 

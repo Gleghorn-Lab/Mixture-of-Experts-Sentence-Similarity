@@ -4,7 +4,7 @@ general_args:
   model_type: 'SentenceSimilarity'
 
   moe_type: 'topk'
-  MOE: true 
+  MOE: false 
   token_moe: false
 
   contact_head: false
@@ -17,7 +17,7 @@ general_args:
   MI_loss: false
 
   add_during_eval: false # add tokens during eval
-  new_special_tokens: true  # Add new special tokens for each domain token seeded with CLS
+  new_special_tokens: false  # Add new special tokens for each domain token seeded with CLS
   domains:  # List of domain tags
     - '[CAN]'
   
@@ -75,7 +75,7 @@ training_args:
   logging_steps: !!int 500
 
   bf16: false
-  fp16: false
+  fp16: true
 
   seed: !!int 42
 

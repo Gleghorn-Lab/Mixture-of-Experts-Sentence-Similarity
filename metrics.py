@@ -153,7 +153,7 @@ def compute_metrics_sentence_similarity(p: EvalPrediction):
 
     losses = []
     for i in range(20, len(emb_a_tensor), 20):
-        losses.append(clip_loss(emb_a_tensor[i-20:i], emb_b_tensor[i-20:i], temp=0.7).item())
+        losses.append(clip_loss(emb_a_tensor[i-20:i], emb_b_tensor[i-20:i]).item())
     loss = sum(losses) / len(losses)
 
     # Compute cosine similarity between the embeddings
@@ -166,7 +166,6 @@ def compute_metrics_sentence_similarity(p: EvalPrediction):
     # Compute the mean absolute difference between cosine similarities and labels
     dist = torch.mean(torch.abs(cosine_sim - labels_tensor)).item()
     # Return a dictionary of the computed metrics
-    print(f1, prec, recall, thres, acc, dist)
     return {
         'accuracy': acc,
         'f1_max': f1,

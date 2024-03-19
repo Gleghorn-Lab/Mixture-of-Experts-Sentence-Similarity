@@ -9,12 +9,12 @@ general_args:
 
   contact_head: false
 
-  num_experts: 4  # Number of experts
+  num_experts: 8  # Number of experts
   topk: 2  # Number of experts per block
   num_tasks: 5  # Number of tasks for MulitTask learning
   hidden_dropout_prob: 0.05  # Dropout rate for the model
   contrastive_loss: clip
-  MI_loss: false
+  MI_loss: true
 
   add_during_eval: false # add tokens during eval
   new_special_tokens: true  # Add new special tokens for each domain token seeded with CLS
@@ -38,12 +38,12 @@ general_args:
   a_col: 'a'  # First feature column name in datasets
   b_col: 'b'  # Second feature column name in datasets
   label_col: 'label'  # Label column name in datasets
-  max_length: 512  # Maximum length of the sequences
+  max_length: 4  # Maximum length of the sequences
 
 #wandb settings
-  wandb: true
+  wandb: false
   wandb_project: SSPR
-  wandb_name: sentence_no_mi_test
+  wandb_name: sentence_mi_test
 
 #misc:
   project_name: 'SciMOE'  # Name of the project
@@ -58,8 +58,8 @@ training_args:
   logging_dir: !!str ./logs
   report_to: null
 
-  per_device_train_batch_size: !!int 20
-  per_device_eval_batch_size: !!int 20
+  per_device_train_batch_size: !!int 2
+  per_device_eval_batch_size: !!int 2
   gradient_accumulation_steps: !!int 1
   learning_rate: !!float 1e-5
   lr_scheduler_type: !!str cosine

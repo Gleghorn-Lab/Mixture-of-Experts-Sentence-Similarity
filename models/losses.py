@@ -89,8 +89,8 @@ class MILoss(nn.Module):
         return self.wMI * MI_loss
 
     def call_update(self, router_logits, router_labels):
-        router_logits = router_logits.detach().cpu()
-        router_labels = router_labels.detach().cpu()
+        router_logits = router_logits.float().detach().cpu()
+        router_labels = router_labels.float().detach().cpu()
         probs = router_logits.softmax(dim=-1)
         probs = probs.view(-1, self.num_experts)
         self.update_MI_task_gate(probs, router_labels)

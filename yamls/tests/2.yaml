@@ -11,7 +11,7 @@ general_args:
 
   num_experts: 4  # Number of experts
   topk: 2  # Number of experts per block
-  num_tasks: 2  # Number of tasks for MulitTask learning
+  num_tasks: 5  # Number of tasks for MulitTask learning
   hidden_dropout_prob: 0.05  # Dropout rate for the model
   contrastive_loss: clip
   MI_loss: true
@@ -20,7 +20,10 @@ general_args:
   new_special_tokens: true  # Add new special tokens for each domain token seeded with CLS
   domains:  # List of domain tags
     - '[CVD]'
-    - '[COPD]'
+    - '[COP]'
+    - '[CAN]'
+    - '[IMM]'
+    - '[PAR]'
   
   wBAL: !!float 0.1
   wMI: !!float 0.1
@@ -29,6 +32,9 @@ general_args:
   data_paths:  # Paths to the datasets
     - 'lhallee/abstract_domain_cvd'
     - 'lhallee/abstract_domain_copd'
+    - 'lhallee/abstract_domain_skincancer'
+    - 'lhallee/abstract_domain_autoimmune'
+    - 'lhallee/abstract_domain_parasitic'
   a_col: 'a'  # First feature column name in datasets
   b_col: 'b'  # Second feature column name in datasets
   label_col: 'label'  # Label column name in datasets

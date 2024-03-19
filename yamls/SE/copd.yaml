@@ -73,7 +73,7 @@ training_args:
   eval_steps: 1000
 
   logging_strategy: steps
-  logging_steps: !!int 100
+  logging_steps: !!int 10
 
   bf16: true
   fp16: false

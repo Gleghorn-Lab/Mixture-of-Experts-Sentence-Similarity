@@ -24,7 +24,6 @@ general_args:
   wBAL: !!float 0.1
   wMI: !!float 0.1
 
-
 #data_settings:
   data_paths:  # Paths to the datasets
     - 'lhallee/abstract_domain_copd'
@@ -33,12 +32,10 @@ general_args:
   label_col: 'label'  # Label column name in datasets
   max_length: 512  # Maximum length of the sequences
 
-
-#id_settings:
-  wandb_api_key: null # Weights and biases API key
-  hf_token: null # Hugging Face API key
-  hf_username: 'lhallee'  # Hugging Face username
-
+#wandb settings
+  wandb: true
+  wandb_project: SSPR
+  wandb_name: copd_mixed_full
 
 #misc:
   project_name: 'SciMOE'  # Name of the project

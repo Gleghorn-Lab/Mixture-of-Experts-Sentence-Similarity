@@ -330,8 +330,7 @@ class BertForSentenceSimilarity(nn.Module):
         from transformers import BertModel
         self.bert = BertModel(config, add_pooling_layer=True) if bert is None else bert
         self.contrastive_loss = clip_loss
-        #self.temp = nn.Parameter(torch.tensor(0.7))
-        self.temp = torch.tensor(1.0, requires_grad=False)
+        self.temp = nn.Parameter(torch.tensor(0.7))
 
     def forward(self, input_ids_a, attention_mask_a, input_ids_b, attention_mask_b, r_labels=None, labels=None):
         if random.random() < 0.5:

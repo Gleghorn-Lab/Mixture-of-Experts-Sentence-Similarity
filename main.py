@@ -20,6 +20,15 @@ def main():
 
     args = yargs['general_args']
 
+    if args['wandb']:
+        import wandb
+        import os
+        os.environ['WANDB_API_KEY'] = input('Wandb api key: ')
+        os.environ['WANDB_PROJECT'] = args['wandb_project']
+        os.environ['WANDB_NAME'] = args['wandb_name']
+        wandb.login()
+        wandb.init()
+
     print('\n-----Load Model-----\n')
     model, tokenizer = load_model(args)
 

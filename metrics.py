@@ -151,11 +151,6 @@ def compute_metrics_sentence_similarity(p: EvalPrediction):
     emb_b_tensor = torch.tensor(emb_b)
     labels_tensor = torch.tensor(labels)
 
-    losses = []
-    for i in range(20, len(emb_a_tensor), 20):
-        losses.append(clip_loss(emb_a_tensor[i-20:i], emb_b_tensor[i-20:i]).item())
-    loss = sum(losses) / len(losses)
-
     # Compute cosine similarity between the embeddings
     cosine_sim = F.cosine_similarity(emb_a_tensor, emb_b_tensor)
     # Compute max metrics
@@ -173,7 +168,6 @@ def compute_metrics_sentence_similarity(p: EvalPrediction):
         'recall_max': recall,
         'threshold': thres,
         'distance': dist,
-        'clip_loss':loss,
     }
 
 

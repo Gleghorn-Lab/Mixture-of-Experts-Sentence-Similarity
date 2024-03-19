@@ -1454,7 +1454,8 @@ class MoEsmForSentenceSimilarity(MoEsmPreTrainedModel):
 class EsmForSentenceSimilarity(MoEsmPreTrainedModel):
     def __init__(self, config, esm=None):
         super().__init__(config)
-        self.esm = MoEsmModel(config, add_pooling_layer=True) if esm is None else esm
+        from transformers import EsmModel
+        self.esm = EsmModel(config, add_pooling_layer=True) if esm is None else esm
         self.contrastive_loss = clip_loss
         self.temp = nn.Parameter(torch.tensor(0.7))
 
@@ -1478,3 +1479,34 @@ class EsmForSentenceSimilarity(MoEsmPreTrainedModel):
         )
 
 
+class MoEsmForTripletSimilarity(MoEsmPreTrainedModel):
+    def __init__(self, config, esm=None):
+        super().__init__(config)
+        self.esm = MoEsmModel(config, add_pooling_layer=True) if esm is None else esm
+        self.contrastive_loss = clip_loss
+        self.temp = nn.Parameter(torch.tensor(0.7))
+        self.aux_loss = LoadBalancingLoss(config)
+        self.MI = config.MI_loss
+        if self.MI:
+            self.MI_loss = MILoss(config)
+    
+    def forward(self, pos, anc, neg):
+
+
+        emba = outputa.pooler_output
+        embb = outputb.pooler_output
+
+        c_loss = self.contrastive_loss(emba, embb, self.temp)
+
+        router_logits = tuple((a + b) / 2 for a, b in zip(outputa.router_logits, outputb.router_logits))
+        r_loss = self.aux_loss(router_logits)
+        if r_labels != None and self.MI:
+            r_loss = r_loss + self.MI_loss(router_logits, r_labels)
+
+        logits = (emba, embb)
+        loss = c_loss + r_loss
+        
+        return SentenceSimilarityOutput(
+            logits=logits,
+            loss=loss
+        )

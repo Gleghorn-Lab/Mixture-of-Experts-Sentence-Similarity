@@ -23,6 +23,8 @@ def main():
     print('\n-----Load Model-----\n')
     model, tokenizer = load_model(args)
 
+    model = model.to(torch.bfloat16)
+
     compute_metrics = compute_metrics_sentence_similarity
 
     if parse.eval:

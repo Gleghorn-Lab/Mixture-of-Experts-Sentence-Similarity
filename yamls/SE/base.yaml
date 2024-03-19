@@ -83,4 +83,4 @@ training_args:
   group_by_length: false
   length_column_name: !!str length
   save_safetensors: true
-  metric_for_best_model: !!str loss
+  metric_for_best_model: !!str f1_max

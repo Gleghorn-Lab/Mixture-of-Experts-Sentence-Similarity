@@ -1,8 +1,9 @@
 import yaml
+import torch
 from transformers import BertModel, BertTokenizer, EsmModel, EsmTokenizer
 
 from models.load_model import MoEBertLoadWeights, MoEsmLoadWeights
-from models.modeling_moesm import MoEsmForSentenceSimilarity, EsmForSentenceSimilarity
+from models.modeling_moesm import EsmForSentenceSimilarity
 from models.modeling_moebert import BertForSentenceSimilarity, MoEBertForSentenceSimilarity
 
 
@@ -56,6 +57,24 @@ def load_model(args):
         base_model = BertModel.from_pretrained(args['model_path'],
                                                hidden_dropout_prob = args['hidden_dropout_prob'],
                                                attention_probs_dropout_prob = 0.0)
+
+        domains = args['domains']
+        if domains is not None and args['new_special_tokens']:
+            with torch.no_grad():
+                base_model.resize_token_embeddings(len(tokenizer) + len(domains))
+                # Add new tokens to the tokenizer
+                added_tokens = {'additional_special_tokens' : domains}
+                tokenizer.add_special_tokens(added_tokens)
+                # Seed the embedding with the [CLS] token embedding
+                try:  
+                    cls_token_embedding = base_model.embeddings.word_embeddings.weight[tokenizer.cls_token_id, :].clone()
+                    for token in domains:
+                        base_model.embeddings.word_embeddings.weight[tokenizer._convert_token_to_id(token), :] = cls_token_embedding.clone()
+                except AttributeError:
+                    cls_token_embedding = base_model.esm.embeddings.word_embeddings.weight[tokenizer.cls_token_id, :].clone()
+                    for token in domains:
+                        base_model.esm.embeddings.word_embeddings.weight[tokenizer._convert_token_to_id(token), :] = cls_token_embedding.clone()
+
         config = base_model.config
         for key, value in args.items():
             setattr(config, key, value)

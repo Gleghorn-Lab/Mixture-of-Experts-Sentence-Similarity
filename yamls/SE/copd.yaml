@@ -60,7 +60,7 @@ training_args:
 
   num_train_epochs: !!int 10
   warmup_ratio: !!float 0.0
-  warmup_steps: !!int 100
+  warmup_steps: !!int 500
 
   save_strategy: !!str steps
   save_steps: !!int 5000

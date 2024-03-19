@@ -32,7 +32,7 @@ general_args:
   label_col: 'label'  # Label column name in datasets
   max_length: 512  # Maximum length of the sequences
 
-  wandb: true
+  wandb: false
   wandb_project: SSPR
   wandb_name: test
 
@@ -62,14 +62,14 @@ training_args:
   warmup_steps: !!int 100
 
   save_strategy: !!str steps
-  save_steps: !!int 1000
+  save_steps: !!int 100
   save_total_limit: !!int 3
 
   evaluation_strategy: !!str steps
-  eval_steps: 1000
+  eval_steps: 100
 
   logging_strategy: steps
-  logging_steps: !!int 100
+  logging_steps: !!int 10
 
   bf16: false
   fp16: true
@@ -80,4 +80,4 @@ training_args:
   group_by_length: false
   length_column_name: !!str length
   save_safetensors: true
-  metric_for_best_model: !!str loss
+  metric_for_best_model: !!str f1_max

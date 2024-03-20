@@ -50,7 +50,7 @@ class TextDataset(TorchDataset):
         }
 
 
-def get_datasets_train(args, tokenizer):
+def get_datasets_train_sentence_sim(args, tokenizer):
     data_paths = args['data_paths']
     domains = args['domains']
     add_tokens = args['new_special_tokens']
@@ -88,7 +88,7 @@ def get_datasets_train(args, tokenizer):
     return train_dataset, valid_dataset, test_dataset
 
 
-def get_datasets_test(args, tokenizer):
+def get_datasets_test_sentence_sim(args, tokenizer):
     data_paths = args['data_paths']
     domains = args['domains']
     add_tokens = args['new_special_tokens']

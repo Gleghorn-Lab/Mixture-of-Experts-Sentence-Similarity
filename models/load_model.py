@@ -9,7 +9,8 @@ from models.modeling_moesm import (
     MoEsmForSequenceClassification,
     MoEsmForTokenClassification,
     MoEsmForMultitaskLearning,
-    MoEsmForSentenceSimilarity
+    MoEsmForSentenceSimilarity,
+    MoEsmForTripletSimilarity
 )
 
 
@@ -168,6 +169,12 @@ class MoEsmLoadWeights:
             self.esm_base = EsmModelTransformers.from_pretrained(self.model_path)
             self.config = self.get_config(self.esm_base)
             model = MoEsmForSentenceSimilarity(config=self.config)
+
+        elif self.model_type == 'Triplet':
+            from transformers import EsmModel as EsmModelTransformers
+            self.esm_base = EsmModelTransformers.from_pretrained(self.model_path)
+            self.config = self.get_config(self.esm_base)
+            model = MoEsmForTripletSimilarity(config=self.config)
 
         else: print(f'You entered {self.model_type}\nValid options are:\nModel , MaskedLM , SequenceClassification , TokenClassification , MultiTask , SentenceSimilarity')
         

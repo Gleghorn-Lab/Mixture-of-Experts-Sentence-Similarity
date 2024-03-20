@@ -5,7 +5,7 @@ general_args:
 
   moe_type: 'topk'
   MOE: true 
-  token_moe: false
+  token_moe: true
 
   contact_head: false
 

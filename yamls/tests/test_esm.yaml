@@ -1,11 +1,11 @@
 general_args:
   model_path: 'facebook/esm2_t6_8M_UR50D'
   ESM: true # ESM or BERT
-  model_type: 'SentenceSimilarity'
+  model_type: 'Triplet'
 
   moe_type: 'topk'
   MOE: true 
-  token_moe: true
+  token_moe: false
 
   contact_head: false
 
@@ -17,7 +17,7 @@ general_args:
   MI_loss: false
 
   add_during_eval: false # add tokens during eval
-  new_special_tokens: true  # Add new special tokens for each domain token seeded with CLS
+  new_special_tokens: false  # Add new special tokens for each domain token seeded with CLS
   domains:  # List of domain tags
     - '[TEST]'
   

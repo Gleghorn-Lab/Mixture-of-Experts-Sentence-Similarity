@@ -38,7 +38,7 @@ general_args:
   a_col: 'a'  # First feature column name in datasets
   b_col: 'b'  # Second feature column name in datasets
   label_col: 'label'  # Label column name in datasets
-  max_length: 384  # Maximum length of the sequences
+  max_length: 448  # Maximum length of the sequences
 
 #wandb settings
   wandb: true

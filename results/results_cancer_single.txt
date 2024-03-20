@@ -1,0 +1,27 @@
+Validation lhallee/abstract_domain_copd
+model_path: allenai/scibert_scivocab_uncased
+MOE: False
+test_loss: 47.64897
+Validation lhallee/abstract_domain_skincancer
+model_path: allenai/scibert_scivocab_uncased
+MOE: False
+test_loss: 3.67931
+test_accuracy: 0.76644
+test_f1_max: 0.78939
+test_precision_max: 0.71875
+test_recall_max: 0.87543
+test_threshold: 0.97753
+test_distance: 0.49457
+
+
+Test lhallee/abstract_domain_skincancer
+model_path: allenai/scibert_scivocab_uncased
+MOE: False
+test_loss: 3.32196
+test_accuracy: 0.99933
+test_f1_max: 1.0
+test_precision_max: 1.0
+test_recall_max: 1.0
+test_threshold: 0.9654
+test_distance: 0.01312
+

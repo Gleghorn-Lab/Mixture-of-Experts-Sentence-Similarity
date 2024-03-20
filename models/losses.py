@@ -90,7 +90,7 @@ class MILoss(nn.Module):
 
     def call_update(self, router_logits, router_labels):
         router_logits = router_logits.float().detach().cpu()
-        router_labels = router_labels.float().detach().cpu()
+        router_labels = router_labels.long().detach().cpu()
         probs = router_logits.softmax(dim=-1)
         probs = probs.view(-1, self.num_experts)
         self.update_MI_task_gate(probs, router_labels)

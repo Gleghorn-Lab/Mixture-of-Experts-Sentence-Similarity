@@ -24,7 +24,6 @@ general_args:
   wBAL: !!float 0.1
   wMI: !!float 0.1
 
-
 #data_settings:
   data_paths:  # Paths to the datasets
     - 'lhallee/MetalIonBinding_reg'
@@ -33,7 +32,8 @@ general_args:
   label_col: 'labels'  # Label column name in datasets
   max_length: 8  # Maximum length of the sequences
   num_labels: 2
-
+  valid_size: 5000
+  test_size: 5000
 
 #id_settings:
   wandb_api_key: null # Weights and biases API key
@@ -45,14 +45,13 @@ general_args:
   log_path: './results.txt'  # Path to save the log file
   weight_path: null  # Path to the model weights to load
 
-  patience: 3
+  patience: 10
   limits: false  # Lets user define limits for F1max
 
 
 training_args:
   output_dir: !!str ./output
   logging_dir: !!str ./logs
-  report_to: null
 
   per_device_train_batch_size: !!int 2
   per_device_eval_batch_size: !!int 2
@@ -85,3 +84,63 @@ training_args:
   length_column_name: !!str length
   save_safetensors: true
   metric_for_best_model: !!str loss
+
+
+eval_training_args:
+  output_dir: !!str ./output
+  logging_dir: !!str ./logs
+
+  per_device_train_batch_size: !!int 64
+  per_device_eval_batch_size: !!int 64
+  gradient_accumulation_steps: !!int 1
+  learning_rate: !!float 1e-4
+  lr_scheduler_type: !!str cosine
+  weight_decay: !!float 0.01
+
+  num_train_epochs: !!int 200
+  warmup_steps: !!int 100
+
+  save_strategy: !!str epoch
+  save_total_limit: !!int 3
+
+  evaluation_strategy: !!str epoch
+
+  logging_strategy: steps
+  logging_steps: !!int 100
+
+  bf16: false
+  fp16: false
+
+  seed: !!int 42
+
+  save_safetensors: true
+  metric_for_best_model: !!str loss
+
+
+eval_args:
+plm_path: facebook/esm2_t6_8M_UR50D
+data_paths:
+  - ''
+weight_path: ''
+log_path: ./results.txt
+output_dir: ./trainer_output
+db_path: embeddings.db
+input_dim: 768
+hidden_dim: 768
+intermediate_dim: 2048
+dropout: 0.1
+num_layers: 2
+nhead: 8
+trim: false
+max_length: 512
+pooling: mean
+lr: 0.0001
+batch_size: 2
+grad_accum: 1
+weight_decay: 0.01
+fp16: false
+epochs: 200
+patience: 10
+seed: 7
+skip: false # skip embedding, already embedded
+logging_steps: 100

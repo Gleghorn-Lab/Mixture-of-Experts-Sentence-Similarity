@@ -297,13 +297,14 @@ class MoEBertForSentenceSimilarity(nn.Module):
         if self.MI:
             self.MI_loss = MILoss(config)
     
-    def forward(self, input_ids_a, attention_mask_a, input_ids_b, attention_mask_b, r_labels=None, labels=None):
+    def forward(self, a, b,
+                att_a=None, att_b=None, r_labels=None, labels=None):
         if random.random() < 0.5:
-            outputa = self.bert(input_ids=input_ids_a, attention_mask=attention_mask_a)
-            outputb = self.bert(input_ids=input_ids_b, attention_mask=attention_mask_b)
+            outputa = self.bert(input_ids=a, attention_mask=att_a)
+            outputb = self.bert(input_ids=b, attention_mask=att_b)
         else:
-            outputa = self.bert(input_ids=input_ids_b, attention_mask=attention_mask_b)
-            outputb = self.bert(input_ids=input_ids_a, attention_mask=attention_mask_a)
+            outputa = self.bert(input_ids=b, attention_mask=att_b)
+            outputb = self.bert(input_ids=a, attention_mask=att_a)
 
         emba = outputa.pooler_output
         embb = outputb.pooler_output
@@ -332,13 +333,14 @@ class BertForSentenceSimilarity(nn.Module):
         self.contrastive_loss = clip_loss
         self.temp = nn.Parameter(torch.tensor(0.7))
 
-    def forward(self, input_ids_a, attention_mask_a, input_ids_b, attention_mask_b, r_labels=None, labels=None):
+    def forward(self, a, b,
+                att_a=None, att_b=None, r_labels=None, labels=None):
         if random.random() < 0.5:
-            outputa = self.bert(input_ids=input_ids_a, attention_mask=attention_mask_a)
-            outputb = self.bert(input_ids=input_ids_b, attention_mask=attention_mask_b)
+            outputa = self.bert(input_ids=a, attention_mask=att_a)
+            outputb = self.bert(input_ids=b, attention_mask=att_b)
         else:
-            outputa = self.bert(input_ids=input_ids_b, attention_mask=attention_mask_b)
-            outputb = self.bert(input_ids=input_ids_a, attention_mask=attention_mask_a)
+            outputa = self.bert(input_ids=b, attention_mask=att_b)
+            outputb = self.bert(input_ids=a, attention_mask=att_a)
 
         emba = outputa.pooler_output
         embb = outputb.pooler_output

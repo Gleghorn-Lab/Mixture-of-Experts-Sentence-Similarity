@@ -1,7 +1,4 @@
-Validation lhallee/abstract_domain_copd
-model_path: allenai/scibert_scivocab_uncased
-MOE: False
-test_loss: 47.64897
+
 Validation lhallee/abstract_domain_skincancer
 model_path: allenai/scibert_scivocab_uncased
 MOE: False

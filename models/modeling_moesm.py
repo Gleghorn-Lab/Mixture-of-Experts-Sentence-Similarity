@@ -1424,13 +1424,14 @@ class MoEsmForSentenceSimilarity(MoEsmPreTrainedModel):
         if self.MI:
             self.MI_loss = MILoss(config)
     
-    def forward(self, input_ids_a, attention_mask_a, input_ids_b, attention_mask_b, r_labels=None, labels=None):
+    def forward(self, a, b,
+                att_a=None, att_b=None, r_labels=None, labels=None):
         if random.random() < 0.5:
-            outputa = self.esm(input_ids=input_ids_a, attention_mask=attention_mask_a)
-            outputb = self.esm(input_ids=input_ids_b, attention_mask=attention_mask_b)
+            outputa = self.bert(input_ids=a, attention_mask=att_a)
+            outputb = self.bert(input_ids=b, attention_mask=att_b)
         else:
-            outputa = self.esm(input_ids=input_ids_b, attention_mask=attention_mask_b)
-            outputb = self.esm(input_ids=input_ids_a, attention_mask=attention_mask_a)
+            outputa = self.bert(input_ids=b, attention_mask=att_b)
+            outputb = self.bert(input_ids=a, attention_mask=att_a)
 
         emba = outputa.pooler_output
         embb = outputb.pooler_output
@@ -1459,13 +1460,14 @@ class EsmForSentenceSimilarity(MoEsmPreTrainedModel):
         self.contrastive_loss = clip_loss
         self.temp = nn.Parameter(torch.tensor(0.7))
 
-    def forward(self, input_ids_a, attention_mask_a, input_ids_b, attention_mask_b, r_labels=None, labels=None):
+    def forward(self, a, b,
+                att_a=None, att_b=None, r_labels=None, labels=None):
         if random.random() < 0.5:
-            outputa = self.esm(input_ids=input_ids_a, attention_mask=attention_mask_a)
-            outputb = self.esm(input_ids=input_ids_b, attention_mask=attention_mask_b)
+            outputa = self.bert(input_ids=a, attention_mask=att_a)
+            outputb = self.bert(input_ids=b, attention_mask=att_b)
         else:
-            outputa = self.esm(input_ids=input_ids_b, attention_mask=attention_mask_b)
-            outputb = self.esm(input_ids=input_ids_a, attention_mask=attention_mask_a)
+            outputa = self.bert(input_ids=b, attention_mask=att_b)
+            outputb = self.bert(input_ids=a, attention_mask=att_a)
 
         emba = outputa.pooler_output
         embb = outputb.pooler_output
@@ -1489,10 +1491,14 @@ class MoEsmForTripletSimilarity(MoEsmPreTrainedModel):
         if self.MI:
             self.MI_loss = MILoss(config)
     
-    def forward(self, pos, anc, neg, r_labels=None):
-        outp = self.esm(**pos)
-        outa = self.esm(**anc)
-        outn = self.esm(**neg)
+    def embed(self, ids, att=None):
+        return self.esm(input_ids=ids, attention_mask=att).pooler_output
+
+    def forward(self, pos, anc, neg,
+                att_p=None, att_a=None, att_n=None, r_labels=None):
+        outp = self.esm(input_ids=pos, attention_mask=att_p)
+        outa = self.esm(input_ids=anc, attention_mask=att_a)
+        outn = self.esm(input_ids=neg, attention_mask=att_n)
         
         p = outp.pooler_output
         a = outa.pooler_output
@@ -1502,13 +1508,42 @@ class MoEsmForTripletSimilarity(MoEsmPreTrainedModel):
 
         router_logits = tuple((a + b + c) / 2 for a, b, c in
                               zip(outp.router_logits, outa.router_logits, outn.router_logits))
-                              
+
         r_loss = self.aux_loss(router_logits)
-        if r_loss != None and self.MI:
+        if r_labels != None and self.MI:
             r_loss = r_loss + self.MI_loss(router_logits, r_labels)
 
         logits = (p, a, n)
         loss = c_loss + r_loss
+        
+        return SentenceSimilarityOutput(
+            logits=logits,
+            loss=loss
+        )
+
+
+class EsmForTripletSimilarity(MoEsmPreTrainedModel):
+    def __init__(self, config, esm=None):
+        super().__init__(config)
+        from transformers import EsmModel
+        self.esm = EsmModel(config, add_pooling_layer=True) if esm is None else esm
+        self.contrastive_loss = nn.TripletMarginLoss()
+
+    def embed(self, ids, att=None):
+        return self.esm(input_ids=ids, attention_mask=att).pooler_output
+    
+    def forward(self, pos, anc, neg,
+                att_p=None, att_a=None, att_n=None, r_labels=None):
+        outp = self.esm(input_ids=pos, attention_mask=att_p)
+        outa = self.esm(input_ids=anc, attention_mask=att_a)
+        outn = self.esm(input_ids=neg, attention_mask=att_n)
+        
+        p = outp.pooler_output
+        a = outa.pooler_output
+        n = outn.pooler_output
+
+        loss = self.contrastive_loss(p, a, n)
+        logits = (p, a, n)
         
         return SentenceSimilarityOutput(
             logits=logits,

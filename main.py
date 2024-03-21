@@ -2,7 +2,7 @@ import argparse
 import torch
 
 from utils import get_yaml, load_model
-from run_model import train_model, evaluate_model
+from run_model import *
 from metrics import compute_metrics_sentence_similarity
 
 
@@ -39,9 +39,12 @@ def main():
             weight_path = args['weight_path']
             model.load_state_dict(torch.load(weight_path))
             print(f'Model loaded from {weight_path}')
-        evaluate_model(yargs, tokenizer, compute_metrics=compute_metrics, model=model)
+        evaluate_sim_model(yargs, tokenizer, compute_metrics=compute_metrics, model=model)
     else:
-        train_model(yargs, model, tokenizer, compute_metrics=compute_metrics)
+        if args['model_type'] == 'Triplet':
+            pass
+        else:
+            train_sim_model(yargs, model, tokenizer, compute_metrics=compute_metrics)
 
 
 if __name__ == '__main__':

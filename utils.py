@@ -3,7 +3,7 @@ import torch
 from transformers import BertModel, BertTokenizer, EsmModel, EsmTokenizer
 
 from models.load_model import MoEBertLoadWeights, MoEsmLoadWeights
-from models.modeling_moesm import EsmForSentenceSimilarity
+from models.modeling_moesm import EsmForSentenceSimilarity, EsmForTripletSimilarity
 from models.modeling_moebert import BertForSentenceSimilarity, MoEBertForSentenceSimilarity
 
 
@@ -50,8 +50,11 @@ def load_model(args):
         if args['MOE']:
             loader = MoEsmLoadWeights(args)
             model, tokenizer = loader.get_seeded_model(tokenizer=tokenizer)
-        else:
+        elif args['model_type'] == 'SentenceSimilarity':
             model = EsmForSentenceSimilarity(base_model.config, base_model)
+        else:
+            model = EsmForTripletSimilarity(base_model.config, base_model)
+    
     else:
         tokenizer = BertTokenizer.from_pretrained(args['model_path'])
         base_model = BertModel.from_pretrained(args['model_path'],

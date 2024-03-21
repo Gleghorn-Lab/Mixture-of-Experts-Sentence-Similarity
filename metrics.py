@@ -171,3 +171,6 @@ def compute_metrics_sentence_similarity(p: EvalPrediction):
     }
 
 
+def compute_metrics_triplet(p: EvalPrediction):
+    pass
+

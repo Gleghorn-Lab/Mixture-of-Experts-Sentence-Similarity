@@ -88,7 +88,6 @@ class TokenTopKMoeBlock(nn.Module):
     capacity factor to number of experts and thus waste computation
     and memory on padding.
     """
-
     def __init__(self, config, expert):
         super().__init__()
         self.hidden_dim = config.hidden_size

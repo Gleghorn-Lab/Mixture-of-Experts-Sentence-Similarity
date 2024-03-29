@@ -20,7 +20,7 @@ def HF_trainer(model,
                valid_dataset,
                compute_metrics=None,
                data_collator=None,
-               patience=3,
+               patience=1,
                MI=False,
                *args, **kwargs):
     training_args = TrainingArguments(load_best_model_at_end=True, *args, **kwargs)

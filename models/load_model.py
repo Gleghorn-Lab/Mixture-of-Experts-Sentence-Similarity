@@ -32,6 +32,8 @@ class MoEBertLoadWeights:
                 model.resize_token_embeddings(len(self.tokenizer) + len(self.domains))
                 # Add new tokens to the tokenizer
                 added_tokens = {'additional_special_tokens' : self.domains}
+                print('Adding tokens')
+                print(added_tokens)
                 self.tokenizer.add_special_tokens(added_tokens)
                 # Seed the embedding with the [CLS] token embedding
                 cls_token_embedding = model.embeddings.word_embeddings.weight[self.tokenizer.cls_token_id, :].clone()
@@ -185,6 +187,8 @@ class MoEsmLoadWeights:
                 model.resize_token_embeddings(len(tokenizer) + len(self.args.domains))
                 # Add new tokens to the tokenizer
                 added_tokens = {'additional_special_tokens' : self.args.domains}
+                print('Adding tokens')
+                print(added_tokens)
                 tokenizer.add_special_tokens(added_tokens)
                 # Seed the embedding with the [CLS] token embedding
                 try:  

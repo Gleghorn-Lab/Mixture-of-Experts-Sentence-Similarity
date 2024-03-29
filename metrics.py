@@ -5,8 +5,6 @@ from transformers import EvalPrediction
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, hamming_loss, confusion_matrix
 from scipy.stats import spearmanr
 
-from models.losses import clip_loss
-
 
 def align_predictions(predictions, label_ids, id2tag):
     preds = predictions.argmax(dim=-1)
@@ -172,5 +170,30 @@ def compute_metrics_sentence_similarity(p: EvalPrediction):
 
 
 def compute_metrics_triplet(p: EvalPrediction):
-    pass
+    preds = p.predictions
 
+    emb_p, emb_a, emb_n = preds[0], preds[1], preds[2]
+
+    pair_a_a, pair_a_b, labels_a = torch.tensor(emb_p), torch.tensor(emb_a), torch.tensor([1] * len(emb_p))
+    pair_b_a, pair_b_b, labels_b = torch.tensor(emb_a), torch.tensor(emb_n), torch.tensor([0] * len(emb_p))
+    a = torch.cat([pair_a_a, pair_b_a])
+    b = torch.cat([pair_a_b, pair_b_b])
+    labels_tensor = torch.cat([labels_a, labels_b])
+    # Compute cosine similarity between the embeddings
+    cosine_sim = F.cosine_similarity(a, b)
+    # Compute max metrics
+    f1, prec, recall, thres = max_metrics(cosine_sim, labels_tensor)
+    # Compute accuracy based on the threshold found
+    predictions = (cosine_sim > thres).float()
+    acc = accuracy_score(predictions.flatten().numpy(), labels_tensor.flatten())
+    # Compute the mean absolute difference between cosine similarities and labels
+    dist = torch.mean(torch.abs(cosine_sim - labels_tensor)).item()
+    # Return a dictionary of the computed metrics
+    return {
+        'accuracy': acc,
+        'f1_max': f1,
+        'precision_max': prec,
+        'recall_max': recall,
+        'threshold': thres,
+        'distance': dist,
+    }

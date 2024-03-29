@@ -87,10 +87,9 @@ def embed_dataset(cfg, model, tokenizer, sequences):
     return input_embeddings
 
 
-def embed_dataset_and_save(cfg, model, tokenizer, sequences, aspect=0):
+def embed_dataset_and_save(cfg, model, tokenizer, sequences, domains, aspects):
     model.eval()
     db_file = cfg.db_path
-    full, pooling, max_length = cfg.full, cfg.pooling, cfg.max_length
     batch_size = 1000
 
     with sqlite3.connect(db_file) as conn:
@@ -102,14 +101,15 @@ def embed_dataset_and_save(cfg, model, tokenizer, sequences, aspect=0):
                 batch_sequences = sequences[i:i + batch_size]
                 embeddings = []
 
-                for sample in tqdm(batch_sequences, desc='Embedding'):  # Process embeddings in batches
+                for j, sample in tqdm(enumerate(batch_sequences), total=len(batch_sequences), desc='Embedding'):  # Process embeddings in batches
                     ids = tokenizer(sample,
                                     add_special_tokens=True,
                                     padding=False,
                                     return_token_type_ids=False,
                                     return_tensors='pt').input_ids.to(cfg.device)
 
-                    ### ADD DOMAIN TOKENS ###
+                    domain_token = tokenizer(domains[aspects[i+j]], add_special_tokens=False).input_ids[0]  # get the domain token
+                    ids[0][0] = domain_token  # replace the cls token with the domain token
 
                     embeddings.append(model.embed(ids).detach().cpu().numpy())
 
@@ -195,7 +195,7 @@ class FineTuneDatasetEmbedsFromDisk(data.Dataset):
         self.embeddings = embeddings
         self.current_labels = labels
 
-    def __getitem__(self, idx):
+    def __getitem__(self, _):
         if self.index >= len(self.current_labels) or len(self.current_labels) == 0:
             self.read_embeddings()
 

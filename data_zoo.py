@@ -94,9 +94,9 @@ class TripletDataset(TorchDataset):
             n['input_ids'][0][0] = domain_token
 
         return {
-            'p': p['input_ids'].squeeze(),
-            'a': a['input_ids'].squeeze(),
-            'n': n['input_ids'].squeeze(),
+            'pos': p['input_ids'].squeeze(),
+            'anc': a['input_ids'].squeeze(),
+            'neg': n['input_ids'].squeeze(),
             'att_p': p['attention_mask'].squeeze(),
             'att_a': a['attention_mask'].squeeze(),
             'att_n': n['attention_mask'].squeeze(),
@@ -179,11 +179,10 @@ def get_datasets_train_triplet(args, tokenizer):
     domains = args['domains']
     add_tokens = args['new_special_tokens']
     max_length = args['max_length']
-    p_col = 'positives'
-    a_col = 'anchors'
-    n_col = 'negatives'
-    label_col = 'aspects'
-
+    p_col = args['p_col']
+    a_col = args['a_col']
+    n_col = args['n_col']
+    label_col = args['label_col']
     valid_size = args['valid_size']
     test_size = args['test_size']
 
@@ -205,12 +204,12 @@ def get_datasets_train_triplet(args, tokenizer):
         valid_p.extend(valid[p_col][:valid_size])
         valid_a.extend(valid[a_col][:valid_size])
         valid_n.extend(valid[n_col][:valid_size])
-        valid_label.extend(label_col)
+        valid_label.extend(valid[label_col])
 
         test_p.extend(test[p_col][:test_size])
         test_a.extend(test[a_col][:test_size])
         test_n.extend(test[n_col][:test_size])
-        test_label.extend(label_col)
+        test_label.extend(test[label_col])
 
     train_dataset = TripletDataset(train_p, train_a, train_n, train_label,
                                    tokenizer, domains, add_tokens, max_length)

@@ -50,6 +50,7 @@ def train_sim_model(yargs, model, tokenizer, compute_metrics):
         tokenizer.save_pretrained(weight_path.split('.')[0] + '_tokenizer')
         print(f'Model saved at {weight_path}')
 
+    trainer.accelerator.free_memory()
     evaluate_sim_model(yargs, tokenizer, trainer=trainer, compute_metrics=compute_metrics)
 
 
@@ -60,7 +61,7 @@ def train_triplet_model(yargs, model, tokenizer, compute_metrics):
 
     trainer = HF_trainer(model, train_dataset, valid_dataset,
                          compute_metrics=compute_metrics, data_collator=data_collator,
-                         patience=args['patience'], MI=False, **training_args)
+                         patience=args['patience'], MI=args['MI_loss'], **training_args)
     trainer.train()
 
     weight_path = args['weight_path']
@@ -69,6 +70,7 @@ def train_triplet_model(yargs, model, tokenizer, compute_metrics):
         tokenizer.save_pretrained(weight_path.split('.')[0] + '_tokenizer')
         print(f'Model saved at {weight_path}')
     
+    trainer.accelerator.free_memory()
     evaluate_triplet_model(yargs, eval_config=eval_config, base_model=trainer.model, tokenizer=tokenizer)
 
 
@@ -76,17 +78,21 @@ class eval_config:
     db_path = 'embeddings.db'
 
 
-def evaluate_triplet_model(yargs, eval_config, base_model, tokenizer):
+def evaluate_triplet_model(yargs, eval_config, base_model, tokenizer): # TODO add PPI and SSQ
     training_args = yargs['eval_training_args']
     eval_args = yargs['eval_args']
     general_args = yargs['general_args']
 
-    for key, value in eval_args.items():
+    for key, value in eval_args.items(): # add training args and rename them in the dataset
         setattr(eval_config, key, value)
     args = eval_config
+    args.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    domains = args.domains
 
     datasets, all_seqs, train_sets, valid_sets, test_sets, num_labels, task_types = [], [], [], [], [], [], []
-    for data_path in args.data_paths:
+    seq_to_origin = {}
+
+    for i, data_path in enumerate(args.data_paths):
         train_set, valid_set, test_set, num_label, task_type = get_data(args, data_path)
         num_labels.append(num_label)
         task_types.append(task_type)
@@ -95,18 +101,26 @@ def evaluate_triplet_model(yargs, eval_config, base_model, tokenizer):
         valid_seqs, valid_labels = get_seqs(valid_set)
         test_seqs, test_labels = get_seqs(test_set)
 
+        train_seqs, train_labels = train_seqs[:10], train_labels[:10]
+        valid_seqs, valid_labels = valid_seqs[:10], valid_labels[:10]
+        test_seqs, test_labels = test_seqs[:10], test_labels[:10]
+
         train_sets.append((train_seqs, train_labels))
         valid_sets.append((valid_seqs, valid_labels))
         test_sets.append((test_seqs, test_labels))
 
+        for seq in train_seqs + valid_seqs + test_seqs:
+            seq_to_origin[seq] = i
+
         all_seqs.extend(train_seqs + valid_seqs + test_seqs)
 
     all_seqs = list(set(all_seqs))
+    aspects = [seq_to_origin[seq] for seq in all_seqs]
 
     if not args.skip:
-        embed_dataset_and_save(args, base_model, tokenizer, all_seqs)
-        plm.to('cpu')
-        del plm
+        embed_dataset_and_save(args, base_model, tokenizer, all_seqs, domains=domains, aspects=aspects)
+        base_model.to('cpu')
+        del base_model
     for i in range(len(train_sets)):
         train_dataset = FineTuneDatasetEmbedsFromDisk(args, train_sets[i][0], train_sets[i][1], task_types[i])
         valid_dataset = FineTuneDatasetEmbedsFromDisk(args, valid_sets[i][0], valid_sets[i][1], task_types[i])
@@ -134,4 +148,5 @@ def evaluate_triplet_model(yargs, eval_config, base_model, tokenizer):
         trainer.train()
 
         metrics = trainer.predict(test_dataset)[-1]
+        trainer.accelerator.free_memory()
         log_metrics(general_args['log_path'], metrics, details=general_args, header=f'Evaluation {args.data_paths[i]}')

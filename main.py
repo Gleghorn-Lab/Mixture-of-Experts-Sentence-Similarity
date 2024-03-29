@@ -32,7 +32,10 @@ def main():
     print('\n-----Load Model-----\n')
     model, tokenizer = load_model(args)
 
-    compute_metrics = compute_metrics_sentence_similarity
+    if 'triplet' in args['model_type'].lower():
+        compute_metrics = compute_metrics_triplet
+    else:
+        compute_metrics = compute_metrics_sentence_similarity
 
     if parse.eval:
         if args['weight_path'] != None:
@@ -42,7 +45,7 @@ def main():
         evaluate_sim_model(yargs, tokenizer, compute_metrics=compute_metrics, model=model)
     else:
         if args['model_type'] == 'Triplet':
-            pass
+            train_triplet_model(yargs, model, tokenizer, compute_metrics=compute_metrics)
         else:
             train_sim_model(yargs, model, tokenizer, compute_metrics=compute_metrics)
 

@@ -1,9 +1,10 @@
 import argparse
 import torch
-
-from utils import get_yaml, load_model
-from run_model import *
-from metrics import compute_metrics_sentence_similarity
+from models.load_model import load_model
+from utils import get_yaml
+from metrics import compute_metrics_sentence_similarity, compute_metrics_triplet
+from evaluate import evaluate_sim_model
+from train import train_sim_model, train_triplet_model
 
 
 def get_args():
@@ -14,34 +15,45 @@ def get_args():
 
 
 def main():
-    parse = get_args()
-    
-    yargs = get_yaml(parse.yaml_path)
+    ### Set up args
+    args = get_args()
+    yargs = get_yaml(args.yaml_path)
+    for key, value in yargs['general_args'].items(): # copy yaml config into args
+        setattr(args, key, value)
+    for key, value in yargs['training_args'].items():
+        setattr(args, key, value)
 
-    args = yargs['general_args']
-
-    if args['wandb']:
+    ### If using wandb
+    if args.wandb:
         import wandb
         import os
         os.environ['WANDB_API_KEY'] = input('Wandb api key: ')
-        os.environ['WANDB_PROJECT'] = args['wandb_project']
-        os.environ['WANDB_NAME'] = args['wandb_name']
+        os.environ['WANDB_PROJECT'] = args.wandb_project
+        os.environ['WANDB_NAME'] = args.wandb_name
         wandb.login()
         wandb.init()
+
 
     print('\n-----Load Model-----\n')
     model, tokenizer = load_model(args)
 
-    if 'triplet' in args['model_type'].lower():
+
+    if 'triplet' in args.model_type.lower():
         compute_metrics = compute_metrics_triplet
     else:
         compute_metrics = compute_metrics_sentence_similarity
 
-    if parse.eval:
-        if args['weight_path'] != None:
-            weight_path = args['weight_path']
-            model.load_state_dict(torch.load(weight_path))
-            print(f'Model loaded from {weight_path}')
+
+    if args.eval: ### TODO make this robust for all options
+        if args.huggingface_username in args.weight_path:
+            model = model.from_pretrained(args.weight_path, token=args.token)
+        else:
+            try:
+                model.load_state_dict(torch.load(args.weight_path)) # for torch
+            except:
+                from safetensors.torch import load_model
+                load_model(model, args.weight_path) # for safetensors
+        print(f'Loaded from {args.weight_path}')
         evaluate_sim_model(yargs, tokenizer, compute_metrics=compute_metrics, model=model)
     else:
         if args['model_type'] == 'Triplet':

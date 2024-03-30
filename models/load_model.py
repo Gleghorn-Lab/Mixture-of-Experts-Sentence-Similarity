@@ -1,17 +1,78 @@
 import time
 import copy
 import torch
-from models.modeling_moebert import MoEBertModel
-from models.configuration_moesm import MoEsmConfig
-from models.modeling_moesm import (
+from transformers import (
+    EsmModel,
+    EsmTokenizer,
+    BertModel,
+    BertTokenizer
+)
+from .modeling_moebert import MoEBertModel
+from .configuration_moesm import MoEsmConfig
+from .modeling_moesm import (
     MoEsmModel,
     MoEsmForMaskedLM,
     MoEsmForSequenceClassification,
-    MoEsmForTokenClassification,
-    MoEsmForMultitaskLearning,
+    MoEsmForTokenClassification
+)
+from .model_zoo import (
+    EsmForSentenceSimilarity,
+    EsmForTripletSimilarity,
     MoEsmForSentenceSimilarity,
+    MoEBertForSentenceSimilarity,
+    BertForSentenceSimilarity,
     MoEsmForTripletSimilarity
 )
+
+
+def load_model(args):
+    if args['ESM']:
+        tokenizer = EsmTokenizer.from_pretrained(args.model_path)
+        base_model = EsmModel.from_pretrained(args.model_path,
+                                               hidden_dropout_prob = args.hidden_dropout_prob,
+                                               attention_probs_dropout_prob = 0.0)
+        if args['MOE']:
+            loader = MoEsmLoadWeights(args)
+            model, tokenizer = loader.get_seeded_model(tokenizer=tokenizer)
+        elif args['model_type'] == 'SentenceSimilarity':
+            model = EsmForSentenceSimilarity(base_model.config, base_model)
+        else:
+            model = EsmForTripletSimilarity(base_model.config, base_model)
+    
+    else:
+        tokenizer = BertTokenizer.from_pretrained(args.model_path)
+        base_model = BertModel.from_pretrained(args.model_path,
+                                               hidden_dropout_prob = args.hidden_dropout_prob,
+                                               attention_probs_dropout_prob = 0.0)
+
+        domains = args.domains
+        if domains is not None and args.new_special_tokens:
+            with torch.no_grad():
+                base_model.resize_token_embeddings(len(tokenizer) + len(domains))
+                # Add new tokens to the tokenizer
+                added_tokens = {'additional_special_tokens' : domains}
+                tokenizer.add_special_tokens(added_tokens)
+                # Seed the embedding with the [CLS] token embedding
+                try:  
+                    cls_token_embedding = base_model.embeddings.word_embeddings.weight[tokenizer.cls_token_id, :].clone()
+                    for token in domains:
+                        base_model.embeddings.word_embeddings.weight[tokenizer._convert_token_to_id(token), :] = cls_token_embedding.clone()
+                except AttributeError:
+                    cls_token_embedding = base_model.esm.embeddings.word_embeddings.weight[tokenizer.cls_token_id, :].clone()
+                    for token in domains:
+                        base_model.esm.embeddings.word_embeddings.weight[tokenizer._convert_token_to_id(token), :] = cls_token_embedding.clone()
+
+        config = base_model.config
+        for key, value in args.items():
+            setattr(config, key, value)
+        if args.MOE:
+            loader = MoEBertLoadWeights(args, config, base_model=base_model, tokenizer=tokenizer)
+            base_model, tokenizer = loader.get_seeded_model()
+            model = MoEBertForSentenceSimilarity(config, base_model)
+        else:
+            model = BertForSentenceSimilarity(config, base_model)
+    print(model)
+    return model, tokenizer
 
 
 class MoEBertLoadWeights:
@@ -19,8 +80,8 @@ class MoEBertLoadWeights:
         self.bert_base = base_model # base bert model
         self.tokenizer = tokenizer # bert tokenizer
         self.config = model_config
-        self.domains = args['domains'] # list of special tokens to take place of CLS
-        self.new_tokens = args['new_special_tokens']
+        self.domains = args.domains # list of special tokens to take place of CLS
+        self.new_tokens = args.new_special_tokens
 
     def get_seeded_model(self):
         start_time = time.time()
@@ -127,11 +188,11 @@ class MoEsmLoadWeights:
     """
     def __init__(self, args):
         self.args = args
-        self.model_path = args['model_path']
-        self.model_type = args['model_type']
-        self.num_experts = args['num_experts']
-        self.topk = args['topk']
-        self.num_labels = args['num_labels']
+        self.model_path = args.model_path
+        self.model_type = args.model_type
+        self.num_experts = args.num_experts
+        self.topk = args.topk
+        self.num_labels = args.num_labels
         self.esm_base = None
         self.config = None
 
@@ -159,12 +220,6 @@ class MoEsmLoadWeights:
             self.esm_base = EsmModelTransformers.from_pretrained(self.model_path, num_labels=self.num_labels)
             self.config = self.get_config(self.esm_base)
             model = MoEsmForTokenClassification(config=self.config)
-
-        elif self.model_type == 'MultiTask':
-            from transformers import EsmModel as EsmModelTransformers
-            self.esm_base = EsmModelTransformers.from_pretrained(self.model_path)
-            self.config = self.get_config(self.esm_base)
-            model = MoEsmForMultitaskLearning(config=self.config)
         
         elif self.model_type == 'SentenceSimilarity':
             from transformers import EsmModel as EsmModelTransformers
@@ -221,9 +276,6 @@ class MoEsmLoadWeights:
 
         elif self.model_type == 'TokenClassification':
             model = MoEsmForTokenClassification.from_pretrained(self.model_path, num_labels=self.num_labels, use_router_loss=self.use_router_loss)
-        
-        elif self.model_type == 'MultiTask':
-            model = MoEsmForMultitaskLearning.from_pretrained(self.model_path)
 
         elif self.model_type == 'SentenceSimilarity':
             model = MoEsmForSentenceSimilarity.from_pretrained(self.model_path)

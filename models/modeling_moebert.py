@@ -1,13 +1,13 @@
-import random
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from transformers.models.bert.modeling_bert import BertAttention, BertPreTrainedModel, BertEmbeddings
+from transformers.modeling_outputs import BaseModelOutputWithPoolingAndCrossAttentions
+from typing import Optional, Union, Tuple
 
-from models.outputs import *
-from models.moe_blocks import *
-from models.losses import *
+from models.outputs import MoEBertOutputWithPastAndCrossAttentions, MoEBertOutputWithPoolingAndCrossAttentions
+from moe_blocks import *
 
 
 class BertExpert(nn.Module):
@@ -283,73 +283,4 @@ class MoEBertModel(BertPreTrainedModel):
             hidden_states=encoder_outputs.hidden_states,
             attentions=encoder_outputs.attentions,
             router_logits=encoder_outputs.router_logits
-        )
-
-
-class MoEBertForSentenceSimilarity(nn.Module):
-    def __init__(self, config, bert=None):
-        super().__init__()
-        self.bert = MoEBertModel(config, add_pooling_layer=True) if bert is None else bert
-        self.contrastive_loss = clip_loss
-        self.temp = nn.Parameter(torch.tensor(0.7))
-        self.aux_loss = LoadBalancingLoss(config)
-        self.MI = config.MI_loss
-        if self.MI:
-            self.MI_loss = MILoss(config)
-    
-    def forward(self, a, b,
-                att_a=None, att_b=None, r_labels=None, labels=None):
-        if random.random() < 0.5:
-            outputa = self.bert(input_ids=a, attention_mask=att_a)
-            outputb = self.bert(input_ids=b, attention_mask=att_b)
-        else:
-            outputa = self.bert(input_ids=b, attention_mask=att_b)
-            outputb = self.bert(input_ids=a, attention_mask=att_a)
-
-        emba = outputa.pooler_output
-        embb = outputb.pooler_output
-
-        c_loss = self.contrastive_loss(emba, embb, self.temp)
-
-        router_logits = tuple((a + b) / 2 for a, b in zip(outputa.router_logits, outputb.router_logits))
-        r_loss = self.aux_loss(router_logits)
-        if r_labels != None and self.MI:
-            r_loss = r_loss + self.MI_loss(router_logits, r_labels)
-
-        logits = (emba, embb)
-        loss = c_loss + r_loss
-        
-        return SentenceSimilarityOutput(
-            logits=logits,
-            loss=loss
-        )
-    
-
-class BertForSentenceSimilarity(nn.Module):
-    def __init__(self, config=None, bert=None):
-        super().__init__()
-        from transformers import BertModel
-        self.bert = BertModel(config, add_pooling_layer=True) if bert is None else bert
-        self.contrastive_loss = clip_loss
-        self.temp = nn.Parameter(torch.tensor(0.7))
-
-    def forward(self, a, b,
-                att_a=None, att_b=None, r_labels=None, labels=None):
-        if random.random() < 0.5:
-            outputa = self.bert(input_ids=a, attention_mask=att_a)
-            outputb = self.bert(input_ids=b, attention_mask=att_b)
-        else:
-            outputa = self.bert(input_ids=b, attention_mask=att_b)
-            outputb = self.bert(input_ids=a, attention_mask=att_a)
-
-        emba = outputa.pooler_output
-        embb = outputb.pooler_output
-
-        loss = self.contrastive_loss(emba, embb, self.temp)
-
-        logits = (emba, embb)
-
-        return SentenceSimilarityOutput(
-            logits=logits,
-            loss=loss
         )

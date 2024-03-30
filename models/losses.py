@@ -126,3 +126,15 @@ class LoadBalancingLoss(nn.Module):
         temp = num_tokens.float()
         f = temp / temp.sum(0, keepdim=True) 
         return wBAL * num_experts * torch.sum(p * f)
+    
+
+def get_loss_fct(task_type):
+    if task_type == 'singlelabel':
+        loss_fct = nn.CrossEntropyLoss()
+    elif task_type == 'multilabel':
+        loss_fct = nn.BCEWithLogitsLoss()
+    elif task_type == 'regression':
+        loss_fct = nn.MSELoss()
+    else:
+        print(f'Specified wrong classification type {task_type}')
+    return loss_fct

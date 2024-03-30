@@ -41,8 +41,8 @@ general_args:
   label_col: 'aspects'
   max_length: 512  # Maximum length of the sequences
   num_labels: 2
-  valid_size: 10000
-  test_size: 10000
+  valid_size: 1000
+  test_size: 1000
 
 # wandb settings
   wandb: false

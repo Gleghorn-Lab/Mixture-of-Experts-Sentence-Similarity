@@ -152,15 +152,24 @@ def get_datasets_train_triplet(args, tokenizer):
         train_n.extend(train[n_col])
         train_label.extend(train[label_col])
 
-        valid_p.extend(valid[p_col][:valid_size])
-        valid_a.extend(valid[a_col][:valid_size])
-        valid_n.extend(valid[n_col][:valid_size])
+        valid_p.extend(valid[p_col])
+        valid_a.extend(valid[a_col])
+        valid_n.extend(valid[n_col])
         valid_label.extend(valid[label_col])
 
-        test_p.extend(test[p_col][:test_size])
-        test_a.extend(test[a_col][:test_size])
-        test_n.extend(test[n_col][:test_size])
+        test_p.extend(test[p_col])
+        test_a.extend(test[a_col])
+        test_n.extend(test[n_col])
         test_label.extend(test[label_col])
+    
+    valid = list(zip(valid_p[:valid_size], valid_a[:valid_size], valid_n[:valid_size], valid_label[:valid_size]))
+    random.shuffle(valid)
+    valid_p, valid_a, valid_n, valid_label = zip(*valid)
+
+    test = list(zip(test_p[:test_size], test_a[:test_size], test_n[:test_size], test_label[:test_size]))
+    random.shuffle(test)
+    test_p, test_a, test_n, test_label = zip(*test)
+
 
     train_dataset = TripletDataset(train_p, train_a, train_n, train_label,
                                    tokenizer, domains, add_tokens, max_length)

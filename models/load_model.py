@@ -331,6 +331,7 @@ class MoEsmLoadWeights:
                 domains=self.args.domains,
                 wBAL=self.args.wBAL,
                 wMI=self.args.wMI,
+                MI_loss=self.args.MI_loss
             )
         return config
 
@@ -401,8 +402,7 @@ class MoEsmLoadWeights:
                     moe_encoder_layer = model.esm.encoder.layer[i]
                 except AttributeError:
                     moe_encoder_layer = model.encoder.layer[i]
-                non_effective_params += self.count_parameters_in_layer(moe_encoder_layer.moe_block.experts[j].intermediate_up)
-                non_effective_params += self.count_parameters_in_layer(moe_encoder_layer.moe_block.experts[j].intermediate_down)
+                non_effective_params += self.count_parameters_in_layer(moe_encoder_layer.moe_block.experts[j])
         effective_params = total_params - non_effective_params
         memory_bytes = total_params * 4  # 4 bytes for 32-bit floats
         memory_gig = round(memory_bytes / (1024 ** 3), 2)

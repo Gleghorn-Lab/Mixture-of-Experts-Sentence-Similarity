@@ -45,7 +45,7 @@ general_args:
   test_size: 1000
 
 # wandb settings
-  wandb: false
+  wandb: wandb
   wandb_project: SSPR
   wandb_name: triplet_test
 
@@ -65,17 +65,17 @@ training_args:
   logging_dir: !!str ./logs
   per_device_train_batch_size: !!int 2
   per_device_eval_batch_size: !!int 2
-  gradient_accumulation_steps: !!int 10
+  gradient_accumulation_steps: !!int 1
   learning_rate: !!float 1e-5
   lr_scheduler_type: !!str cosine
   weight_decay: !!float 0.01
   num_train_epochs: !!int 1
   warmup_steps: !!int 500
   save_strategy: !!str steps
-  save_steps: !!int 1000
+  save_steps: !!int 500
   save_total_limit: !!int 3
   evaluation_strategy: !!str steps
-  eval_steps: 1000
+  eval_steps: 5000
   logging_strategy: steps
   logging_steps: !!int 100
   fp16: true
@@ -101,7 +101,7 @@ eval_training_args:
   save_total_limit: !!int 3
   evaluation_strategy: !!str epoch
   logging_strategy: steps
-  logging_steps: !!int 100
+  logging_steps: !!int 10
   fp16: true
   seed: !!int 7
   metric_for_best_model: !!str f1_max

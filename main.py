@@ -1,9 +1,9 @@
 import argparse
 import torch
-from models.load_model import load_model
+from models.load_model import load_models
 from utils import get_yaml
 from metrics import compute_metrics_sentence_similarity, compute_metrics_triplet
-from evaluate import evaluate_sim_model
+from evaluate import evaluate_sim_model, evaluate_triplet_model, eval_config
 from train import train_sim_model, train_triplet_model
 
 
@@ -35,7 +35,7 @@ def main():
 
 
     print('\n-----Load Model-----\n')
-    model, tokenizer = load_model(args)
+    model, tokenizer = load_models(args)
 
 
     if 'triplet' in args.model_type.lower():
@@ -54,10 +54,18 @@ def main():
                 from safetensors.torch import load_model
                 load_model(model, args.weight_path) # for safetensors
         print(f'Loaded from {args.weight_path}')
-        evaluate_sim_model(yargs, tokenizer, compute_metrics=compute_metrics, model=model)
+
+        if args.model_type == 'Triplet':
+            evaluate_triplet_model(yargs, eval_config, model, tokenizer)
+
+        else:
+            evaluate_sim_model(yargs, tokenizer, compute_metrics=compute_metrics, model=model)
+
     else:
-        if args['model_type'] == 'Triplet':
+
+        if args.model_type == 'Triplet':
             train_triplet_model(yargs, model, tokenizer, compute_metrics=compute_metrics)
+
         else:
             train_sim_model(yargs, model, tokenizer, compute_metrics=compute_metrics)
 

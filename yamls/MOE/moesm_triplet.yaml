@@ -1,5 +1,5 @@
 general_args:
-  model_path: 'facebook/esm2_t6_8M_UR50D'
+  model_path: 'facebook/esm2_t12_35M_UR50D'
   ESM: true # ESM or BERT
   model_type: 'Triplet'
   contact_head: false
@@ -41,8 +41,8 @@ general_args:
   label_col: 'aspects'
   max_length: 512  # Maximum length of the sequences
   num_labels: 2
-  valid_size: 100
-  test_size: 100
+  valid_size: 10000
+  test_size: 10000
 
 # wandb settings
   wandb: false
@@ -63,28 +63,27 @@ general_args:
 training_args:
   output_dir: !!str ./output
   logging_dir: !!str ./logs
-  per_device_train_batch_size: !!int 2
-  per_device_eval_batch_size: !!int 2
-  gradient_accumulation_steps: !!int 1
+  per_device_train_batch_size: !!int 1
+  per_device_eval_batch_size: !!int 1
+  gradient_accumulation_steps: !!int 20
   learning_rate: !!float 1e-5
   lr_scheduler_type: !!str cosine
   weight_decay: !!float 0.01
   num_train_epochs: !!int 1
-  warmup_ratio: !!float 0.0
   warmup_steps: !!int 500
   save_strategy: !!str steps
-  save_steps: !!int 2500
+  save_steps: !!int 1000
   save_total_limit: !!int 3
   evaluation_strategy: !!str steps
-  eval_steps: 10
+  eval_steps: 1000
   logging_strategy: steps
   logging_steps: !!int 100
-  fp16: false
+  fp16: true
   seed: !!int 42
   eval_accumulation_steps: null
   group_by_length: false
   length_column_name: !!str length
-  metric_for_best_model: !!str loss
+  metric_for_best_model: !!str f1_max
 
 # Training arugments for HF trainer during evaluation
 eval_training_args:

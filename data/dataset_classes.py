@@ -66,23 +66,23 @@ class TripletDataset(TorchDataset):
     def __getitem__(self, idx):
         r_label = torch.tensor(self.r_labels[idx], dtype=torch.long)
 
-        p = self.tokenizer(self.positives[idx],
-                           return_tensors='pt',
-                           padding='max_length',
-                           truncation=True,
-                           max_length=self.max_length)
+        p = self.tokenizer(self.positives[idx], padding=False, return_tensors='pt')
+                           #return_tensors='pt',
+                           #padding='max_length',
+                           #truncation=True,
+                           #max_length=self.max_length)
         
-        a = self.tokenizer(self.anchors[idx],
-                           return_tensors='pt',
-                           padding='max_length',
-                           truncation=True,
-                           max_length=self.max_length)
+        a = self.tokenizer(self.anchors[idx], padding=False, return_tensors='pt')
+                           #return_tensors='pt',
+                           #padding='max_length',
+                           #truncation=True,
+                           #max_length=self.max_length)
         
-        n = self.tokenizer(self.negatives[idx],
-                           return_tensors='pt',
-                           padding='max_length',
-                           truncation=True,
-                           max_length=self.max_length)
+        n = self.tokenizer(self.negatives[idx], padding=False, return_tensors='pt')
+                           #return_tensors='pt',
+                           #padding='max_length',
+                           #truncation=True,
+                           #max_length=self.max_length)
 
         if self.add_tokens:
             domain_token = self.tokenizer(self.domains[int(r_label.item())],

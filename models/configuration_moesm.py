@@ -102,13 +102,9 @@ class MoEsmConfig(PretrainedConfig): #TODO update documentation
         esmfold_config=None,
         vocab_list=None,
         domains=None,
-        label_types=None,
-        multitask_out=None,
-        multi_task_weights=None,
         wBAL=None,
         wMI=None,
-        id_dicts=None,
-        router_loss_type=None,
+        MI_loss=False,
         **kwargs,
     ):
         super().__init__(pad_token_id=pad_token_id, mask_token_id=mask_token_id, **kwargs)
@@ -135,13 +131,10 @@ class MoEsmConfig(PretrainedConfig): #TODO update documentation
         self.is_folding_model = is_folding_model
         self.contact_head = contact_head
         self.domains = domains
-        self.label_types = label_types
-        self.multitask_out = multitask_out
-        self.multi_task_weights = multi_task_weights
         self.wBAL = wBAL
         self.wMI = wMI
-        self.id_dicts = id_dicts
-        self.router_loss_type = router_loss_type
+        self.MI_loss = MI_loss
+
         if is_folding_model:
             if esmfold_config is None:
                 logger.info("No esmfold_config supplied for folding model, using default values.")

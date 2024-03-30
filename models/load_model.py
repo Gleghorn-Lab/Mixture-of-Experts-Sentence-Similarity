@@ -25,16 +25,16 @@ from .model_zoo import (
 )
 
 
-def load_model(args):
-    if args['ESM']:
+def load_models(args):
+    if args.ESM:
         tokenizer = EsmTokenizer.from_pretrained(args.model_path)
         base_model = EsmModel.from_pretrained(args.model_path,
                                                hidden_dropout_prob = args.hidden_dropout_prob,
                                                attention_probs_dropout_prob = 0.0)
-        if args['MOE']:
+        if args.MOE:
             loader = MoEsmLoadWeights(args)
             model, tokenizer = loader.get_seeded_model(tokenizer=tokenizer)
-        elif args['model_type'] == 'SentenceSimilarity':
+        elif args.model_type == 'SentenceSimilarity':
             model = EsmForSentenceSimilarity(base_model.config, base_model)
         else:
             model = EsmForTripletSimilarity(base_model.config, base_model)
@@ -320,9 +320,18 @@ class MoEsmLoadWeights:
                 is_folding_model=esm_config.is_folding_model,
                 esmfold_config=esm_config.esmfold_config,
                 vocab_list=esm_config.vocab_list,
-                **self.args
+                num_experts=self.args.num_experts,
+                topk=self.args.topk,
+                hidden_dropout_prob=self.args.hidden_dropout_prob,
+                attention_probs_dropout_prob=self.args.attention_probs_dropout_prob,
+                moe_type=self.args.moe_type,
+                token_moe=self.args.token_moe,
+                num_tasks=self.args.num_tasks,
+                contact_head=self.args.contact_head,
+                domains=self.args.domains,
+                wBAL=self.args.wBAL,
+                wMI=self.args.wMI,
             )
-        self.args = config
         return config
 
     def check_for_match(self, model): # Test for matching parameters

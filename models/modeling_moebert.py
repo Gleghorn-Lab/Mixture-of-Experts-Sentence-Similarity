@@ -6,8 +6,8 @@ from transformers.models.bert.modeling_bert import BertAttention, BertPreTrained
 from transformers.modeling_outputs import BaseModelOutputWithPoolingAndCrossAttentions
 from typing import Optional, Union, Tuple
 
-from models.outputs import MoEBertOutputWithPastAndCrossAttentions, MoEBertOutputWithPoolingAndCrossAttentions
-from moe_blocks import *
+from .outputs import MoEBertOutputWithPastAndCrossAttentions, MoEBertOutputWithPoolingAndCrossAttentions
+from .moe_blocks import *
 
 
 class BertExpert(nn.Module):

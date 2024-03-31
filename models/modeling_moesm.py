@@ -27,7 +27,12 @@ from torch import nn
 from torch.nn import functional as F
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
-from transformers.file_utils import add_code_sample_docstrings, add_start_docstrings, add_start_docstrings_to_model_forward
+from transformers.models.esm.modeling_esm import EsmLayer as EsmLayerNoMoE
+from transformers.file_utils import (
+    add_code_sample_docstrings,
+    add_start_docstrings,
+    add_start_docstrings_to_model_forward
+)
 from transformers.modeling_outputs import (
     MaskedLMOutput,
     SequenceClassifierOutput,
@@ -609,7 +614,13 @@ class MoEsmEncoder(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self.layer = nn.ModuleList([MoEsmLayer(config) for _ in range(config.num_hidden_layers)])
+        self.moe_idx = config.num_hidden_layers // 2
+        if config.single_moe:
+            self.layer = nn.ModuleList([MoEsmLayer(config) if i == self.moe_idx
+                                        else EsmLayerNoMoE(config) for i in range(config.num_hidden_layers)])
+        else:
+            self.layer = nn.ModuleList([MoEsmLayer(config) for _ in range(config.num_hidden_layers)])
+        self.single_moe = config.single_moe
         self.emb_layer_norm_after = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.gradient_checkpointing = False
 
@@ -675,15 +686,15 @@ class MoEsmEncoder(nn.Module):
                 )
 
             hidden_states = layer_outputs[0]
-            router_logits = layer_outputs[-1]
+            if i == self.moe_idx or not self.single_moe:
+                router_logits = layer_outputs[-1]
+                all_router_logits = all_router_logits + (router_logits,)   
             if use_cache:
                 next_decoder_cache = next_decoder_cache + (layer_outputs[-2],) # change to -2 because router last
             if output_attentions:
                 all_self_attentions = all_self_attentions + (layer_outputs[1],)
                 if self.config.add_cross_attention:
                     all_cross_attentions = all_cross_attentions + (layer_outputs[2],)
-            all_router_logits = all_router_logits + (router_logits,)
-
         if self.emb_layer_norm_after:
             hidden_states = self.emb_layer_norm_after(hidden_states)
 

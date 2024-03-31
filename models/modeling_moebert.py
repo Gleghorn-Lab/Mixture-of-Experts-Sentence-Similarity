@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from transformers.models.bert.modeling_bert import BertAttention, BertPreTrainedModel, BertEmbeddings
+from transformers.models.bert.modeling_bert import BertLayer as BertLayerWithoutMoE
 from transformers.modeling_outputs import BaseModelOutputWithPoolingAndCrossAttentions
 from typing import Optional, Union, Tuple
 
@@ -107,7 +108,13 @@ class BertEncoder(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self.layer = nn.ModuleList([BertLayer(config) for _ in range(config.num_hidden_layers)])
+        self.moe_idx = config.num_hidden_layers // 2
+        if config.single_moe:
+            self.layer = nn.ModuleList([BertLayer(config) if i == self.moe_idx
+                                        else BertLayerWithoutMoE(config) for i in range(config.num_hidden_layers)])
+        else:
+            self.layer = nn.ModuleList([BertLayer(config) for _ in range(config.num_hidden_layers)])
+        self.single_moe = config.single_moe
         self.gradient_checkpointing = False
 
     def forward(
@@ -152,27 +159,39 @@ class BertEncoder(nn.Module):
                     output_attentions,
                 )
             else:
-                layer_outputs = layer_module(
-                    hidden_states,
-                    attention_mask,
-                    token_type_ids,
-                    router_labels,
-                    layer_head_mask,
-                    encoder_hidden_states,
-                    encoder_attention_mask,
-                    past_key_value,
-                    output_attentions,
-                )
+                if i == self.config.num_hidden_layers // 2:
+                    layer_outputs = layer_module(
+                        hidden_states,
+                        attention_mask,
+                        token_type_ids,
+                        router_labels,
+                        layer_head_mask,
+                        encoder_hidden_states,
+                        encoder_attention_mask,
+                        past_key_value,
+                        output_attentions,
+                    )
+                else:
+                    layer_outputs = layer_module(
+                        hidden_states,
+                        attention_mask,
+                        layer_head_mask,
+                        encoder_hidden_states,
+                        encoder_attention_mask,
+                        past_key_value,
+                        output_attentions,
+                    )
 
             hidden_states = layer_outputs[0]
-            router_logits = layer_outputs[-1]
+            if i == self.moe_idx or not self.single_moe:
+                router_logits = layer_outputs[-1]
+                all_router_logits = all_router_logits + (router_logits,)
             if use_cache:
-                next_decoder_cache = next_decoder_cache + (layer_outputs[-2],) # change to -2 because router last
+                next_decoder_cache = next_decoder_cache + (layer_outputs[-1],)
             if output_attentions:
                 all_self_attentions = all_self_attentions + (layer_outputs[1],)
                 if self.config.add_cross_attention:
                     all_cross_attentions = all_cross_attentions + (layer_outputs[2],)
-            all_router_logits = all_router_logits + (router_logits,)
 
         if output_hidden_states:
             all_hidden_states = all_hidden_states + (hidden_states,)

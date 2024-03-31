@@ -8,7 +8,7 @@ from train import train_sim_model, train_triplet_model
 
 
 def get_args():
-    parser = argparse.ArgumentParser(description="MOE settings")
+    parser = argparse.ArgumentParser(description='Settings')
     parser.add_argument('--yaml_path', type=str, )
     parser.add_argument('--eval', action='store_true', help='Run model in evaluation mode.')
     return parser.parse_args()

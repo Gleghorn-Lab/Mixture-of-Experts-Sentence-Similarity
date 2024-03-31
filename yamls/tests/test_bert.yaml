@@ -1,14 +1,14 @@
 general_args:
-  model_path: 'facebook/esm2_t6_8M_UR50D'
-  ESM: true # ESM or BERT
-  model_type: 'Triplet'
+  model_path: 'allenai/scibert_scivocab_uncased'
+  ESM: false # ESM or BERT
+  model_type: 'SentenceSimilarity'
   contact_head: false
 
 # MOE
   moe_type: 'topk'
-  single_moe: false
+  single_moe: true
   MOE: true 
-  token_moe: false
+  token_moe: true
   num_experts: 4  # Number of experts
   topk: 2  # Number of experts per block
   num_tasks: 7  # Number of tasks for MulitTask learning

@@ -63,8 +63,7 @@ def load_models(args):
                         base_model.esm.embeddings.word_embeddings.weight[tokenizer._convert_token_to_id(token), :] = cls_token_embedding.clone()
 
         config = base_model.config
-        for key, value in args.items():
-            setattr(config, key, value)
+        config.__dict__.update(vars(args))
         if args.MOE:
             loader = MoEBertLoadWeights(args, config, base_model=base_model, tokenizer=tokenizer)
             base_model, tokenizer = loader.get_seeded_model()
@@ -82,6 +81,7 @@ class MoEBertLoadWeights:
         self.config = model_config
         self.domains = args.domains # list of special tokens to take place of CLS
         self.new_tokens = args.new_special_tokens
+        self.single_moe = args.single_moe
 
     def get_seeded_model(self):
         start_time = time.time()
@@ -109,9 +109,9 @@ class MoEBertLoadWeights:
         print(f'Approximately {mem} GB of memory in fp32\n')
         return model, self.tokenizer
 
-    def check_for_match(self, model): # Test for matching parameters
+    def check_for_match(self, model):  # Test for matching parameters
         all_weights_match = True
-        for name, param in self.bert_base.named_parameters(): # for shared parameters
+        for name, param in self.bert_base.named_parameters():  # for shared parameters
             if name in model.state_dict():
                 pre_trained_weight = param.data
                 moe_weight = model.state_dict()[name].data
@@ -119,45 +119,76 @@ class MoEBertLoadWeights:
                     all_weights_match = False
                     break
 
-        for i in range(self.config.num_hidden_layers): # for experts
+        if self.single_moe:
+            middle_layer_index = self.config.num_hidden_layers // 2
             for j in range(self.config.num_experts):
                 try:
-                    moe_encoder_layer = model.bert.encoder.layer[i]
-                    bert_encoder_layer = self.bert_base.bert.encoder.layer[i]
+                    moe_encoder_layer = model.bert.encoder.layer[middle_layer_index]
+                    bert_encoder_layer = self.bert_base.bert.encoder.layer[middle_layer_index]
                 except AttributeError:
-                    moe_encoder_layer = model.encoder.layer[i]
-                    bert_encoder_layer = self.bert_base.encoder.layer[i]
+                    moe_encoder_layer = model.encoder.layer[middle_layer_index]
+                    bert_encoder_layer = self.bert_base.encoder.layer[middle_layer_index]
 
                 if not torch.equal(moe_encoder_layer.moe_block.experts[j].intermediate_up.weight,
-                                bert_encoder_layer.intermediate.dense.weight):
+                                   bert_encoder_layer.intermediate.dense.weight):
                     all_weights_match = False
                 if not torch.equal(moe_encoder_layer.moe_block.experts[j].intermediate_down.weight,
-                                bert_encoder_layer.output.dense.weight):
+                                   bert_encoder_layer.output.dense.weight):
                     all_weights_match = False
+        else:
+            for i in range(self.config.num_hidden_layers):  # for experts
+                for j in range(self.config.num_experts):
+                    try:
+                        moe_encoder_layer = model.bert.encoder.layer[i]
+                        bert_encoder_layer = self.bert_base.bert.encoder.layer[i]
+                    except AttributeError:
+                        moe_encoder_layer = model.encoder.layer[i]
+                        bert_encoder_layer = self.bert_base.encoder.layer[i]
+
+                    if not torch.equal(moe_encoder_layer.moe_block.experts[j].intermediate_up.weight,
+                                       bert_encoder_layer.intermediate.dense.weight):
+                        all_weights_match = False
+                    if not torch.equal(moe_encoder_layer.moe_block.experts[j].intermediate_down.weight,
+                                       bert_encoder_layer.output.dense.weight):
+                        all_weights_match = False
 
         if all_weights_match:
             print('All weights match')
         else:
             print('Some weights differ')
 
-    def match_weights(self, model): # Seeds MoBert experts with linear layers of bert
+    def match_weights(self, model):  # Seeds MoBert experts with linear layers of bert
         self.check_for_match(model)
         for name1, param1 in self.bert_base.named_parameters():
             for name2, param2 in model.named_parameters():
                 if name1 == name2:
                     model.state_dict()[name2].data.copy_(param1.data)
 
-        for i in range(self.config.num_hidden_layers):
+        if self.single_moe:
+            middle_layer_index = self.config.num_hidden_layers // 2
             for j in range(self.config.num_experts):
                 try:
-                    moe_encoder_layer = model.bert.encoder.layer[i]
-                    bert_encoder_layer = self.bert_base.bert.encoder.layer[i]
+                    moe_encoder_layer = model.bert.encoder.layer[middle_layer_index]
+                    bert_encoder_layer = self.bert_base.bert.encoder.layer[middle_layer_index]
                 except AttributeError:
-                    moe_encoder_layer = model.encoder.layer[i] 
-                    bert_encoder_layer = self.bert_base.encoder.layer[i]
+                    moe_encoder_layer = model.encoder.layer[middle_layer_index]
+                    bert_encoder_layer = self.bert_base.encoder.layer[middle_layer_index]
 
                 moe_encoder_layer.moe_block.experts[j].intermediate_up = copy.deepcopy(bert_encoder_layer.intermediate.dense)
                 moe_encoder_layer.moe_block.experts[j].intermediate_down = copy.deepcopy(bert_encoder_layer.output.dense)
+        else:
+            for i in range(self.config.num_hidden_layers):
+                for j in range(self.config.num_experts):
+                    try:
+                        moe_encoder_layer = model.bert.encoder.layer[i]
+                        bert_encoder_layer = self.bert_base.bert.encoder.layer[i]
+                    except AttributeError:
+                        moe_encoder_layer = model.encoder.layer[i]
+                        bert_encoder_layer = self.bert_base.encoder.layer[i]
+
+                    moe_encoder_layer.moe_block.experts[j].intermediate_up = copy.deepcopy(bert_encoder_layer.intermediate.dense)
+                    moe_encoder_layer.moe_block.experts[j].intermediate_down = copy.deepcopy(bert_encoder_layer.output.dense)
+
         self.check_for_match(model)
         return model
 
@@ -168,14 +199,25 @@ class MoEBertLoadWeights:
     def count_parameters(self, model):
         total_params = sum(p.numel() for p in model.parameters())
         non_effective_params = 0
-        for j in range(self.config.num_experts - self.config.topk):
-            for i in range(self.config.num_hidden_layers):
+        if self.single_moe:
+            middle_layer_index = self.config.num_hidden_layers // 2
+            for j in range(self.config.num_experts - self.config.topk):
                 try:
-                    moe_encoder_layer = model.bert.encoder.layer[i]
+                    moe_encoder_layer = model.bert.encoder.layer[middle_layer_index]
                 except AttributeError:
-                    moe_encoder_layer = model.encoder.layer[i]
+                    moe_encoder_layer = model.encoder.layer[middle_layer_index]
 
-                non_effective_params += self.count_parameters_in_layer(moe_encoder_layer.moe_block.experts[j]) 
+                non_effective_params += self.count_parameters_in_layer(moe_encoder_layer.moe_block.experts[j])
+        else:
+            for j in range(self.config.num_experts - self.config.topk):
+                for i in range(self.config.num_hidden_layers):
+                    try:
+                        moe_encoder_layer = model.bert.encoder.layer[i]
+                    except AttributeError:
+                        moe_encoder_layer = model.encoder.layer[i]
+
+                    non_effective_params += self.count_parameters_in_layer(moe_encoder_layer.moe_block.experts[j])
+
         effective_params = total_params - non_effective_params
         memory_bytes = total_params * 4  # 4 bytes for 32-bit floats
         memory_gig = round(memory_bytes / (1024 ** 3), 2)
@@ -195,6 +237,7 @@ class MoEsmLoadWeights:
         self.num_labels = args.num_labels
         self.esm_base = None
         self.config = None
+        self.single_moe = args.single_moe
 
     def get_seeded_model(self, tokenizer): # seed new MoEsm with Esm
         start_time = time.time()
@@ -233,7 +276,7 @@ class MoEsmLoadWeights:
             self.config = self.get_config(self.esm_base)
             model = MoEsmForTripletSimilarity(config=self.config)
 
-        else: print(f'You entered {self.model_type}\nValid options are:\nModel , MaskedLM , SequenceClassification , TokenClassification , MultiTask , SentenceSimilarity')
+        else: print(f'You entered {self.model_type}\nValid options are:\nModel , MaskedLM , SequenceClassification , TokenClassification , Triplet , SentenceSimilarity')
         
         model = self.match_weights(model)
 
@@ -280,12 +323,10 @@ class MoEsmLoadWeights:
         elif self.model_type == 'SentenceSimilarity':
             model = MoEsmForSentenceSimilarity.from_pretrained(self.model_path)
 
-        elif self.model_type == 'PPI':
-            model = MoEsmForSequenceClassification.from_pretrained(self.model_path, num_labels=self.num_labels)
+        elif self.model_type == 'Triplet':
+            model = MoEsmForTripletSimilarity.from_pretrained(self.model_path)
 
-        else:
-            print(f'You entered {self.model_type} Valid options are:')
-            print('Model , MaskedLM , SequenceClassification , TokenClassification , MultiTask , SentenceSimilarity , PPI')
+        else: print(f'You entered {self.model_type}\nValid options are:\nModel , MaskedLM , SequenceClassification , TokenClassification , Triplet , SentenceSimilarity')
 
         self.config = self.get_config(model)
         end_time = time.time()
@@ -331,7 +372,8 @@ class MoEsmLoadWeights:
                 domains=self.args.domains,
                 wBAL=self.args.wBAL,
                 wMI=self.args.wMI,
-                MI_loss=self.args.MI_loss
+                MI_loss=self.args.MI_loss,
+                single_moe=self.args.single_moe
             )
         return config
 
@@ -345,22 +387,40 @@ class MoEsmLoadWeights:
                     all_weights_match = False
                     break
     
-        for i in range(self.config.num_hidden_layers): # for experts
+        if self.single_moe:
+            middle_layer_index = self.config.num_hidden_layers // 2
             for j in range(self.config.num_experts):
                 try:
-                    moe_encoder_layer = model.esm.encoder.layer[i]
+                    moe_encoder_layer = model.esm.encoder.layer[middle_layer_index]
                 except AttributeError:
-                    moe_encoder_layer = model.encoder.layer[i]
+                    moe_encoder_layer = model.encoder.layer[middle_layer_index]
                 try:
-                    esm_encoder_layer = self.esm_base.esm.encoder.layer[i]
+                    esm_encoder_layer = self.esm_base.esm.encoder.layer[middle_layer_index]
                 except AttributeError:
-                    esm_encoder_layer = self.esm_base.encoder.layer[i]
+                    esm_encoder_layer = self.esm_base.encoder.layer[middle_layer_index]
                 if not torch.equal(moe_encoder_layer.moe_block.experts[j].intermediate_up.weight,
-                                esm_encoder_layer.intermediate.dense.weight):
+                                   esm_encoder_layer.intermediate.dense.weight):
                     all_weights_match = False
                 if not torch.equal(moe_encoder_layer.moe_block.experts[j].intermediate_down.weight,
-                                esm_encoder_layer.output.dense.weight):
+                                   esm_encoder_layer.output.dense.weight):
                     all_weights_match = False
+        else:
+            for i in range(self.config.num_hidden_layers): # for experts
+                for j in range(self.config.num_experts):
+                    try:
+                        moe_encoder_layer = model.esm.encoder.layer[i]
+                    except AttributeError:
+                        moe_encoder_layer = model.encoder.layer[i]
+                    try:
+                        esm_encoder_layer = self.esm_base.esm.encoder.layer[i]
+                    except AttributeError:
+                        esm_encoder_layer = self.esm_base.encoder.layer[i]
+                    if not torch.equal(moe_encoder_layer.moe_block.experts[j].intermediate_up.weight,
+                                       esm_encoder_layer.intermediate.dense.weight):
+                        all_weights_match = False
+                    if not torch.equal(moe_encoder_layer.moe_block.experts[j].intermediate_down.weight,
+                                       esm_encoder_layer.output.dense.weight):
+                        all_weights_match = False
 
         if all_weights_match:
             print('All weights match')
@@ -374,18 +434,33 @@ class MoEsmLoadWeights:
                 if name1 == name2:
                     model.state_dict()[name2].data.copy_(param1.data)
 
-        for i in range(self.config.num_hidden_layers):
+        if self.single_moe:
+            middle_layer_index = self.config.num_hidden_layers // 2
             for j in range(self.config.num_experts):
                 try:
-                    moe_encoder_layer = model.esm.encoder.layer[i]
+                    moe_encoder_layer = model.esm.encoder.layer[middle_layer_index]
                 except AttributeError:
-                    moe_encoder_layer = model.encoder.layer[i]
+                    moe_encoder_layer = model.encoder.layer[middle_layer_index]
                 try:
-                    esm_encoder_layer = self.esm_base.esm.encoder.layer[i]
+                    esm_encoder_layer = self.esm_base.esm.encoder.layer[middle_layer_index]
                 except AttributeError:
-                    esm_encoder_layer = self.esm_base.encoder.layer[i]
+                    esm_encoder_layer = self.esm_base.encoder.layer[middle_layer_index]
                 moe_encoder_layer.moe_block.experts[j].intermediate_up = copy.deepcopy(esm_encoder_layer.intermediate.dense)
                 moe_encoder_layer.moe_block.experts[j].intermediate_down = copy.deepcopy(esm_encoder_layer.output.dense)
+        else:
+            for i in range(self.config.num_hidden_layers):
+                for j in range(self.config.num_experts):
+                    try:
+                        moe_encoder_layer = model.esm.encoder.layer[i]
+                    except AttributeError:
+                        moe_encoder_layer = model.encoder.layer[i]
+                    try:
+                        esm_encoder_layer = self.esm_base.esm.encoder.layer[i]
+                    except AttributeError:
+                        esm_encoder_layer = self.esm_base.encoder.layer[i]
+                    moe_encoder_layer.moe_block.experts[j].intermediate_up = copy.deepcopy(esm_encoder_layer.intermediate.dense)
+                    moe_encoder_layer.moe_block.experts[j].intermediate_down = copy.deepcopy(esm_encoder_layer.output.dense)
+        
         self.check_for_match(model)
         return model
 
@@ -396,13 +471,23 @@ class MoEsmLoadWeights:
     def count_parameters(self, model):
         total_params = sum(p.numel() for p in model.parameters())
         non_effective_params = 0
-        for i in range(self.config.num_hidden_layers):
+        if self.single_moe:
+            middle_layer_index = self.config.num_hidden_layers // 2
             for j in range(self.config.num_experts - self.config.topk):
                 try:
-                    moe_encoder_layer = model.esm.encoder.layer[i]
+                    moe_encoder_layer = model.esm.encoder.layer[middle_layer_index]
                 except AttributeError:
-                    moe_encoder_layer = model.encoder.layer[i]
+                    moe_encoder_layer = model.encoder.layer[middle_layer_index]
                 non_effective_params += self.count_parameters_in_layer(moe_encoder_layer.moe_block.experts[j])
+        else:
+            for i in range(self.config.num_hidden_layers):
+                for j in range(self.config.num_experts - self.config.topk):
+                    try:
+                        moe_encoder_layer = model.esm.encoder.layer[i]
+                    except AttributeError:
+                        moe_encoder_layer = model.encoder.layer[i]
+                    non_effective_params += self.count_parameters_in_layer(moe_encoder_layer.moe_block.experts[j])
+
         effective_params = total_params - non_effective_params
         memory_bytes = total_params * 4  # 4 bytes for 32-bit floats
         memory_gig = round(memory_bytes / (1024 ** 3), 2)

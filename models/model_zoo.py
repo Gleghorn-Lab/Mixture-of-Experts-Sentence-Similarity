@@ -2,13 +2,14 @@ import random
 import torch
 import torch.nn as nn
 from transformers.modeling_outputs import SequenceClassifierOutput
+from transformers.models.bert.modeling_bert import BertPreTrainedModel
 from .modeling_moebert import MoEBertModel
 from .modeling_moesm import MoEsmPreTrainedModel, MoEsmModel
 from .losses import clip_loss, LoadBalancingLoss, MILoss, get_loss_fct
 from .outputs import SentenceSimilarityOutput
 
 
-class MoEBertForSentenceSimilarity(nn.Module):
+class MoEBertForSentenceSimilarity(BertPreTrainedModel):
     def __init__(self, config, bert=None):
         super().__init__()
         self.bert = MoEBertModel(config, add_pooling_layer=True) if bert is None else bert
@@ -47,7 +48,7 @@ class MoEBertForSentenceSimilarity(nn.Module):
         )
     
 
-class BertForSentenceSimilarity(nn.Module):
+class BertForSentenceSimilarity(BertPreTrainedModel):
     def __init__(self, config=None, bert=None):
         super().__init__()
         from transformers import BertModel

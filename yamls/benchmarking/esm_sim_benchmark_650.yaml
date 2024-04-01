@@ -1,5 +1,5 @@
 general_args:
-  model_path: 'facebook/esm2_t6_8M_UR50D'
+  model_path: 'facebook/esm2_t33_650M_UR50D'
   ESM: true # ESM or BERT
   model_type: 'Triplet'
   contact_head: false
@@ -53,7 +53,7 @@ general_args:
   wandb_name: triplet_test
 
 # Paths
-  log_path: './results.txt'  # Path to save the log file
+  log_path: './sim_benchmark_650.txt'  # Path to save the log file
   weight_path: null  # Path to the model weights to load
   save_path: 'test.pt'
 

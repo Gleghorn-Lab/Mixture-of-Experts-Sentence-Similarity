@@ -3,7 +3,12 @@ import torch
 from models.load_model import load_models
 from utils import get_yaml
 from metrics import compute_metrics_sentence_similarity, compute_metrics_triplet
-from evaluate import evaluate_sim_model, evaluate_triplet_model, eval_config
+from evaluate import (
+    evaluate_sim_model,
+    evaluate_triplet_model_similarity,
+    evaluate_triplet_model_downstream,
+    eval_config
+)
 from train import train_sim_model, train_triplet_model
 
 
@@ -44,7 +49,7 @@ def main():
         compute_metrics = compute_metrics_sentence_similarity
 
 
-    if args.eval: ### TODO make this robust for all options
+    if args.weight_path != None:
         if args.huggingface_username in args.weight_path:
             model = model.from_pretrained(args.weight_path, token=args.token)
         else:
@@ -55,14 +60,14 @@ def main():
                 load_model(model, args.weight_path) # for safetensors
         print(f'Loaded from {args.weight_path}')
 
+    if args.eval:
         if args.model_type == 'Triplet':
-            evaluate_triplet_model(yargs, eval_config, model, tokenizer)
-
+            evaluate_triplet_model_similarity(yargs, model, tokenizer, compute_metrics_triplet)
+            evaluate_triplet_model_downstream(yargs, eval_config, model, tokenizer)
         else:
             evaluate_sim_model(yargs, tokenizer, compute_metrics=compute_metrics, model=model)
 
     else:
-
         if args.model_type == 'Triplet':
             train_triplet_model(yargs, model, tokenizer, compute_metrics=compute_metrics)
 

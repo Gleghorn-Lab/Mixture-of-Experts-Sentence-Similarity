@@ -1,5 +1,7 @@
+from tqdm.auto import tqdm
 from data.load_data import (
     embed_dataset_and_save,
+    get_datasets_test_triplet,
     get_fine_tune_data,
     get_seqs,
     get_datasets_test_sentence_sim,
@@ -44,7 +46,22 @@ def evaluate_sim_model(yargs, tokenizer, compute_metrics, model=None, trainer=No
         log_metrics(args['log_path'], metrics, details=details, header=f'Test {data_paths[i]}')
 
 
-def evaluate_triplet_model(yargs, eval_config, base_model, tokenizer): # TODO add PPI and SSQ
+def evaluate_triplet_model_similarity(yargs, model, tokenizer, compute_metrics):
+    training_args = yargs['training_args']
+    args = yargs['general_args']
+    trainer = HF_trainer(model, train_dataset=None, valid_dataset=None,
+                         compute_metrics=compute_metrics, data_collator=data_collator,
+                         patience=args['patience'], MI=args['MI_loss'], **training_args)
+    
+    triplet_datasets = get_datasets_test_triplet(args, tokenizer) # (aspect, valid_dataset, test_dataset) * aspects * num_dataset
+    for (aspect, valid_dataset, test_dataset) in tqdm(triplet_datasets, desc='Evaluating sim metrics'):
+        metrics = trainer.evaluate(eval_dataset=valid_dataset)
+        log_metrics(args['log_path'], metrics, details=args, header=f'Valid aspect {aspect}')
+        metrics = trainer.evaluate(eval_dataset=test_dataset)
+        log_metrics(args['log_path'], metrics, details=args, header=f'Test aspect {aspect}')
+
+
+def evaluate_triplet_model_downstream(yargs, eval_config, base_model, tokenizer): # TODO add PPI and SSQ
     training_args = yargs['eval_training_args']
     eval_args = yargs['eval_args']
     general_args = yargs['general_args']

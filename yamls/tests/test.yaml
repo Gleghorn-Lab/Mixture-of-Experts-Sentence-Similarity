@@ -14,7 +14,7 @@ general_args:
   num_tasks: 2  # Number of tasks for MulitTask learning
   hidden_dropout_prob: 0.05  # Dropout rate for the model
   contrastive_loss: clip
-  MI_loss: true
+  expert_loss: true
 
   add_during_eval: false # add tokens during eval
   new_special_tokens: true  # Add new special tokens for each domain token seeded with CLS
@@ -22,7 +22,7 @@ general_args:
     - '[COPD]'
   
   wBAL: !!float 0.1
-  wMI: !!float 0.1
+  wEX: !!float 0.1
 
 
 #data_settings:

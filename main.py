@@ -16,6 +16,7 @@ def get_args():
     parser = argparse.ArgumentParser(description='Settings')
     parser.add_argument('--yaml_path', type=str, )
     parser.add_argument('--eval', action='store_true', help='Run model in evaluation mode.')
+    parser.add_argument('--token', type=str)
     return parser.parse_args()
 
 
@@ -61,18 +62,18 @@ def main():
         print(f'Loaded from {args.weight_path}')
 
     if args.eval:
-        if args.model_type == 'Triplet':
+        if args.model_type.lower() == 'triplet':
             evaluate_triplet_model_similarity(yargs, model, tokenizer, compute_metrics_triplet)
-            #evaluate_triplet_model_downstream(yargs, eval_config, model, tokenizer)
+            evaluate_triplet_model_downstream(yargs, eval_config, model, tokenizer)
         else:
             evaluate_sim_model(yargs, tokenizer, compute_metrics=compute_metrics, model=model)
 
     else:
-        if args.model_type == 'Triplet':
-            train_triplet_model(yargs, model, tokenizer, compute_metrics=compute_metrics)
+        if args.model_type.lower() == 'triplet':
+            train_triplet_model(yargs, model, tokenizer, compute_metrics=compute_metrics, token=args.token)
 
         else:
-            train_sim_model(yargs, model, tokenizer, compute_metrics=compute_metrics)
+            train_sim_model(yargs, model, tokenizer, compute_metrics=compute_metrics, token=args.token)
 
 
 if __name__ == '__main__':

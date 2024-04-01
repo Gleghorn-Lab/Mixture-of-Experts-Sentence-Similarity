@@ -5,7 +5,7 @@ from transformers.modeling_outputs import SequenceClassifierOutput
 from transformers.models.bert.modeling_bert import BertPreTrainedModel
 from .modeling_moebert import MoEBertModel
 from .modeling_moesm import MoEsmPreTrainedModel, MoEsmModel
-from .losses import clip_loss, LoadBalancingLoss, MILoss, get_loss_fct
+from .losses import clip_loss, LoadBalancingLoss, EXLoss, get_loss_fct, SpecifiedExpertLoss
 from .outputs import SentenceSimilarityOutput
 
 
@@ -16,9 +16,9 @@ class MoEBertForSentenceSimilarity(BertPreTrainedModel):
         self.contrastive_loss = clip_loss
         self.temp = nn.Parameter(torch.tensor(0.7))
         self.aux_loss = LoadBalancingLoss(config)
-        self.MI = config.MI_loss
-        if self.MI:
-            self.MI_loss = MILoss(config)
+        self.EX = config.expert_loss
+        if self.EX:
+            self.expert_loss = SpecifiedExpertLoss(config)
     
     def forward(self, a, b,
                 att_a=None, att_b=None, r_labels=None, labels=None):
@@ -36,8 +36,8 @@ class MoEBertForSentenceSimilarity(BertPreTrainedModel):
 
         router_logits = tuple((a + b) / 2 for a, b in zip(outputa.router_logits, outputb.router_logits))
         r_loss = self.aux_loss(router_logits)
-        if r_labels != None and self.MI:
-            r_loss = r_loss + self.MI_loss(router_logits, r_labels)
+        if r_labels != None and self.EX:
+            r_loss = r_loss + self.expert_loss(router_logits, r_labels)
 
         logits = (emba, embb)
         loss = c_loss + r_loss
@@ -46,7 +46,7 @@ class MoEBertForSentenceSimilarity(BertPreTrainedModel):
             logits=logits,
             loss=loss
         )
-    
+
 
 class BertForSentenceSimilarity(BertPreTrainedModel):
     def __init__(self, config=None, bert=None):
@@ -85,9 +85,9 @@ class MoEsmForSentenceSimilarity(MoEsmPreTrainedModel):
         self.contrastive_loss = clip_loss
         self.temp = nn.Parameter(torch.tensor(0.7))
         self.aux_loss = LoadBalancingLoss(config)
-        self.MI = config.MI_loss
-        if self.MI:
-            self.MI_loss = MILoss(config)
+        self.EX = config.expert_loss
+        if self.EX:
+            self.expert_loss = SpecifiedExpertLoss(config)
     
     def forward(self, a, b,
                 att_a=None, att_b=None, r_labels=None, labels=None):
@@ -105,8 +105,8 @@ class MoEsmForSentenceSimilarity(MoEsmPreTrainedModel):
 
         router_logits = tuple((a + b) / 2 for a, b in zip(outputa.router_logits, outputb.router_logits))
         r_loss = self.aux_loss(router_logits)
-        if r_labels != None and self.MI:
-            r_loss = r_loss + self.MI_loss(router_logits, r_labels)
+        if r_labels != None and self.EX:
+            r_loss = r_loss + self.expert_loss(router_logits, r_labels)
 
         logits = (emba, embb)
         loss = c_loss + r_loss
@@ -152,9 +152,9 @@ class MoEsmForTripletSimilarity(MoEsmPreTrainedModel):
         self.esm = MoEsmModel(config, add_pooling_layer=True) if esm is None else esm
         self.contrastive_loss = nn.TripletMarginLoss()
         self.aux_loss = LoadBalancingLoss(config)
-        self.MI = config.MI_loss
-        if self.MI:
-            self.MI_loss = MILoss(config)
+        self.EX = config.expert_loss
+        if self.EX:
+            self.expert_loss = SpecifiedExpertLoss(config)
     
     def embed(self, ids, att=None):
         return self.esm(input_ids=ids, attention_mask=att).pooler_output
@@ -175,8 +175,8 @@ class MoEsmForTripletSimilarity(MoEsmPreTrainedModel):
                               zip(outp.router_logits, outa.router_logits, outn.router_logits))
 
         r_loss = self.aux_loss(router_logits)
-        if r_labels != None and self.MI:
-            r_loss = r_loss + self.MI_loss(router_logits, r_labels)
+        if r_labels != None and self.EX:
+            r_loss = r_loss + self.expert_loss(router_logits, r_labels)
 
         logits = (p, a, n)
         loss = c_loss + r_loss

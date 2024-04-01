@@ -51,7 +51,7 @@ def evaluate_triplet_model_similarity(yargs, model, tokenizer, compute_metrics):
     args = yargs['general_args']
     trainer = HF_trainer(model, train_dataset=None, valid_dataset=None,
                          compute_metrics=compute_metrics, data_collator=data_collator,
-                         patience=args['patience'], MI=args['MI_loss'], **training_args)
+                         patience=args['patience'], EX=args['expert_loss'], **training_args)
     
     triplet_datasets = get_datasets_test_triplet(args, tokenizer) # (aspect, valid_dataset, test_dataset) * aspects * num_dataset
     for (aspect, valid_dataset, test_dataset) in tqdm(triplet_datasets, desc='Evaluating sim metrics'):
@@ -133,7 +133,7 @@ def evaluate_triplet_model_downstream(yargs, eval_config, base_model, tokenizer)
 
         trainer = HF_trainer(model, train_dataset, valid_dataset,
                              compute_metrics=compute_metrics, data_collator=data_collator,
-                             patience=args['patience'], MI=False, **training_args)
+                             patience=args['patience'], EX=False, **training_args)
         trainer.train()
 
         metrics = trainer.evaluate(test_dataset)

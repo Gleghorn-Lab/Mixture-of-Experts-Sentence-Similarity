@@ -44,7 +44,7 @@ class SentenceSwitchMoeBlock(nn.Module):
         router_probs = F.softmax(router_logits, dim=-1).argmax(dim=-1) # (batch)
         final_hidden_states = torch.stack([self.experts[router_probs[i]](hidden_states[i]) for i in range(len(hidden_states))])
         return final_hidden_states, router_logits # (batch, sequence_length, hidden_dim), (batch, num_experts)
-    
+
 
 class SentenceTopKMoeBlock(nn.Module):
     def __init__(self, config, expert):

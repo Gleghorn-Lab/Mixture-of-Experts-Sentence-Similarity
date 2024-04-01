@@ -103,8 +103,8 @@ class MoEsmConfig(PretrainedConfig): #TODO update documentation
         vocab_list=None,
         domains=None,
         wBAL=None,
-        wMI=None,
-        MI_loss=False,
+        wEX=None,
+        expert_loss=False,
         single_moe=True,
         **kwargs,
     ):
@@ -133,8 +133,8 @@ class MoEsmConfig(PretrainedConfig): #TODO update documentation
         self.contact_head = contact_head
         self.domains = domains
         self.wBAL = wBAL
-        self.wMI = wMI
-        self.MI_loss = MI_loss
+        self.wEX = wEX
+        self.expert_loss = expert_loss
         self.single_moe = single_moe
 
         if is_folding_model:

@@ -34,7 +34,7 @@ def load_models(args):
         if args.MOE:
             loader = MoEsmLoadWeights(args)
             model, tokenizer = loader.get_seeded_model(tokenizer=tokenizer)
-        elif args.model_type == 'SentenceSimilarity':
+        elif args.model_type.lower() == 'sentencesimilarity':
             model = EsmForSentenceSimilarity(base_model.config, base_model)
         else:
             model = EsmForTripletSimilarity(base_model.config, base_model)
@@ -241,36 +241,36 @@ class MoEsmLoadWeights:
 
     def get_seeded_model(self, tokenizer): # seed new MoEsm with Esm
         start_time = time.time()
-        if self.model_type == 'Model':
+        if self.model_type.lower() == 'model':
             from transformers import EsmModel as EsmModelTransformers
             self.esm_base = EsmModelTransformers.from_pretrained(self.model_path)
             model = MoEsmModel(config=self.config)
 
-        elif self.model_type == 'MaskedLM':
+        elif self.model_type.lower() == 'maskedlm':
             from transformers import EsmForMaskedLM as EsmModelTransformers
             self.esm_base = EsmModelTransformers.from_pretrained(self.model_path)
             self.config = self.get_config(self.esm_base)
             model = MoEsmForMaskedLM(config=self.config)
 
-        elif self.model_type == 'SequenceClassification':
+        elif self.model_type.lower() == 'sequenceclassification':
             from transformers import EsmForSequenceClassification as EsmModelTransformers
             self.esm_base = EsmModelTransformers.from_pretrained(self.model_path, num_labels=self.num_labels)
             self.config = self.get_config(self.esm_base)
             model = MoEsmForSequenceClassification(config=self.config)
 
-        elif self.model_type == 'TokenClassification':
+        elif self.model_type.lower() == 'tokenclassification':
             from transformers import EsmForTokenClassification as EsmModelTransformers
             self.esm_base = EsmModelTransformers.from_pretrained(self.model_path, num_labels=self.num_labels)
             self.config = self.get_config(self.esm_base)
             model = MoEsmForTokenClassification(config=self.config)
         
-        elif self.model_type == 'SentenceSimilarity':
+        elif self.model_type.lower() == 'sentencesimilarity':
             from transformers import EsmModel as EsmModelTransformers
             self.esm_base = EsmModelTransformers.from_pretrained(self.model_path)
             self.config = self.get_config(self.esm_base)
             model = MoEsmForSentenceSimilarity(config=self.config)
 
-        elif self.model_type == 'Triplet':
+        elif self.model_type.lower() == 'triplet':
             from transformers import EsmModel as EsmModelTransformers
             self.esm_base = EsmModelTransformers.from_pretrained(self.model_path)
             self.config = self.get_config(self.esm_base)
@@ -308,22 +308,22 @@ class MoEsmLoadWeights:
 
     def get_pretrained_model(self): # Load Pretrained MoEsm
         start_time = time.time()
-        if self.model_type == 'Model':
+        if self.model_type.lower() == 'model':
             model = MoEsmModel.from_pretrained(self.model_path, use_router_loss=self.use_router_loss)
 
-        elif self.model_type == 'MaskedLM':
+        elif self.model_type.lower() == 'maskedlm':
             model = MoEsmForMaskedLM.from_pretrained(self.model_path, use_router_loss=self.use_router_loss)
 
-        elif self.model_type == 'SequenceClassification':
+        elif self.model_type.lower() == 'sequenceclassification':
             model = MoEsmForSequenceClassification.from_pretrained(self.model_path, num_labels=self.num_labels, use_router_loss=self.use_router_loss)
 
-        elif self.model_type == 'TokenClassification':
+        elif self.model_type.lower() == 'tokenclassification':
             model = MoEsmForTokenClassification.from_pretrained(self.model_path, num_labels=self.num_labels, use_router_loss=self.use_router_loss)
 
-        elif self.model_type == 'SentenceSimilarity':
+        elif self.model_type.lower() == 'sentencesimilarity':
             model = MoEsmForSentenceSimilarity.from_pretrained(self.model_path)
 
-        elif self.model_type == 'Triplet':
+        elif self.model_type.lower() == 'triplet':
             model = MoEsmForTripletSimilarity.from_pretrained(self.model_path)
 
         else: print(f'You entered {self.model_type}\nValid options are:\nModel , MaskedLM , SequenceClassification , TokenClassification , Triplet , SentenceSimilarity')
@@ -371,8 +371,8 @@ class MoEsmLoadWeights:
                 contact_head=self.args.contact_head,
                 domains=self.args.domains,
                 wBAL=self.args.wBAL,
-                wMI=self.args.wMI,
-                MI_loss=self.args.MI_loss,
+                wEX=self.args.wEX,
+                expert_loss=self.args.expert_loss,
                 single_moe=self.args.single_moe
             )
         return config

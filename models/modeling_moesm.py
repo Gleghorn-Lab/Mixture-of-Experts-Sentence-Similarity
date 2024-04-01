@@ -27,7 +27,6 @@ from torch import nn
 from torch.nn import functional as F
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
-from transformers.models.esm.modeling_esm import EsmLayer as EsmLayerNoMoE
 from transformers.file_utils import (
     add_code_sample_docstrings,
     add_start_docstrings,
@@ -38,6 +37,7 @@ from transformers.modeling_outputs import (
     SequenceClassifierOutput,
     TokenClassifierOutput,
 )
+from transformers.models.esm.modeling_esm import EsmAttention, EsmIntermediate, EsmOutput
 from transformers.modeling_utils import PreTrainedModel, find_pruneable_heads_and_indices, prune_linear_layer
 from transformers.utils import logging
 
@@ -504,6 +504,94 @@ class MoEsmAttention(nn.Module):
         return outputs
 
 
+class EsmLayer(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.chunk_size_feed_forward = config.chunk_size_feed_forward
+        self.seq_len_dim = 1
+        self.attention = EsmAttention(config)
+        self.is_decoder = config.is_decoder
+        self.add_cross_attention = config.add_cross_attention
+        if self.add_cross_attention:
+            if not self.is_decoder:
+                raise RuntimeError(f"{self} should be used as a decoder model if cross attention is added")
+            self.crossattention = EsmAttention(config)
+        self.intermediate = EsmIntermediate(config)
+        self.output = EsmOutput(config)
+        self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+
+    def forward(
+        self,
+        hidden_states,
+        attention_mask=None,
+        head_mask=None,
+        encoder_hidden_states=None,
+        encoder_attention_mask=None,
+        past_key_value=None,
+        output_attentions=False,
+        *args,
+        **kwargs,
+    ):
+        # decoder uni-directional self-attention cached key/values tuple is at positions 1,2
+        self_attn_past_key_value = past_key_value[:2] if past_key_value is not None else None
+        self_attention_outputs = self.attention(
+            hidden_states,
+            attention_mask,
+            head_mask,
+            output_attentions=output_attentions,
+            past_key_value=self_attn_past_key_value,
+        )
+        attention_output = self_attention_outputs[0]
+
+        # if decoder, the last output is tuple of self-attn cache
+        if self.is_decoder:
+            outputs = self_attention_outputs[1:-1]
+            present_key_value = self_attention_outputs[-1]
+        else:
+            outputs = self_attention_outputs[1:]  # add self attentions if we output attention weights
+
+        cross_attn_present_key_value = None
+        if self.is_decoder and encoder_hidden_states is not None:
+            if not hasattr(self, "crossattention"):
+                raise AttributeError(
+                    f"If `encoder_hidden_states` are passed, {self} has to be instantiated"
+                    " with cross-attention layers by setting `config.add_cross_attention=True`"
+                )
+
+            # cross_attn cached key/values tuple is at positions 3,4 of past_key_value tuple
+            cross_attn_past_key_value = past_key_value[-2:] if past_key_value is not None else None
+            cross_attention_outputs = self.crossattention(
+                attention_output,
+                attention_mask,
+                head_mask,
+                encoder_hidden_states,
+                encoder_attention_mask,
+                cross_attn_past_key_value,
+                output_attentions,
+            )
+            attention_output = cross_attention_outputs[0]
+            outputs = outputs + cross_attention_outputs[1:-1]  # add cross attentions if we output attention weights
+
+            # add cross-attn cache to positions 3,4 of present_key_value tuple
+            cross_attn_present_key_value = cross_attention_outputs[-1]
+            present_key_value = present_key_value + cross_attn_present_key_value
+
+        layer_output = self.feed_forward_chunk(attention_output)
+
+        outputs = (layer_output,) + outputs
+
+        # if decoder, return the attn key/values as the last output
+        if self.is_decoder:
+            outputs = outputs + (present_key_value,)
+        return outputs
+
+    def feed_forward_chunk(self, attention_output):
+        attention_output_ln = self.LayerNorm(attention_output)
+        intermediate_output = self.intermediate(attention_output_ln)
+        layer_output = self.output(intermediate_output, attention_output)
+        return layer_output
+
+
 class MoEsmLayer(nn.Module):
     """
     Modified EsmLayer to handle EsmSparseMoeBlock instead of intermediate and output layers (feed_forward_chunk)
@@ -617,7 +705,7 @@ class MoEsmEncoder(nn.Module):
         self.moe_idx = config.num_hidden_layers // 2
         if config.single_moe:
             self.layer = nn.ModuleList([MoEsmLayer(config) if i == self.moe_idx
-                                        else EsmLayerNoMoE(config) for i in range(config.num_hidden_layers)])
+                                        else EsmLayer(config) for i in range(config.num_hidden_layers)])
         else:
             self.layer = nn.ModuleList([MoEsmLayer(config) for _ in range(config.num_hidden_layers)])
         self.single_moe = config.single_moe

@@ -1,20 +1,21 @@
 general_args:
-  model_path: 'facebook/esm2_t30_150M_UR50D'
+  model_path: 'facebook/esm2_t12_35M_UR50D'
   ESM: true # ESM or BERT
   model_type: 'Triplet'
   contact_head: false
+  huggingface_username: lhallee
 
 # MOE
+  single_moe: true
   moe_type: 'topk'
   MOE: true
-  token_moe: true
+  token_moe: false
   num_experts: 8  # Number of experts
   topk: 2  # Number of experts per block
   num_tasks: 7  # Number of tasks for MulitTask learning
-  contrastive_loss: clip
-  MI_loss: true
-  wBAL: !!float 0.01
-  wMI: !!float 0.05
+  expert_loss: true
+  wBAL: !!float 0.05
+  wEX: !!float 0.05
 
 # Model settings
   hidden_dropout_prob: 0.05  # Dropout rate for the model
@@ -45,13 +46,14 @@ general_args:
   test_size: 1000
 
 # wandb settings
-  wandb: wandb
+  wandb: false
   wandb_project: SSPR
   wandb_name: triplet_test
 
 # Paths
   log_path: './results.txt'  # Path to save the log file
   weight_path: null  # Path to the model weights to load
+  save_path: 'test.pt'
 
 # Training settings
   patience: 10
@@ -70,14 +72,14 @@ training_args:
   lr_scheduler_type: !!str cosine
   weight_decay: !!float 0.01
   num_train_epochs: !!int 1
-  warmup_steps: !!int 500
+  warmup_steps: !!int 100
   save_strategy: !!str steps
-  save_steps: !!int 500
+  save_steps: !!int 1000
   save_total_limit: !!int 3
   evaluation_strategy: !!str steps
-  eval_steps: 5000
+  eval_steps: 1000
   logging_strategy: steps
-  logging_steps: !!int 100
+  logging_steps: !!int 10
   fp16: true
   seed: !!int 42
   eval_accumulation_steps: null

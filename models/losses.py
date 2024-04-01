@@ -3,20 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-def specified_expert_loss(router_logits: torch.Tensor, router_labels: torch.Tensor) -> float:
-    # enforces on average the router should route examples to the correct specified expert given the known origin of the input
-    if router_logits is None:
-        return 0
-    if isinstance(router_logits, tuple):
-        batch_size, num_experts = router_logits[0].shape
-        router_logits = torch.stack(router_logits, dim=2).transpose(1, 2) # batch_size, num_hidden_layers, num_experts
-    else:
-        print('Must be tuple of all layers router logits')
-    
-    avg_logits = router_logits.mean(dim=1)
-    return F.cross_entropy(avg_logits, router_labels)
-
-
 # Adapted from https://github.com/UKPLab/sentence-transformers/blob/master/sentence_transformers/losses/MultipleNegativesRankingLoss.py
 def MNR_loss(batch1: torch.Tensor, batch2: torch.Tensor, scale: float = 1.0) -> float:
     """
@@ -48,17 +34,17 @@ def clip_loss(batch1: torch.Tensor, batch2: torch.Tensor, temp: float = 1.0) -> 
 
 
 # Adapted from https://github.com/UMass-Foundation-Model/Mod-Squad/blob/1d17e81d090ac7e1a66dd420194c0b7679d820a4/parallel_linear/parallel_experts/moe.py#L25
-class MILoss(nn.Module):
+class EXLoss(nn.Module):
     def __init__(self, config):
         super().__init__()
-        self.wMI = torch.tensor(config.wMI, requires_grad=False)
-        self.MI_task_gate = torch.zeros(config.num_tasks, config.num_experts)
+        self.wEX = torch.tensor(config.wEX, requires_grad=False)
+        self.EX_task_gate = torch.zeros(config.num_tasks, config.num_experts)
         self.num_experts = config.num_experts
         self.topk = config.topk
 
-    def update_MI_task_gate(self, probs, router_labels):
+    def update_EX_task_gate(self, probs, router_labels):
         """
-        Update the MI_task_gate matrix with probabilities of selecting each expert for the current task.
+        Update the EX_task_gate matrix with probabilities of selecting each expert for the current task.
 
         Args:
         probs (torch.Tensor): The probabilities of selecting each expert for the current task.
@@ -70,7 +56,7 @@ class MILoss(nn.Module):
         None
         """
         for task in router_labels:
-            self.MI_task_gate[task] += probs[router_labels == task].sum(0)
+            self.EX_task_gate[task] += probs[router_labels == task].sum(0)
 
     def calculate_mutual_information_loss(self):
         """
@@ -79,21 +65,21 @@ class MILoss(nn.Module):
         Returns:
         torch.Tensor: The calculated mutual information loss.
         """
-        MI_gate = self.MI_task_gate.clone()
-        tot = MI_gate.sum() / self.topk
-        MI_gate = MI_gate / (tot + 0.0001)
-        P_TI = torch.sum(MI_gate, dim=1, keepdim=True) + 0.0001
-        P_EI = torch.sum(MI_gate, dim=0, keepdim=True) + 0.0001
+        EX_gate = self.EX_task_gate.clone()
+        tot = EX_gate.sum() / self.topk
+        EX_gate = EX_gate / (tot + 0.0001)
+        P_TI = torch.sum(EX_gate, dim=1, keepdim=True) + 0.0001
+        P_EI = torch.sum(EX_gate, dim=0, keepdim=True) + 0.0001
 
-        MI_loss = -(MI_gate * torch.log(MI_gate / P_TI / P_EI + 0.0001)).sum()
-        return self.wMI * MI_loss
+        expert_loss = -(EX_gate * torch.log(EX_gate / P_TI / P_EI + 0.0001)).sum()
+        return self.wEX * expert_loss
 
     def call_update(self, router_logits, router_labels):
         router_logits = router_logits.float().detach().cpu()
         router_labels = router_labels.long().detach().cpu()
         probs = router_logits.softmax(dim=-1)
         probs = probs.view(-1, self.num_experts)
-        self.update_MI_task_gate(probs, router_labels)
+        self.update_EX_task_gate(probs, router_labels)
 
     def forward(self, router_logits: torch.Tensor, router_labels: torch.Tensor) -> torch.Tensor:
         if isinstance(router_logits, tuple):
@@ -126,7 +112,23 @@ class LoadBalancingLoss(nn.Module):
         temp = num_tokens.float()
         f = temp / temp.sum(0, keepdim=True) 
         return wBAL * num_experts * torch.sum(p * f)
-    
+
+
+class SpecifiedExpertLoss(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.wEX = torch.tensor(config.wEX, requires_grad=False)
+
+    def forward(self, router_logits: torch.Tensor, router_labels: torch.Tensor) -> float:
+        # enforces on average the router should route examples to the correct specified expert given the known origin of the input
+        if router_logits is None:
+            return 0
+        if isinstance(router_logits, tuple): # (batch_size, num_experts) * num_hidden_layers
+            router_logits = torch.stack(router_logits, dim=0) # num_hidden_layers, batch_size, num_experts
+        
+        avg_logits = router_logits.mean(dim=0) # (batch_size, num_experts)
+        return self.wEX * F.cross_entropy(avg_logits, router_labels)
+
 
 def get_loss_fct(task_type):
     if task_type == 'singlelabel':

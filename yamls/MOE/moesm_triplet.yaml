@@ -57,7 +57,7 @@ general_args:
   save_path: 'test.pt'
 
 # Training settings
-  patience: 10
+  patience: 100
 
 # Eval settings
   limits: false  # Lets user define limits for F1max
@@ -66,9 +66,9 @@ general_args:
 training_args:
   output_dir: !!str ./output
   logging_dir: !!str ./logs
-  per_device_train_batch_size: !!int 10
-  per_device_eval_batch_size: !!int 10
-  gradient_accumulation_steps: !!int 2
+  per_device_train_batch_size: !!int 20
+  per_device_eval_batch_size: !!int 20
+  gradient_accumulation_steps: !!int 1
   learning_rate: !!float 1e-5
   lr_scheduler_type: !!str cosine
   weight_decay: !!float 0.01

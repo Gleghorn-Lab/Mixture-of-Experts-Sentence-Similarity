@@ -14,7 +14,7 @@ general_args:
   topk: 2  # Number of experts per block
   num_tasks: 5  # Number of tasks for MulitTask learning
   expert_loss: true
-  MI: false
+  MI: true
   wBAL: !!float 0.05
   wEX: !!float 0.01
 
@@ -56,7 +56,7 @@ general_args:
 # Paths
   log_path: './results.txt'  # Path to save the log file
   weight_path: null  # Path to the model weights to load
-  save_path: 'nlp_single_moe_no_MI.pt'
+  save_path: 'nlp_single_moe_MI.pt'
 
 # Training settings
   patience: 10

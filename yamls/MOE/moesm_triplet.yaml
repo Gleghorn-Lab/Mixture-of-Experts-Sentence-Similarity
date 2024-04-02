@@ -14,6 +14,7 @@ general_args:
   topk: 2  # Number of experts per block
   num_tasks: 7  # Number of tasks for MulitTask learning
   expert_loss: true
+  MI: false
   wBAL: !!float 0.05
   wEX: !!float 0.05
 
@@ -32,7 +33,7 @@ general_args:
     - '[IP]'
     - '[3D]'
 
-#data_settings:
+# data_settings:
   data_paths:  # Paths to the datasets
     - 'lhallee/triplets'
   a_col: 'anchors'  # First feature column name in datasets # doubles as anchor
@@ -46,7 +47,7 @@ general_args:
   test_size: 1000
 
 # wandb settings
-  wandb: false
+  wandb: true
   wandb_project: SSPR
   wandb_name: triplet_test
 
@@ -65,8 +66,8 @@ general_args:
 training_args:
   output_dir: !!str ./output
   logging_dir: !!str ./logs
-  per_device_train_batch_size: !!int 2
-  per_device_eval_batch_size: !!int 2
+  per_device_train_batch_size: !!int 20
+  per_device_eval_batch_size: !!int 20
   gradient_accumulation_steps: !!int 1
   learning_rate: !!float 1e-5
   lr_scheduler_type: !!str cosine

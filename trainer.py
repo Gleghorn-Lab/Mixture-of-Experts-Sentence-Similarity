@@ -2,15 +2,17 @@ import matplotlib.pyplot as plt
 from transformers import Trainer, TrainingArguments, EarlyStoppingCallback
 from transformers.trainer_callback import TrainerCallback, TrainerControl, TrainerState
 
-### Modify to be general for all usage with router_labels, from load bal
-class PlotEXGateCallback(TrainerCallback):
+
+class TopkTallyCallback(TrainerCallback):
     def on_save(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
         model = kwargs['model']
-        mi_task_gate = model.expert_loss.EX_task_gate.detach().cpu()
-        mi_task_gate = mi_task_gate / mi_task_gate.sum(axis=-1, keepdims=True) 
-        plt.imshow(mi_task_gate, cmap='viridis')
-        plt.colorbar()
-        plt.savefig(f"EX_task_gate_plot_{state.global_step}.png")
+        tally = model.aux_loss.tally.detach().cpu().numpy()
+        plt.figure(figsize=(10, 5))
+        plt.bar(range(tally.shape[0]), tally)
+        plt.xlabel('Expert Index')
+        plt.ylabel('Tally of Topk Chosen Results')
+        plt.title(f'Topk Tally at Global Step {state.global_step}')
+        plt.savefig(f'topk_tally_{state.global_step}.png')
         plt.close()
 
 
@@ -24,8 +26,8 @@ def HF_trainer(model,
                *args, **kwargs):
     training_args = TrainingArguments(load_best_model_at_end=True, *args, **kwargs)
 
-    if EX:
-        callbacks = [EarlyStoppingCallback(early_stopping_patience=patience), PlotEXGateCallback()]
+    if EX.expert_loss:
+        callbacks = [EarlyStoppingCallback(early_stopping_patience=patience), TopkTallyCallback()]
     else:
         callbacks = [EarlyStoppingCallback(early_stopping_patience=patience)]
 

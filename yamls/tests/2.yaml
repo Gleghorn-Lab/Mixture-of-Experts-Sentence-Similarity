@@ -15,7 +15,7 @@ general_args:
   hidden_dropout_prob: 0.05  # Dropout rate for the model
   contrastive_loss: clip
   expert_loss: true
-
+  MI: false
   add_during_eval: false # add tokens during eval
   new_special_tokens: true  # Add new special tokens for each domain token seeded with CLS
   domains:  # List of domain tags

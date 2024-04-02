@@ -34,7 +34,7 @@ def clip_loss(batch1: torch.Tensor, batch2: torch.Tensor, temp: float = 1.0) -> 
 
 
 # Adapted from https://github.com/UMass-Foundation-Model/Mod-Squad/blob/1d17e81d090ac7e1a66dd420194c0b7679d820a4/parallel_linear/parallel_experts/moe.py#L25
-class EXLoss(nn.Module):
+class MI_loss(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.wEX = torch.tensor(config.wEX, requires_grad=False)
@@ -96,6 +96,8 @@ class LoadBalancingLoss(nn.Module):
         super().__init__()
         self.wBAL = torch.tensor(config.wBAL, requires_grad=False)
         self.num_experts = config.num_experts
+        self.topk = config.topk
+        self.tally = torch.zeros(config.num_experts)
 
     def forward(self, router_logits: torch.Tensor) -> torch.Tensor: 
         # enforces experts should not be used widely more than another
@@ -108,6 +110,12 @@ class LoadBalancingLoss(nn.Module):
         router_probs = F.softmax(router_logits, dim=-1)
         gate = torch.argmax(router_probs, dim=-1)
         num_tokens = F.one_hot(gate, num_experts).gt(0).sum(0)
+        
+        # Update the tally
+        topk_indices = router_probs.topk(self.topk, dim=-1).indices
+        for indices in topk_indices:
+            self.tally[indices] += 1
+        
         p = router_probs.mean(0)
         temp = num_tokens.float()
         f = temp / temp.sum(0, keepdim=True) 
@@ -125,7 +133,6 @@ class SpecifiedExpertLoss(nn.Module):
             return 0
         if isinstance(router_logits, tuple): # (batch_size, num_experts) * num_hidden_layers
             router_logits = torch.stack(router_logits, dim=0) # num_hidden_layers, batch_size, num_experts
-        
         avg_logits = router_logits.mean(dim=0) # (batch_size, num_experts)
         return self.wEX * F.cross_entropy(avg_logits, router_labels)
 

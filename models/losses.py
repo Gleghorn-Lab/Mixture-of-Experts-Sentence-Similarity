@@ -112,7 +112,7 @@ class LoadBalancingLoss(nn.Module):
         num_tokens = F.one_hot(gate, num_experts).gt(0).sum(0)
         
         # Update the tally
-        topk_indices = router_probs.topk(self.topk, dim=-1).indices
+        topk_indices = router_probs.topk(self.topk, dim=-1).indices.detach().cpu()
         for indices in topk_indices:
             self.tally[indices] += 1
         

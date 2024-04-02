@@ -26,7 +26,7 @@ def HF_trainer(model,
                *args, **kwargs):
     training_args = TrainingArguments(load_best_model_at_end=True, *args, **kwargs)
 
-    if EX.expert_loss:
+    if EX:
         callbacks = [EarlyStoppingCallback(early_stopping_patience=patience), TopkTallyCallback()]
     else:
         callbacks = [EarlyStoppingCallback(early_stopping_patience=patience)]

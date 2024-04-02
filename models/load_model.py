@@ -373,7 +373,8 @@ class MoEsmLoadWeights:
                 wBAL=self.args.wBAL,
                 wEX=self.args.wEX,
                 expert_loss=self.args.expert_loss,
-                single_moe=self.args.single_moe
+                single_moe=self.args.single_moe,
+                MI=self.args.MI
             )
         return config
 

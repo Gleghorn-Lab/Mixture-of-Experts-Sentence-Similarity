@@ -17,7 +17,7 @@ class eval_config:
     db_path = 'embeddings.db'
 
 
-def evaluate_sim_model(yargs, tokenizer, compute_metrics, model=None, trainer=None):
+def evaluate_sim_model(yargs, tokenizer, model=None):
     training_args = yargs['training_args']
     args = yargs['general_args']
     data_paths = args['data_paths']
@@ -33,17 +33,25 @@ def evaluate_sim_model(yargs, tokenizer, compute_metrics, model=None, trainer=No
         'MOE': args['MOE']
     }
     
-    if trainer == None:
-        trainer = HF_trainer(model, validation_datasets[0], testing_datasets[0],
-                        compute_metrics=compute_metrics, data_collator=data_collator, **training_args)
+    trainer = HF_trainer(model, train_dataset=None, valid_datset=None,
+                    compute_metrics=compute_metrics_sentence_similarity,
+                    data_collator=data_collator, **training_args)
 
     for i, val_dataset in enumerate(validation_datasets):
         metrics = trainer.predict(val_dataset)[-1]
         log_metrics(args['log_path'], metrics, details=details, header=f'Validation {data_paths[i]}')
 
+    trainer.accelerator.free_memory()
+
+    trainer = HF_trainer(model, train_dataset=None, valid_datset=None,
+                    compute_metrics=compute_metrics_sentence_similarity_test,
+                    data_collator=data_collator, **training_args)
+
     for i, test_dataset in enumerate(testing_datasets):
         metrics = trainer.predict(test_dataset)[-1]
         log_metrics(args['log_path'], metrics, details=details, header=f'Test {data_paths[i]}')
+    
+    trainer.accelerator.free_memory()
 
 
 def evaluate_triplet_model_similarity(yargs, model, tokenizer, compute_metrics):
@@ -131,7 +139,7 @@ def evaluate_triplet_model_downstream(yargs, eval_config, base_model, tokenizer)
         else:
             compute_metrics = compute_metrics_regression
 
-        trainer = HF_trainer(model, train_dataset, valid_dataset,
+        trainer = HF_trainer(model, train_dataset=None, valid_datset=None,
                              compute_metrics=compute_metrics, data_collator=data_collator,
                              patience=args['patience'], EX=False, **training_args)
         trainer.train()

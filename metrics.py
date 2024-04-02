@@ -169,6 +169,30 @@ def compute_metrics_sentence_similarity(p: EvalPrediction):
     }
 
 
+def compute_metrics_sentence_similarity_test(p: EvalPrediction):
+    preds = p.predictions
+    emb_a, emb_b = preds[0], preds[1]
+    # Convert embeddings to tensors
+    emb_a_tensor = torch.tensor(emb_a)
+    emb_b_tensor = torch.tensor(emb_b)
+
+    # Compute cosine similarity between the embeddings
+    cosine_sim = F.cosine_similarity(emb_a_tensor, emb_b_tensor)
+    # Compute average cosine similarity
+    avg_cosine_sim = torch.mean(cosine_sim).item()
+
+    # Compute Euclidean distance between the embeddings
+    euclidean_dist = torch.norm(emb_a_tensor - emb_b_tensor, p=2, dim=1)
+    # Compute average Euclidean distance
+    avg_euclidean_dist = torch.mean(euclidean_dist).item()
+
+    # Return a dictionary of the computed metrics
+    return {
+        'avg_cosine_similarity': avg_cosine_sim,
+        'avg_euclidean_distance': avg_euclidean_dist,
+    }
+
+
 def compute_metrics_triplet(p: EvalPrediction):
     preds = p.predictions
 

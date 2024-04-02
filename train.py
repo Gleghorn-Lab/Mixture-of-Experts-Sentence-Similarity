@@ -25,7 +25,7 @@ def train_sim_model(yargs, model, tokenizer, compute_metrics, token=None):
         print(f'Model saved at {save_path} and pushed to {hub_path}')
 
     trainer.accelerator.free_memory()
-    evaluate_sim_model(yargs, tokenizer, trainer=trainer, compute_metrics=compute_metrics)
+    evaluate_sim_model(yargs, tokenizer, model=trainer.model)
 
 
 def train_triplet_model(yargs, model, tokenizer, compute_metrics, token=None):

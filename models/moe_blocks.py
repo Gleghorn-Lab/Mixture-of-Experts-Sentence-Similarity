@@ -41,8 +41,8 @@ class SentenceSwitchMoeBlock(nn.Module):
     def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
         router_output = self.gate(hidden_states) # (batch, sequence_length, n_experts)
         router_logits = router_output.mean(dim=1) # (batch, n_experts)
-        router_probs = F.softmax(router_logits, dim=-1).argmax(dim=-1) # (batch)
-        final_hidden_states = torch.stack([self.experts[router_probs[i]](hidden_states[i]) for i in range(len(hidden_states))])
+        router_choice = router_logits.argmax(dim=-1) # (batch)
+        final_hidden_states = torch.stack([self.experts[router_choice[i]](hidden_states[i]) for i in range(len(hidden_states))])
         return final_hidden_states, router_logits # (batch, sequence_length, hidden_dim), (batch, num_experts)
 
 

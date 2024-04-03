@@ -1,6 +1,5 @@
 
 *.csv
-*.json
 *.pyc
 *.pt
 *.pth
@@ -12,3 +11,4 @@ data_compilation/swiss_prot_duplicates.txt
 *.png
 *.ckpt
 *.bash
+/output

@@ -1,0 +1,14 @@
+{
+  "d_model": 512,
+  "nhead": 4,
+  "num_layers": 2,
+  "dim_feedforward": 2048,
+  "out_dim": 512,
+  "dropout": 0.1,
+  "activation": "relu",
+  "num_variables": 10,
+  "vocab": 20,
+  "lr0": 0.0001,
+  "warmup_steps": 500,
+  "p_bernoulli": 0.5
+}

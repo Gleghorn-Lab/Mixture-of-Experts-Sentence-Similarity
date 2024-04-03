@@ -90,9 +90,9 @@ def evaluate_triplet_model_downstream(yargs, eval_config, base_model, tokenizer)
         valid_seqs, valid_labels = get_seqs(valid_set)
         test_seqs, test_labels = get_seqs(test_set)
 
-        train_seqs, train_labels = train_seqs[:10], train_labels[:10]
-        valid_seqs, valid_labels = valid_seqs[:10], valid_labels[:10]
-        test_seqs, test_labels = test_seqs[:10], test_labels[:10]
+        train_seqs, train_labels = train_seqs, train_labels
+        valid_seqs, valid_labels = valid_seqs, valid_labels
+        test_seqs, test_labels = test_seqs, test_labels
 
         train_sets.append((train_seqs, train_labels))
         valid_sets.append((valid_seqs, valid_labels))

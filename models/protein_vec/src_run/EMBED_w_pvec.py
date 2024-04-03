@@ -21,7 +21,7 @@ class ProteinVec(PreTrainedModel):
         vec_model_cpnt = moe_path + '/protein_vec.ckpt'
         vec_model_config = moe_path + '/protein_vec_params.json'
         json_config = trans_basic_block_Config.from_json(vec_model_config)
-        self.moe = trans_basic_block(vec_model_cpnt, config=json_config)
+        self.moe = trans_basic_block(config=json_config)
 
         self.contrastive_loss = nn.TripletMarginLoss()
         self.aspect_to_keys_dict = {

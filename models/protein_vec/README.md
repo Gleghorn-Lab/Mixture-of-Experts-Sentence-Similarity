@@ -1,8 +1,8 @@
-THIS PROTEIN VEC ADAPTATION WAS MODIFIED FROM https://github.com/tymor22/protein-vec
+## THIS PROTEIN VEC ADAPTATION WAS MODIFIED FROM https://github.com/tymor22/protein-vec
 
-All credit goes to Ymor Hamamsy and the following authors of this paper https://www.biorxiv.org/content/10.1101/2023.11.26.568742v1
+All credit for the original work goes to Tymor Hamamsy and the following authors of this paper https://www.biorxiv.org/content/10.1101/2023.11.26.568742v1
 
-We have added a PyTorch wrapper for ProteinVec under src_run/EMBED_w_pvec.py. Additional we added inheritance to the config for Huggingface PretrainedConfig, and using these the weights for the entire ProteinVec have been uploaded to lhallee/ProteinVec 
+We have added a PyTorch wrapper for ProteinVec under src_run/EMBED_w_pvec.py. Additionally, we added inheritance to the config for Huggingface PretrainedConfig, and using these the weights for the entire ProteinVec have been uploaded to lhallee/ProteinVec 
 
 To use from hugggingface
 
@@ -11,10 +11,11 @@ from EMBED_w_pvec import ProteinVec
 
 model = ProteinVec.from_pretrained('lhallee/ProteinVec')
 ```
+The tokenizer can be found in the ProtT5 Huggingface repos.
 
-The license for the protein vec code
+## The license for the protein vec code
 
-BSD 3-Clause License
+### BSD 3-Clause License
 
 Copyright (c) 2023, Tymor Hamamsy
 

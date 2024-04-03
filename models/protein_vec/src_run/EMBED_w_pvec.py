@@ -9,15 +9,17 @@ from .model_protein_moe import trans_basic_block, trans_basic_block_Config
 
 
 class ProteinVec(PreTrainedModel):
-    def __init__(self, t5, moe_path):
+    def __init__(self, t5=None, moe_path=None):
         self.config = trans_basic_block_Config()
         super().__init__(self.config)
 
-        self.t5 = t5
-        vec_model_cpnt = moe_path + '/protein_vec.ckpt'
-        vec_model_config = moe_path + '/protein_vec_params.json'
-        json_config = trans_basic_block_Config.from_json(vec_model_config)
-        self.moe = trans_basic_block.load_from_checkpoint(vec_model_cpnt, config=json_config)
+        if t5 != None:
+            self.t5 = t5
+        if moe_path != None:
+            vec_model_cpnt = moe_path + '/protein_vec.ckpt'
+            vec_model_config = moe_path + '/protein_vec_params.json'
+            json_config = trans_basic_block_Config.from_json(vec_model_config)
+            self.moe = trans_basic_block.load_from_checkpoint(vec_model_cpnt, config=json_config)
 
         self.contrastive_loss = nn.TripletMarginLoss()
         self.aspect_to_keys_dict = {

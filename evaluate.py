@@ -21,11 +21,6 @@ def evaluate_sim_model(yargs, tokenizer, model=None):
     training_args = yargs['training_args']
     args = yargs['general_args']
     data_paths = args['data_paths']
-
-    if args['domains'] is not None and args['add_during_eval']:
-        added_tokens = {'additional_special_tokens' : args['domains']}
-        tokenizer.add_special_tokens(added_tokens)
-        print(tokenizer)
     
     validation_datasets, testing_datasets = get_datasets_test_sentence_sim(args, tokenizer)
     details = {
@@ -33,7 +28,7 @@ def evaluate_sim_model(yargs, tokenizer, model=None):
         'MOE': args['MOE']
     }
     
-    trainer = HF_trainer(model, train_dataset=None, valid_datset=None,
+    trainer = HF_trainer(model, train_dataset=None, valid_dataset=None,
                     compute_metrics=compute_metrics_sentence_similarity,
                     data_collator=data_collator, **training_args)
 
@@ -43,7 +38,7 @@ def evaluate_sim_model(yargs, tokenizer, model=None):
 
     trainer.accelerator.free_memory()
 
-    trainer = HF_trainer(model, train_dataset=None, valid_datset=None,
+    trainer = HF_trainer(model, train_dataset=None, valid_dataset=None,
                     compute_metrics=compute_metrics_sentence_similarity_test,
                     data_collator=data_collator, **training_args)
 
@@ -54,11 +49,11 @@ def evaluate_sim_model(yargs, tokenizer, model=None):
     trainer.accelerator.free_memory()
 
 
-def evaluate_triplet_model_similarity(yargs, model, tokenizer, compute_metrics):
+def evaluate_triplet_model_similarity(yargs, model, tokenizer):
     training_args = yargs['training_args']
     args = yargs['general_args']
     trainer = HF_trainer(model, train_dataset=None, valid_dataset=None,
-                         compute_metrics=compute_metrics, data_collator=data_collator,
+                         compute_metrics=compute_metrics_triplet, data_collator=data_collator,
                          patience=args['patience'], EX=args['expert_loss'], **training_args)
     
     triplet_datasets = get_datasets_test_triplet(args, tokenizer) # (aspect, valid_dataset, test_dataset) * aspects * num_dataset
@@ -139,7 +134,7 @@ def evaluate_triplet_model_downstream(yargs, eval_config, base_model, tokenizer)
         else:
             compute_metrics = compute_metrics_regression
 
-        trainer = HF_trainer(model, train_dataset=None, valid_datset=None,
+        trainer = HF_trainer(model, train_dataset=None, valid_dataset=None,
                              compute_metrics=compute_metrics, data_collator=data_collator,
                              patience=args['patience'], EX=False, **training_args)
         trainer.train()
@@ -148,3 +143,20 @@ def evaluate_triplet_model_downstream(yargs, eval_config, base_model, tokenizer)
         trainer.accelerator.free_memory()
         ### TODO write one set of details first and then all metrics
         log_metrics(general_args['log_path'], metrics, details=general_args, header=f'Evaluation {args.data_paths[i]}')
+
+
+def evaluate_protein_vec(yargs):
+    from models.protein_vec.src_run.EMBED_w_pvec import ProteinVec
+    from transformers import T5EncoderModel, T5Tokenizer
+    
+    tokenizer = T5Tokenizer.from_pretrained('lhallee/prot_t5_enc')
+    try:
+        model = ProteinVec.from_pretrained(yargs['general_args']['weight_path'])
+    except:
+        t5 = T5EncoderModel.from_pretrained('lhallee/prot_t5_enc')
+        model = ProteinVec(t5=t5, moe_path='models/protein_vec/src_run/protein_vec_models')
+
+    print(model)
+
+    evaluate_triplet_model_similarity(yargs, model, tokenizer)
+    evaluate_triplet_model_downstream(yargs, eval_config, model, tokenizer)

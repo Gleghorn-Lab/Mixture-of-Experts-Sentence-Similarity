@@ -1,0 +1,100 @@
+
+Validation lhallee/abstract_domain_cvd
+model_path: allenai/scibert_scivocab_uncased
+MOE: True
+test_loss: 1.34698
+test_accuracy: 0.93586
+test_f1_max: 0.93366
+test_precision_max: 0.96682
+test_recall_max: 0.90271
+test_threshold: 0.98308
+test_distance: 0.48527
+
+
+Validation lhallee/abstract_domain_copd
+model_path: allenai/scibert_scivocab_uncased
+MOE: True
+test_loss: 1.02735
+test_accuracy: 0.74776
+test_f1_max: 0.73373
+test_precision_max: 0.77694
+test_recall_max: 0.69507
+test_threshold: 0.98706
+test_distance: 0.49583
+
+
+Validation lhallee/abstract_domain_skincancer
+model_path: allenai/scibert_scivocab_uncased
+MOE: True
+test_loss: 1.10833
+test_accuracy: 0.62976
+test_f1_max: 0.7247
+test_precision_max: 0.57679
+test_recall_max: 0.97463
+test_threshold: 0.97974
+test_distance: 0.49632
+
+
+Validation lhallee/abstract_domain_autoimmune
+model_path: allenai/scibert_scivocab_uncased
+MOE: True
+test_loss: 1.25768
+test_accuracy: 0.85069
+test_f1_max: 0.86608
+test_precision_max: 0.78514
+test_recall_max: 0.96563
+test_threshold: 0.97333
+test_distance: 0.49002
+
+
+Validation lhallee/abstract_domain_parasitic
+model_path: allenai/scibert_scivocab_uncased
+MOE: True
+test_loss: 1.33168
+test_accuracy: 0.88832
+test_f1_max: 0.8937
+test_precision_max: 0.85266
+test_recall_max: 0.93888
+test_threshold: 0.97659
+test_distance: 0.48922
+
+
+Test lhallee/abstract_domain_cvd
+model_path: allenai/scibert_scivocab_uncased
+MOE: True
+test_loss: 0.85863
+test_avg_cosine_similarity: 0.99033
+test_avg_euclidean_distance: 2.16658
+
+
+Test lhallee/abstract_domain_copd
+model_path: allenai/scibert_scivocab_uncased
+MOE: True
+test_loss: 0.66464
+test_avg_cosine_similarity: 0.9871
+test_avg_euclidean_distance: 2.5298
+
+
+Test lhallee/abstract_domain_skincancer
+model_path: allenai/scibert_scivocab_uncased
+MOE: True
+test_loss: 1.07344
+test_avg_cosine_similarity: 0.99036
+test_avg_euclidean_distance: 2.18409
+
+
+Test lhallee/abstract_domain_autoimmune
+model_path: allenai/scibert_scivocab_uncased
+MOE: True
+test_loss: 1.10401
+test_avg_cosine_similarity: 0.98825
+test_avg_euclidean_distance: 2.39159
+
+
+Test lhallee/abstract_domain_parasitic
+model_path: allenai/scibert_scivocab_uncased
+MOE: True
+test_loss: 1.03595
+test_avg_cosine_similarity: 0.98725
+test_avg_euclidean_distance: 2.52612
+

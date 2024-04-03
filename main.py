@@ -7,6 +7,7 @@ from evaluate import (
     evaluate_sim_model,
     evaluate_triplet_model_similarity,
     evaluate_triplet_model_downstream,
+    evaluate_protein_vec,
     eval_config
 )
 from train import train_sim_model, train_triplet_model
@@ -39,16 +40,14 @@ def main():
         wandb.login()
         wandb.init()
 
+    if args.model_type.lower() == 'proteinvec':
+        evaluate_protein_vec(yargs)
+        import sys
+        sys.exit()
+
 
     print('\n-----Load Model-----\n')
     model, tokenizer = load_models(args)
-
-
-    if 'triplet' in args.model_type.lower():
-        compute_metrics = compute_metrics_triplet
-    else:
-        compute_metrics = compute_metrics_sentence_similarity
-
 
     if args.weight_path != None:
         if args.huggingface_username in args.weight_path:
@@ -63,17 +62,17 @@ def main():
 
     if args.eval:
         if args.model_type.lower() == 'triplet':
-            evaluate_triplet_model_similarity(yargs, model, tokenizer, compute_metrics_triplet)
+            evaluate_triplet_model_similarity(yargs, model, tokenizer)
             evaluate_triplet_model_downstream(yargs, eval_config, model, tokenizer)
         else:
-            evaluate_sim_model(yargs, tokenizer, compute_metrics=compute_metrics, model=model)
+            evaluate_sim_model(yargs, tokenizer, model=model)
 
     else:
         if args.model_type.lower() == 'triplet':
-            train_triplet_model(yargs, model, tokenizer, compute_metrics=compute_metrics, token=args.token)
+            train_triplet_model(yargs, model, tokenizer, compute_metrics=compute_metrics_triplet, token=args.token)
 
         else:
-            train_sim_model(yargs, model, tokenizer, compute_metrics=compute_metrics, token=args.token)
+            train_sim_model(yargs, model, tokenizer, compute_metrics=compute_metrics_sentence_similarity, token=args.token)
 
 
 if __name__ == '__main__':

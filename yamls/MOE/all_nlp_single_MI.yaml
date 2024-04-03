@@ -6,7 +6,7 @@ general_args:
   huggingface_username: lhallee
 
 # MOE
-  single_moe: false
+  single_moe: true
   moe_type: 'topk'
   MOE: true
   token_moe: true

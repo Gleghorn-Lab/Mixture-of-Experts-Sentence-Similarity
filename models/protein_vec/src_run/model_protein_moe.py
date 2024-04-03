@@ -85,69 +85,106 @@ class trans_basic_block(pl.LightningModule):
         
         self.pdist = nn.PairwiseDistance(p=2)
 
-        ################## TM-Vec model
-        vec_model_cpnt_tmvec = self.embedded_path + '/tm_vec_swiss_model_large.ckpt'
-        vec_model_config_tmvec = self.embedded_path + '/tm_vec_swiss_model_large_params.json'
-        
-        #Load the model
-        vec_model_config_tmvec = trans_basic_block_Config_tmvec.from_json(vec_model_config_tmvec)
-        self.model_aspect_tmvec = trans_basic_block_tmvec.load_from_checkpoint(vec_model_cpnt_tmvec, config=vec_model_config_tmvec)
-        for param in self.model_aspect_tmvec.parameters():
-            param.requires_grad = False
+        try: # when getting weights from huggingface this will throw error and we will move on
+            ################## TM-Vec model
+            vec_model_cpnt_tmvec = self.embedded_path + '/tm_vec_swiss_model_large.ckpt'
+            vec_model_config_tmvec = self.embedded_path + '/tm_vec_swiss_model_large_params.json'
+            
+            #Load the model
+            vec_model_config_tmvec = trans_basic_block_Config_tmvec.from_json(vec_model_config_tmvec)
+            self.model_aspect_tmvec = trans_basic_block_tmvec.load_from_checkpoint(vec_model_cpnt_tmvec, config=vec_model_config_tmvec)
+            for param in self.model_aspect_tmvec.parameters():
+                param.requires_grad = False
 
-        ################## PFam model
-        vec_model_cpnt_pfam = self.embedded_path + '/aspect_vec_pfam.ckpt'
-        vec_model_config_pfam = self.embedded_path + '/aspect_vec_pfam_params.json'
-        #Load the model
-        vec_model_config_pfam = trans_basic_block_Config_single.from_json(vec_model_config_pfam)
-        self.model_aspect_pfam = trans_basic_block_single.load_from_checkpoint(vec_model_cpnt_pfam, config=vec_model_config_pfam)
-        for param in self.model_aspect_pfam.parameters():
-            param.requires_grad = False
+            ################## PFam model
+            vec_model_cpnt_pfam = self.embedded_path + '/aspect_vec_pfam.ckpt'
+            vec_model_config_pfam = self.embedded_path + '/aspect_vec_pfam_params.json'
+            #Load the model
+            vec_model_config_pfam = trans_basic_block_Config_single.from_json(vec_model_config_pfam)
+            self.model_aspect_pfam = trans_basic_block_single.load_from_checkpoint(vec_model_cpnt_pfam, config=vec_model_config_pfam)
+            for param in self.model_aspect_pfam.parameters():
+                param.requires_grad = False
 
-        ################## GENE3D model
-        vec_model_cpnt_gene3D = self.embedded_path + '/aspect_vec_gene3d.ckpt'
-        vec_model_config_gene3D = self.embedded_path + '/aspect_vec_gene3d_params.json'
-        #Load the model
-        vec_model_config_gene3D = trans_basic_block_Config_single.from_json(vec_model_config_gene3D)
-        self.model_aspect_gene3D = trans_basic_block_single.load_from_checkpoint(vec_model_cpnt_gene3D, config=vec_model_config_gene3D)
-        for param in self.model_aspect_gene3D.parameters():
-            param.requires_grad = False
+            ################## GENE3D model
+            vec_model_cpnt_gene3D = self.embedded_path + '/aspect_vec_gene3d.ckpt'
+            vec_model_config_gene3D = self.embedded_path + '/aspect_vec_gene3d_params.json'
+            #Load the model
+            vec_model_config_gene3D = trans_basic_block_Config_single.from_json(vec_model_config_gene3D)
+            self.model_aspect_gene3D = trans_basic_block_single.load_from_checkpoint(vec_model_cpnt_gene3D, config=vec_model_config_gene3D)
+            for param in self.model_aspect_gene3D.parameters():
+                param.requires_grad = False
 
-        ################## EC model
-        vec_model_cpnt_ec = self.embedded_path + '/aspect_vec_ec.ckpt'
-        vec_model_config_ec = self.embedded_path + '/aspect_vec_ec_params.json'
-        #Load the model
-        vec_model_config_ec = trans_basic_block_Config_single.from_json(vec_model_config_ec)
-        self.model_aspect_ec = trans_basic_block_single.load_from_checkpoint(vec_model_cpnt_ec, config=vec_model_config_ec)
-        for param in self.model_aspect_ec.parameters():
-            param.requires_grad = False
+            ################## EC model
+            vec_model_cpnt_ec = self.embedded_path + '/aspect_vec_ec.ckpt'
+            vec_model_config_ec = self.embedded_path + '/aspect_vec_ec_params.json'
+            #Load the model
+            vec_model_config_ec = trans_basic_block_Config_single.from_json(vec_model_config_ec)
+            self.model_aspect_ec = trans_basic_block_single.load_from_checkpoint(vec_model_cpnt_ec, config=vec_model_config_ec)
+            for param in self.model_aspect_ec.parameters():
+                param.requires_grad = False
 
-        ################## GO MFO model
-        vec_model_cpnt_mfo = self.embedded_path + '/aspect_vec_go_mfo.ckpt'
-        vec_model_config_mfo = self.embedded_path + '/aspect_vec_go_mfo_params.json'
-        #Load the model
-        vec_model_config_mfo = trans_basic_block_Config_single.from_json(vec_model_config_mfo)
-        self.model_aspect_mfo = trans_basic_block_single.load_from_checkpoint(vec_model_cpnt_mfo, config=vec_model_config_mfo)
-        for param in self.model_aspect_mfo.parameters():
-            param.requires_grad = False
+            ################## GO MFO model
+            vec_model_cpnt_mfo = self.embedded_path + '/aspect_vec_go_mfo.ckpt'
+            vec_model_config_mfo = self.embedded_path + '/aspect_vec_go_mfo_params.json'
+            #Load the model
+            vec_model_config_mfo = trans_basic_block_Config_single.from_json(vec_model_config_mfo)
+            self.model_aspect_mfo = trans_basic_block_single.load_from_checkpoint(vec_model_cpnt_mfo, config=vec_model_config_mfo)
+            for param in self.model_aspect_mfo.parameters():
+                param.requires_grad = False
 
-        ################## GO BPO model
-        vec_model_cpnt_bpo = self.embedded_path + '/aspect_vec_go_bpo.ckpt'
-        vec_model_config_bpo = self.embedded_path + '/aspect_vec_go_bpo_params.json'
-        #Load the model 
-        vec_model_config_bpo = trans_basic_block_Config_single.from_json(vec_model_config_bpo)
-        self.model_aspect_bpo = trans_basic_block_single.load_from_checkpoint(vec_model_cpnt_bpo, config=vec_model_config_bpo)
-        for param in self.model_aspect_bpo.parameters():
-            param.requires_grad = False
+            ################## GO BPO model
+            vec_model_cpnt_bpo = self.embedded_path + '/aspect_vec_go_bpo.ckpt'
+            vec_model_config_bpo = self.embedded_path + '/aspect_vec_go_bpo_params.json'
+            #Load the model 
+            vec_model_config_bpo = trans_basic_block_Config_single.from_json(vec_model_config_bpo)
+            self.model_aspect_bpo = trans_basic_block_single.load_from_checkpoint(vec_model_cpnt_bpo, config=vec_model_config_bpo)
+            for param in self.model_aspect_bpo.parameters():
+                param.requires_grad = False
 
-        ################## GO CCO model
-        vec_model_cpnt_cco = self.embedded_path + '/aspect_vec_go_cco.ckpt'
-        vec_model_config_cco = self.embedded_path + '/aspect_vec_go_cco_params.json'
-        #Load the model
-        vec_model_config_cco = trans_basic_block_Config_single.from_json(vec_model_config_cco)
-        self.model_aspect_cco = trans_basic_block_single.load_from_checkpoint(vec_model_cpnt_cco, config=vec_model_config_cco)
-        for param in self.model_aspect_cco.parameters():
-            param.requires_grad = False
+            ################## GO CCO model
+            vec_model_cpnt_cco = self.embedded_path + '/aspect_vec_go_cco.ckpt'
+            vec_model_config_cco = self.embedded_path + '/aspect_vec_go_cco_params.json'
+            #Load the model
+            vec_model_config_cco = trans_basic_block_Config_single.from_json(vec_model_config_cco)
+            self.model_aspect_cco = trans_basic_block_single.load_from_checkpoint(vec_model_cpnt_cco, config=vec_model_config_cco)
+            for param in self.model_aspect_cco.parameters():
+                param.requires_grad = False
+
+        except:
+                vec_model_config_tmvec = trans_basic_block_Config_tmvec.from_json(vec_model_config_tmvec)
+                self.model_aspect_tmvec = trans_basic_block_tmvec(config=vec_model_config_tmvec)
+                for param in self.model_aspect_tmvec.parameters():
+                    param.requires_grad = False
+                    
+                vec_model_config_pfam = trans_basic_block_Config_single.from_json(vec_model_config_pfam)
+                self.model_aspect_pfam = trans_basic_block_single(config=vec_model_config_pfam)
+                for param in self.model_aspect_pfam.parameters():
+                    param.requires_grad = False
+                    
+                vec_model_config_gene3D = trans_basic_block_Config_single.from_json(vec_model_config_gene3D)
+                self.model_aspect_gene3D = trans_basic_block_single(config=vec_model_config_gene3D)
+                for param in self.model_aspect_gene3D.parameters():
+                    param.requires_grad = False
+                    
+                vec_model_config_ec = trans_basic_block_Config_single.from_json(vec_model_config_ec)
+                self.model_aspect_ec = trans_basic_block_single(config=vec_model_config_ec)
+                for param in self.model_aspect_ec.parameters():
+                    param.requires_grad = False
+                    
+                vec_model_config_mfo = trans_basic_block_Config_single.from_json(vec_model_config_mfo)
+                self.model_aspect_mfo = trans_basic_block_single(config=vec_model_config_mfo)
+                for param in self.model_aspect_mfo.parameters():
+                    param.requires_grad = False
+                    
+                vec_model_config_bpo = trans_basic_block_Config_single.from_json(vec_model_config_bpo)
+                self.model_aspect_bpo = trans_basic_block_single(config=vec_model_config_bpo)
+                for param in self.model_aspect_bpo.parameters():
+                    param.requires_grad = False
+                    
+                vec_model_config_cco = trans_basic_block_Config_single.from_json(vec_model_config_cco)
+                self.model_aspect_cco = trans_basic_block_single(config=vec_model_config_cco)
+                for param in self.model_aspect_cco.parameters():
+                    param.requires_grad = False
 
             
     def forward(self, x_i, src_key_padding_mask):

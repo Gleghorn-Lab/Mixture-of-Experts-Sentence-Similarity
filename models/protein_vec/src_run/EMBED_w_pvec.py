@@ -2,24 +2,26 @@ import torch
 import torch.nn as nn
 import numpy as np
 
-from transformers import PreTrainedModel, T5EncoderModel
+from transformers import PreTrainedModel, T5Config, T5EncoderModel
 from transformers.modeling_outputs import SequenceClassifierOutput
 
 from .model_protein_moe import trans_basic_block, trans_basic_block_Config
 
 
 class ProteinVec(PreTrainedModel):
-    def __init__(self, t5=None, moe_path=None):
+    def __init__(self, t5=None, moe_path='models/protein_vec/src_run/protein_vec_models'):
         self.config = trans_basic_block_Config()
         super().__init__(self.config)
 
         if t5 != None:
             self.t5 = t5
-        if moe_path != None:
-            vec_model_cpnt = moe_path + '/protein_vec.ckpt'
-            vec_model_config = moe_path + '/protein_vec_params.json'
-            json_config = trans_basic_block_Config.from_json(vec_model_config)
-            self.moe = trans_basic_block.load_from_checkpoint(vec_model_cpnt, config=json_config)
+        else:
+            self.t5 = T5EncoderModel(T5Config.from_pretrained('lhallee/prot_t5_enc'))
+
+        vec_model_cpnt = moe_path + '/protein_vec.ckpt'
+        vec_model_config = moe_path + '/protein_vec_params.json'
+        json_config = trans_basic_block_Config.from_json(vec_model_config)
+        self.moe = trans_basic_block(vec_model_cpnt, config=json_config)
 
         self.contrastive_loss = nn.TripletMarginLoss()
         self.aspect_to_keys_dict = {

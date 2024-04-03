@@ -52,7 +52,7 @@ general_args:
   wandb_name: triplet_test
 
 # Paths
-  log_path: './results.txt'  # Path to save the log file
+  log_path: './results_moesm_150_triplets.txt'  # Path to save the log file
   weight_path: 'lhallee/moesm_150_triplets'  # Path to the model weights to load
   save_path: 'test.pt'
 
@@ -103,11 +103,10 @@ eval_training_args:
   save_strategy: !!str epoch
   save_total_limit: !!int 3
   evaluation_strategy: !!str epoch
-  logging_strategy: steps
-  logging_steps: !!int 10
+  logging_strategy: epoch
   fp16: false
   seed: !!int 7
-  metric_for_best_model: !!str f1_max
+  metric_for_best_model: !!str f1
 
 # General eval args during evaluation
 eval_args:
@@ -151,4 +150,4 @@ eval_args:
   skip: true # skip embedding, already embedded
 
 # Trainging settings
-  patience: 1
+  patience: 10

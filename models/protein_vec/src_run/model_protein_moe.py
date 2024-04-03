@@ -13,29 +13,8 @@ import numpy as np
 import random
 
 
-
 @dataclass
-class Config:
-    def isolate(self, config):
-        specifics = inspect.signature(config).parameters
-        my_specifics = {k: v for k, v in asdict(self).items() if k in specifics}
-        return config(**my_specifics)
-
-    def to_json(self, filename):
-        config = json.dumps(asdict(self), indent=2)
-        with open(filename, 'w') as f:
-            f.write(config)
-    
-    @classmethod
-    def from_json(cls, filename):
-        with open(filename, 'r') as f:
-            js = json.loads(f.read())
-        config = cls(**js)
-        return config
-    
-
-@dataclass
-class trans_basic_block_Config(Config, PretrainedConfig):
+class trans_basic_block_Config(PretrainedConfig):
     d_model: int = 512
     nhead: int = 4
     num_layers: int = 2
@@ -53,6 +32,24 @@ class trans_basic_block_Config(Config, PretrainedConfig):
     
     def build(self):
         return trans_basic_block(self)
+    
+    def isolate(self, config):
+        specifics = inspect.signature(config).parameters
+        my_specifics = {k: v for k, v in asdict(self).items() if k in specifics}
+        return config(**my_specifics)
+
+    def to_json(self, filename):
+        config = json.dumps(asdict(self), indent=2)
+        with open(filename, 'w') as f:
+            f.write(config)
+    
+    @classmethod
+    def from_json(cls, filename):
+        with open(filename, 'r') as f:
+            js = json.loads(f.read())
+        config = cls(**js)
+        return config
+
 
 class trans_basic_block(pl.LightningModule):
     """

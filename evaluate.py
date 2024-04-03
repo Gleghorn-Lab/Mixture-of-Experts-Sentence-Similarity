@@ -72,7 +72,7 @@ def evaluate_triplet_model_downstream(yargs, eval_config, base_model, tokenizer)
     # Set up config
     for key, value in eval_args.items():
         setattr(eval_config, key, value)
-    for key, value in training_args:
+    for key, value in training_args.items():
         setattr(eval_config, key, value)
     args = eval_config
     args.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -147,15 +147,19 @@ def evaluate_triplet_model_downstream(yargs, eval_config, base_model, tokenizer)
 
 def evaluate_protein_vec(yargs):
     from models.protein_vec.src_run.EMBED_w_pvec import ProteinVec
+    from models.protein_vec.src_run.model_protein_moe import trans_basic_block_Config
     from transformers import T5EncoderModel, T5Tokenizer
     
     tokenizer = T5Tokenizer.from_pretrained('lhallee/prot_t5_enc')
+
     try:
-        model = ProteinVec.from_pretrained(yargs['general_args']['weight_path'])
+        config = trans_basic_block_Config()
+        model = ProteinVec.from_pretrained(yargs['general_args']['weight_path'], config=config)
     except:
         t5 = T5EncoderModel.from_pretrained('lhallee/prot_t5_enc')
         model = ProteinVec(t5=t5, moe_path='models/protein_vec/src_run/protein_vec_models')
 
+    model = model.eval()
     print(model)
 
     evaluate_triplet_model_similarity(yargs, model, tokenizer)

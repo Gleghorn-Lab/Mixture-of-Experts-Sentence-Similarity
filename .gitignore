@@ -12,3 +12,4 @@ data_compilation/swiss_prot_duplicates.txt
 *.ckpt
 *.bash
 /output
+*.db

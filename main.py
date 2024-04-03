@@ -47,7 +47,7 @@ def main():
 
 
     print('\n-----Load Model-----\n')
-    model, tokenizer = load_models(args)
+    model, tokenizer = load_models(args) # if eval and skip, not needed
 
     if args.weight_path != None:
         if args.huggingface_username in args.weight_path:
@@ -62,7 +62,7 @@ def main():
 
     if args.eval:
         if args.model_type.lower() == 'triplet':
-            evaluate_triplet_model_similarity(yargs, model, tokenizer)
+            #evaluate_triplet_model_similarity(yargs, model, tokenizer)
             evaluate_triplet_model_downstream(yargs, eval_config, model, tokenizer)
         else:
             evaluate_sim_model(yargs, tokenizer, model=model)

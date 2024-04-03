@@ -47,13 +47,13 @@ general_args:
   test_size: 2500
 
 # wandb settings
-  wandb: true
+  wandb: false
   wandb_project: SSPR
   wandb_name: triplet_test
 
 # Paths
   log_path: './results.txt'  # Path to save the log file
-  weight_path: null  # Path to the model weights to load
+  weight_path: 'lhallee/moesm_150_triplets'  # Path to the model weights to load
   save_path: 'test.pt'
 
 # Training settings
@@ -98,14 +98,14 @@ eval_training_args:
   learning_rate: !!float 1e-4
   lr_scheduler_type: !!str cosine
   weight_decay: !!float 0.01
-  num_train_epochs: !!int 1
+  num_train_epochs: !!int 200
   warmup_steps: !!int 100
   save_strategy: !!str epoch
   save_total_limit: !!int 3
   evaluation_strategy: !!str epoch
   logging_strategy: steps
   logging_steps: !!int 10
-  fp16: true
+  fp16: false
   seed: !!int 7
   metric_for_best_model: !!str f1_max
 
@@ -113,7 +113,6 @@ eval_training_args:
 eval_args:
 
 # Paths
-  plm_path: facebook/esm2_t6_8M_UR50D
   data_paths:
     - 'lhallee/EC_reg'
     - 'lhallee/CC_reg'
@@ -123,8 +122,8 @@ eval_args:
     - 'lhallee/dl_ten_reg'
     - 'lhallee/MetalIonBinding_reg'
   weight_path: ''
-  log_path: ./results.txt
-  db_path: embeddings.db
+  log_path: ./results_moesm_150_downstream.txt
+  db_path: moesm_150_embeddings.db
 
 # New tokens
   domains:
@@ -137,17 +136,19 @@ eval_args:
     - '[IP]'
 
 # Model settings
-  input_dim: 768
-  hidden_dim: 768
+  input_dim: 640
+  hidden_dim: 8096
   intermediate_dim: 2048
   dropout: 0.1
   num_layers: 2
   nhead: 8
+  full: false
+  read_scaler: 100
 
 # Data settings
   trim: false
   max_length: 512
-  skip: false # skip embedding, already embedded
+  skip: true # skip embedding, already embedded
 
 # Trainging settings
   patience: 1

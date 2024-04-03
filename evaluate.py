@@ -108,6 +108,7 @@ def evaluate_triplet_model_downstream(yargs, eval_config, base_model, tokenizer)
 
     # If not already done, embed all seqs to local sql database
     if not args.skip:
+        base_model.to(args.device)
         embed_dataset_and_save(args, base_model, tokenizer, all_seqs, domains=args.domains, aspects=aspects)
         base_model.to('cpu')
         del base_model
@@ -134,9 +135,9 @@ def evaluate_triplet_model_downstream(yargs, eval_config, base_model, tokenizer)
         else:
             compute_metrics = compute_metrics_regression
 
-        trainer = HF_trainer(model, train_dataset=None, valid_dataset=None,
+        trainer = HF_trainer(model, train_dataset=train_dataset, valid_dataset=valid_dataset,
                              compute_metrics=compute_metrics, data_collator=data_collator,
-                             patience=args['patience'], EX=False, **training_args)
+                             patience=args.patience, EX=False, **training_args)
         trainer.train()
 
         metrics = trainer.evaluate(test_dataset)

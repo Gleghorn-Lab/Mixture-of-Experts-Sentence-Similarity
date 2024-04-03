@@ -13,7 +13,7 @@ class ProteinVec(PreTrainedModel):
         self.config = trans_basic_block_Config()
         super().__init__(self.config)
 
-        if t5 != None:
+        if t5 != None: # config is getting passed into t5 for some reason
             self.t5 = t5
         else:
             self.t5 = T5EncoderModel(T5Config.from_pretrained('lhallee/prot_t5_enc'))

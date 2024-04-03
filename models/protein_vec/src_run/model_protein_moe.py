@@ -29,6 +29,7 @@ class trans_basic_block_Config(PretrainedConfig):
     warmup_steps: int = 300
     p_bernoulli: float = .5
     embedded_path: str = 'models/protein_vec/src_run/protein_vec_models'
+    architectures = ['ProteinVec']
     
     def build(self):
         return trans_basic_block(self)

@@ -69,10 +69,12 @@ def main():
 
     else:
         if args.model_type.lower() == 'triplet':
-            train_triplet_model(yargs, model, tokenizer, compute_metrics=compute_metrics_triplet, token=args.token)
+            train_triplet_model(yargs, model, tokenizer,
+                                compute_metrics=compute_metrics_triplet, token=args.token)
 
         else:
-            train_sim_model(yargs, model, tokenizer, compute_metrics=compute_metrics_sentence_similarity, token=args.token)
+            train_sim_model(yargs, model, tokenizer,
+                            compute_metrics=compute_metrics_sentence_similarity, token=args.token)
 
 
 if __name__ == '__main__':

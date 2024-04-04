@@ -105,6 +105,7 @@ class MoEsmConfig(PretrainedConfig): #TODO update documentation
         wBAL=None,
         wEX=None,
         MI=False,
+        BAL=False,
         expert_loss=False,
         single_moe=True,
         **kwargs,
@@ -138,6 +139,7 @@ class MoEsmConfig(PretrainedConfig): #TODO update documentation
         self.expert_loss = expert_loss
         self.single_moe = single_moe
         self.MI = MI
+        self.BAL = BAL
 
         if is_folding_model:
             if esmfold_config is None:

@@ -109,15 +109,16 @@ class FineTuneDatasetEmbedsFromDisk(TorchDataset):
         self.emb_dim = cfg.hidden_dim if cfg.full else cfg.input_dim
         read_scaler = cfg.read_scaler
         self.full = cfg.full
+        
         self.seqs, self.labels = seqs, labels
         self.length = len(labels)
         self.max_length = len(max(seqs, key=len))
         print('Max length: ', self.max_length)
+        
         self.task_type = task_type
         self.read_amt = read_scaler * self.batch_size
         self.embeddings, self.current_labels = [], []
         self.count, self.index = 0, 0
-
         self.reset_epoch()
 
     def __len__(self):
@@ -233,7 +234,7 @@ def embed_dataset_and_save(cfg, model, tokenizer, sequences, domains, aspects):
                     domain_token = tokenizer(domains[aspects[i+j]], add_special_tokens=False).input_ids[0]  # get the domain token
                     ids[0][0] = domain_token  # replace the cls token with the domain token
 
-                    embeddings.append(model.embed(ids).detach().cpu().numpy())
+                    embeddings.append(model.embed_vec(ids).detach().cpu().numpy()) # add if cfg.full for matrix
 
                 for seq, emb in zip(batch_sequences, embeddings):
                     emb_data = np.array(emb).tobytes()

@@ -1,8 +1,16 @@
 import torch
 from tqdm.auto import tqdm
-from data.load_data import get_datasets_train_sentence_sim, get_datasets_test_triplet, get_datasets_train_triplet
+from data.load_data import (
+    get_datasets_train_sentence_sim,
+    get_datasets_test_triplet,
+    get_datasets_train_triplet
+)
 from trainer import HF_trainer
-from evaluate import evaluate_sim_model, evaluate_triplet_model_downstream, evaluate_triplet_model_similarity, eval_config
+from evaluate import (
+    evaluate_sim_model,
+    evaluate_triplet_model_downstream,
+    eval_config
+)
 from utils import log_metrics, data_collator
 
 
@@ -54,4 +62,5 @@ def train_triplet_model(yargs, model, tokenizer, compute_metrics, token=None):
         log_metrics(args['log_path'], metrics, details=args, header=f'Test aspect {aspect}')
 
     trainer.accelerator.free_memory()
-    evaluate_triplet_model_downstream(yargs, eval_config=eval_config, base_model=trainer.model, tokenizer=tokenizer)
+    evaluate_triplet_model_downstream(yargs, eval_config=eval_config, 
+                                      ase_model=trainer.model, tokenizer=tokenizer)

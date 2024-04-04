@@ -145,9 +145,9 @@ class MoEBertLayer(nn.Module):
         if config.token_moe:
             self.moe_block = TokenTopKMoeBlock(config, expert=BertExpert)
         else:
-            if config.moe_type == 'switch': self.moe_block = SentenceSwitchMoeBlock(config, expert=BertExpert)
-            elif config.moe_type == 'topk': self.moe_block = SentenceTopKMoeBlock(config, expert=BertExpert)
-            elif config.moe_type == 'tokentype': self.moe_block = SentenceTokenTypeMoeBlock(config, expert=BertExpert)
+            if config.moe_type.lower() == 'switch': self.moe_block = SentenceSwitchMoeBlock(config, expert=BertExpert)
+            elif config.moe_type.lower() == 'topk': self.moe_block = SentenceTopKMoeBlock(config, expert=BertExpert)
+            elif config.moe_type.lower() == 'tokentype': self.moe_block = SentenceTokenTypeMoeBlock(config, expert=BertExpert)
             else: print(f'Incorrect MOE type {config.moe_type}, try again')
         self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
 

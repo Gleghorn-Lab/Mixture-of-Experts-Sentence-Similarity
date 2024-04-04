@@ -129,7 +129,8 @@ class SpecifiedExpertLoss(nn.Module):
 
     def forward(self, router_logits: torch.Tensor, router_labels: torch.Tensor) -> float:
         # enforces on average the router should route examples to the correct specified expert given the known origin of the input
-        if router_logits is None:
+        # router labels (batch_size, )
+        if router_logits is None or router_labels is None:
             return 0
         if isinstance(router_logits, tuple): # (batch_size, num_experts) * num_hidden_layers
             router_logits = torch.stack(router_logits, dim=0) # num_hidden_layers, batch_size, num_experts

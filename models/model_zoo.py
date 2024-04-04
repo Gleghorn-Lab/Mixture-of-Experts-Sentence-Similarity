@@ -157,7 +157,9 @@ class MoEsmForTripletSimilarity(MoEsmPreTrainedModel):
         super().__init__(config)
         self.esm = MoEsmModel(config, add_pooling_layer=True) if esm is None else esm
         self.contrastive_loss = nn.TripletMarginLoss()
-        self.aux_loss = LoadBalancingLoss(config)
+        self.BAL = config.BAL
+        if self.BAL:
+            self.aux_loss = LoadBalancingLoss(config)
         self.EX = config.expert_loss
         if self.EX:
             if config.MI:
@@ -165,30 +167,38 @@ class MoEsmForTripletSimilarity(MoEsmPreTrainedModel):
             else:
                 self.expert_loss = SpecifiedExpertLoss(config)
     
-    def embed(self, ids, att=None):
+    def embed_vec(self, ids, att=None):
         return self.esm(input_ids=ids, attention_mask=att).pooler_output
+
+    def embed_matrix(self, ids, att=None):
+        return self.esm(input_ids=ids, attention_mask=att).last_hidden_state
 
     def forward(self, pos, anc, neg,
                 att_p=None, att_a=None, att_n=None, r_labels=None):
-        outp = self.esm(input_ids=pos, attention_mask=att_p)
-        outa = self.esm(input_ids=anc, attention_mask=att_a)
-        outn = self.esm(input_ids=neg, attention_mask=att_n)
+        batch_size = pos.shape[0]
+
+        input_ids = torch.cat([pos, anc, neg])
+        attention_mask = torch.cat([att_p, att_a, att_n])
         
-        p = outp.pooler_output
-        a = outa.pooler_output
-        n = outn.pooler_output
+        outputs = self.esm(input_ids=input_ids, attention_mask=attention_mask)
 
-        c_loss = self.contrastive_loss(p, a, n)
+        pooler_output = outputs.pooler_output
 
-        router_logits = tuple((a + b + c) / 2 for a, b, c in
-                              zip(outp.router_logits, outa.router_logits, outn.router_logits))
+        p = pooler_output[:batch_size]
+        a = pooler_output[batch_size:2 * batch_size]
+        n = pooler_output[2 * batch_size:]        
 
-        r_loss = self.aux_loss(router_logits)
-        if r_labels != None and self.EX:
-            r_loss = r_loss + self.expert_loss(router_logits, r_labels)
+        loss = self.contrastive_loss(p, a, n)
+        
+        router_logits = outputs.router_logits # (3 * batch_size, num_experts) * num_hidden_layers
+        router_logits = tuple([router_logit.view(batch_size, 3, -1).mean(dim=1) for router_logit in router_logits])      
 
+        if self.BAL:
+            loss = loss + self.aux_loss(router_logits)
+        if r_labels is not None and self.EX:
+            loss = loss + self.expert_loss(router_logits, r_labels)
+        
         logits = (p, a, n)
-        loss = c_loss + r_loss
         
         return SentenceSimilarityOutput(
             logits=logits,
@@ -203,9 +213,12 @@ class EsmForTripletSimilarity(MoEsmPreTrainedModel):
         self.esm = EsmModel(config, add_pooling_layer=True) if esm is None else esm
         self.contrastive_loss = nn.TripletMarginLoss()
 
-    def embed(self, ids, att=None):
+    def embed_vec(self, ids, att=None):
         return self.esm(input_ids=ids, attention_mask=att).pooler_output
     
+    def embed_matrix(self, ids, att=None):
+        return self.esm(input_ids=ids, attention_mask=att).last_hidden_state
+
     def forward(self, pos, anc, neg,
                 att_p=None, att_a=None, att_n=None, r_labels=None):
         outp = self.esm(input_ids=pos, attention_mask=att_p)

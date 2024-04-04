@@ -612,9 +612,9 @@ class MoEsmLayer(nn.Module):
         if config.token_moe:
             self.moe_block = TokenTopKMoeBlock(config, expert=EsmExpert)
         else:
-            if config.moe_type == 'switch': self.moe_block = SentenceSwitchMoeBlock(config, expert=EsmExpert)
-            elif config.moe_type == 'topk': self.moe_block = SentenceTopKMoeBlock(config, expert=EsmExpert)
-            elif config.moe_type == 'tokentype': self.moe_block = SentenceTokenTypeMoeBlock(config, expert=EsmExpert)
+            if config.moe_type.lower() == 'switch': self.moe_block = SentenceSwitchMoeBlock(config, expert=EsmExpert)
+            elif config.moe_type.lower() == 'topk': self.moe_block = SentenceTopKMoeBlock(config, expert=EsmExpert)
+            elif config.moe_type.lower() == 'tokentype': self.moe_block = SentenceTokenTypeMoeBlock(config, expert=EsmExpert)
             else: print(f'Incorrect MOE type {config.moe_type}, try again')
 
     def forward(

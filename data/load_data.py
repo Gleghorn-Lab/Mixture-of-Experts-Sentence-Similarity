@@ -171,7 +171,6 @@ def get_datasets_train_triplet(args, tokenizer):
     random.shuffle(test)
     test_p, test_a, test_n, test_label = zip(*test)
 
-
     train_dataset = TripletDataset(train_p, train_a, train_n, train_label,
                                    tokenizer, domains, add_tokens, max_length)
     valid_dataset = TripletDataset(valid_p, valid_a, valid_n, valid_label,

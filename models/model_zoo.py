@@ -186,7 +186,7 @@ class MoEsmForTripletSimilarity(MoEsmPreTrainedModel):
 
         p = pooler_output[:batch_size]
         a = pooler_output[batch_size:2 * batch_size]
-        n = pooler_output[2 * batch_size:]        
+        n = pooler_output[2 * batch_size:]
 
         loss = self.contrastive_loss(p, a, n)
         
@@ -221,13 +221,18 @@ class EsmForTripletSimilarity(MoEsmPreTrainedModel):
 
     def forward(self, pos, anc, neg,
                 att_p=None, att_a=None, att_n=None, r_labels=None):
-        outp = self.esm(input_ids=pos, attention_mask=att_p)
-        outa = self.esm(input_ids=anc, attention_mask=att_a)
-        outn = self.esm(input_ids=neg, attention_mask=att_n)
+        batch_size = pos.shape[0]
+
+        input_ids = torch.cat([pos, anc, neg])
+        attention_mask = torch.cat([att_p, att_a, att_n])
         
-        p = outp.pooler_output
-        a = outa.pooler_output
-        n = outn.pooler_output
+        outputs = self.esm(input_ids=input_ids, attention_mask=attention_mask)
+
+        pooler_output = outputs.pooler_output
+
+        p = pooler_output[:batch_size]
+        a = pooler_output[batch_size:2 * batch_size]
+        n = pooler_output[2 * batch_size:]
 
         loss = self.contrastive_loss(p, a, n)
         logits = (p, a, n)

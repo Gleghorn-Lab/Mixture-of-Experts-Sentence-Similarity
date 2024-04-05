@@ -1,0 +1,600 @@
+
+Valid aspect 0
+model_path: facebook/esm2_t33_650M_UR50D
+ESM: True
+model_type: Triplet
+contact_head: False
+huggingface_username: lhallee
+token: 
+moe_type: topk
+single_moe: False
+MOE: False
+token_moe: False
+num_experts: 4
+topk: 2
+num_tasks: 7
+contrastive_loss: clip
+expert_loss: True
+MI: False
+wBAL: 0.01
+wEX: 0.05
+hidden_dropout_prob: 0.05
+attention_probs_dropout_prob: 0.0
+new_special_tokens: False
+domains: ['[EC]', '[BP]', '[CC]', '[MF]', '[IP]', '[3D]']
+data_paths: ['lhallee/triplets']
+a_col: anchors
+b_col: seqs
+p_col: positives
+n_col: negatives
+label_col: aspects
+max_length: 512
+num_labels: 2
+valid_size: 100
+test_size: 100
+wandb: False
+wandb_project: SSPR
+wandb_name: triplet_test
+log_path: ./sim_benchmark_650.txt
+weight_path: None
+save_path: test.pt
+patience: 10
+limits: False
+eval_loss: 0.75452
+eval_accuracy: 0.50127
+eval_f1_max: 0.66695
+eval_precision_max: 0.50064
+eval_recall_max: 0.99873
+eval_threshold: 0.93787
+eval_distance: 0.49755
+
+
+Test aspect 0
+model_path: facebook/esm2_t33_650M_UR50D
+ESM: True
+model_type: Triplet
+contact_head: False
+huggingface_username: lhallee
+token: 
+moe_type: topk
+single_moe: False
+MOE: False
+token_moe: False
+num_experts: 4
+topk: 2
+num_tasks: 7
+contrastive_loss: clip
+expert_loss: True
+MI: False
+wBAL: 0.01
+wEX: 0.05
+hidden_dropout_prob: 0.05
+attention_probs_dropout_prob: 0.0
+new_special_tokens: False
+domains: ['[EC]', '[BP]', '[CC]', '[MF]', '[IP]', '[3D]']
+data_paths: ['lhallee/triplets']
+a_col: anchors
+b_col: seqs
+p_col: positives
+n_col: negatives
+label_col: aspects
+max_length: 512
+num_labels: 2
+valid_size: 100
+test_size: 100
+wandb: False
+wandb_project: SSPR
+wandb_name: triplet_test
+log_path: ./sim_benchmark_650.txt
+weight_path: None
+save_path: test.pt
+patience: 10
+limits: False
+eval_loss: 0.75225
+eval_accuracy: 0.49994
+eval_f1_max: 0.66667
+eval_precision_max: 0.5
+eval_recall_max: 1.0
+eval_threshold: 0.90628
+eval_distance: 0.49734
+
+
+Valid aspect 1
+model_path: facebook/esm2_t33_650M_UR50D
+ESM: True
+model_type: Triplet
+contact_head: False
+huggingface_username: lhallee
+token: 
+moe_type: topk
+single_moe: False
+MOE: False
+token_moe: False
+num_experts: 4
+topk: 2
+num_tasks: 7
+contrastive_loss: clip
+expert_loss: True
+MI: False
+wBAL: 0.01
+wEX: 0.05
+hidden_dropout_prob: 0.05
+attention_probs_dropout_prob: 0.0
+new_special_tokens: False
+domains: ['[EC]', '[BP]', '[CC]', '[MF]', '[IP]', '[3D]']
+data_paths: ['lhallee/triplets']
+a_col: anchors
+b_col: seqs
+p_col: positives
+n_col: negatives
+label_col: aspects
+max_length: 512
+num_labels: 2
+valid_size: 100
+test_size: 100
+wandb: False
+wandb_project: SSPR
+wandb_name: triplet_test
+log_path: ./sim_benchmark_650.txt
+weight_path: None
+save_path: test.pt
+patience: 10
+limits: False
+eval_loss: 0.80858
+eval_accuracy: 0.49939
+eval_f1_max: 0.66667
+eval_precision_max: 0.5
+eval_recall_max: 1.0
+eval_threshold: 0.93248
+eval_distance: 0.49815
+
+
+Test aspect 1
+model_path: facebook/esm2_t33_650M_UR50D
+ESM: True
+model_type: Triplet
+contact_head: False
+huggingface_username: lhallee
+token: 
+moe_type: topk
+single_moe: False
+MOE: False
+token_moe: False
+num_experts: 4
+topk: 2
+num_tasks: 7
+contrastive_loss: clip
+expert_loss: True
+MI: False
+wBAL: 0.01
+wEX: 0.05
+hidden_dropout_prob: 0.05
+attention_probs_dropout_prob: 0.0
+new_special_tokens: False
+domains: ['[EC]', '[BP]', '[CC]', '[MF]', '[IP]', '[3D]']
+data_paths: ['lhallee/triplets']
+a_col: anchors
+b_col: seqs
+p_col: positives
+n_col: negatives
+label_col: aspects
+max_length: 512
+num_labels: 2
+valid_size: 100
+test_size: 100
+wandb: False
+wandb_project: SSPR
+wandb_name: triplet_test
+log_path: ./sim_benchmark_650.txt
+weight_path: None
+save_path: test.pt
+patience: 10
+limits: False
+eval_loss: 0.83971
+eval_accuracy: 0.50006
+eval_f1_max: 0.66669
+eval_precision_max: 0.50003
+eval_recall_max: 1.0
+eval_threshold: 0.9102
+eval_distance: 0.49835
+
+
+Valid aspect 2
+model_path: facebook/esm2_t33_650M_UR50D
+ESM: True
+model_type: Triplet
+contact_head: False
+huggingface_username: lhallee
+token: 
+moe_type: topk
+single_moe: False
+MOE: False
+token_moe: False
+num_experts: 4
+topk: 2
+num_tasks: 7
+contrastive_loss: clip
+expert_loss: True
+MI: False
+wBAL: 0.01
+wEX: 0.05
+hidden_dropout_prob: 0.05
+attention_probs_dropout_prob: 0.0
+new_special_tokens: False
+domains: ['[EC]', '[BP]', '[CC]', '[MF]', '[IP]', '[3D]']
+data_paths: ['lhallee/triplets']
+a_col: anchors
+b_col: seqs
+p_col: positives
+n_col: negatives
+label_col: aspects
+max_length: 512
+num_labels: 2
+valid_size: 100
+test_size: 100
+wandb: False
+wandb_project: SSPR
+wandb_name: triplet_test
+log_path: ./sim_benchmark_650.txt
+weight_path: None
+save_path: test.pt
+patience: 10
+limits: False
+eval_loss: 0.80009
+eval_accuracy: 0.50115
+eval_f1_max: 0.66692
+eval_precision_max: 0.50058
+eval_recall_max: 0.99885
+eval_threshold: 0.93364
+eval_distance: 0.49787
+
+
+Test aspect 2
+model_path: facebook/esm2_t33_650M_UR50D
+ESM: True
+model_type: Triplet
+contact_head: False
+huggingface_username: lhallee
+token: 
+moe_type: topk
+single_moe: False
+MOE: False
+token_moe: False
+num_experts: 4
+topk: 2
+num_tasks: 7
+contrastive_loss: clip
+expert_loss: True
+MI: False
+wBAL: 0.01
+wEX: 0.05
+hidden_dropout_prob: 0.05
+attention_probs_dropout_prob: 0.0
+new_special_tokens: False
+domains: ['[EC]', '[BP]', '[CC]', '[MF]', '[IP]', '[3D]']
+data_paths: ['lhallee/triplets']
+a_col: anchors
+b_col: seqs
+p_col: positives
+n_col: negatives
+label_col: aspects
+max_length: 512
+num_labels: 2
+valid_size: 100
+test_size: 100
+wandb: False
+wandb_project: SSPR
+wandb_name: triplet_test
+log_path: ./sim_benchmark_650.txt
+weight_path: None
+save_path: test.pt
+patience: 10
+limits: False
+eval_loss: 0.80073
+eval_accuracy: 0.5011
+eval_f1_max: 0.6668
+eval_precision_max: 0.50055
+eval_recall_max: 0.99841
+eval_threshold: 0.93822
+eval_distance: 0.49793
+
+
+Valid aspect 3
+model_path: facebook/esm2_t33_650M_UR50D
+ESM: True
+model_type: Triplet
+contact_head: False
+huggingface_username: lhallee
+token: 
+moe_type: topk
+single_moe: False
+MOE: False
+token_moe: False
+num_experts: 4
+topk: 2
+num_tasks: 7
+contrastive_loss: clip
+expert_loss: True
+MI: False
+wBAL: 0.01
+wEX: 0.05
+hidden_dropout_prob: 0.05
+attention_probs_dropout_prob: 0.0
+new_special_tokens: False
+domains: ['[EC]', '[BP]', '[CC]', '[MF]', '[IP]', '[3D]']
+data_paths: ['lhallee/triplets']
+a_col: anchors
+b_col: seqs
+p_col: positives
+n_col: negatives
+label_col: aspects
+max_length: 512
+num_labels: 2
+valid_size: 100
+test_size: 100
+wandb: False
+wandb_project: SSPR
+wandb_name: triplet_test
+log_path: ./sim_benchmark_650.txt
+weight_path: None
+save_path: test.pt
+patience: 10
+limits: False
+eval_loss: 0.90077
+eval_accuracy: 0.50062
+eval_f1_max: 0.66667
+eval_precision_max: 0.5
+eval_recall_max: 1.0
+eval_threshold: 0.93059
+eval_distance: 0.49892
+
+
+Test aspect 3
+model_path: facebook/esm2_t33_650M_UR50D
+ESM: True
+model_type: Triplet
+contact_head: False
+huggingface_username: lhallee
+token: 
+moe_type: topk
+single_moe: False
+MOE: False
+token_moe: False
+num_experts: 4
+topk: 2
+num_tasks: 7
+contrastive_loss: clip
+expert_loss: True
+MI: False
+wBAL: 0.01
+wEX: 0.05
+hidden_dropout_prob: 0.05
+attention_probs_dropout_prob: 0.0
+new_special_tokens: False
+domains: ['[EC]', '[BP]', '[CC]', '[MF]', '[IP]', '[3D]']
+data_paths: ['lhallee/triplets']
+a_col: anchors
+b_col: seqs
+p_col: positives
+n_col: negatives
+label_col: aspects
+max_length: 512
+num_labels: 2
+valid_size: 100
+test_size: 100
+wandb: False
+wandb_project: SSPR
+wandb_name: triplet_test
+log_path: ./sim_benchmark_650.txt
+weight_path: None
+save_path: test.pt
+patience: 10
+limits: False
+eval_loss: 0.91495
+eval_accuracy: 0.50006
+eval_f1_max: 0.66667
+eval_precision_max: 0.5
+eval_recall_max: 1.0
+eval_threshold: 0.90705
+eval_distance: 0.49907
+
+
+Valid aspect 4
+model_path: facebook/esm2_t33_650M_UR50D
+ESM: True
+model_type: Triplet
+contact_head: False
+huggingface_username: lhallee
+token: 
+moe_type: topk
+single_moe: False
+MOE: False
+token_moe: False
+num_experts: 4
+topk: 2
+num_tasks: 7
+contrastive_loss: clip
+expert_loss: True
+MI: False
+wBAL: 0.01
+wEX: 0.05
+hidden_dropout_prob: 0.05
+attention_probs_dropout_prob: 0.0
+new_special_tokens: False
+domains: ['[EC]', '[BP]', '[CC]', '[MF]', '[IP]', '[3D]']
+data_paths: ['lhallee/triplets']
+a_col: anchors
+b_col: seqs
+p_col: positives
+n_col: negatives
+label_col: aspects
+max_length: 512
+num_labels: 2
+valid_size: 100
+test_size: 100
+wandb: False
+wandb_project: SSPR
+wandb_name: triplet_test
+log_path: ./sim_benchmark_650.txt
+weight_path: None
+save_path: test.pt
+patience: 10
+limits: False
+eval_loss: 0.7389
+eval_accuracy: 0.50418
+eval_f1_max: 0.66773
+eval_precision_max: 0.5021
+eval_recall_max: 0.99642
+eval_threshold: 0.94739
+eval_distance: 0.49745
+
+
+Test aspect 4
+model_path: facebook/esm2_t33_650M_UR50D
+ESM: True
+model_type: Triplet
+contact_head: False
+huggingface_username: lhallee
+token: 
+moe_type: topk
+single_moe: False
+MOE: False
+token_moe: False
+num_experts: 4
+topk: 2
+num_tasks: 7
+contrastive_loss: clip
+expert_loss: True
+MI: False
+wBAL: 0.01
+wEX: 0.05
+hidden_dropout_prob: 0.05
+attention_probs_dropout_prob: 0.0
+new_special_tokens: False
+domains: ['[EC]', '[BP]', '[CC]', '[MF]', '[IP]', '[3D]']
+data_paths: ['lhallee/triplets']
+a_col: anchors
+b_col: seqs
+p_col: positives
+n_col: negatives
+label_col: aspects
+max_length: 512
+num_labels: 2
+valid_size: 100
+test_size: 100
+wandb: False
+wandb_project: SSPR
+wandb_name: triplet_test
+log_path: ./sim_benchmark_650.txt
+weight_path: None
+save_path: test.pt
+patience: 10
+limits: False
+eval_loss: 0.75938
+eval_accuracy: 0.50006
+eval_f1_max: 0.66669
+eval_precision_max: 0.50003
+eval_recall_max: 1.0
+eval_threshold: 0.91277
+eval_distance: 0.49747
+
+
+Valid aspect 5
+model_path: facebook/esm2_t33_650M_UR50D
+ESM: True
+model_type: Triplet
+contact_head: False
+huggingface_username: lhallee
+token: 
+moe_type: topk
+single_moe: False
+MOE: False
+token_moe: False
+num_experts: 4
+topk: 2
+num_tasks: 7
+contrastive_loss: clip
+expert_loss: True
+MI: False
+wBAL: 0.01
+wEX: 0.05
+hidden_dropout_prob: 0.05
+attention_probs_dropout_prob: 0.0
+new_special_tokens: False
+domains: ['[EC]', '[BP]', '[CC]', '[MF]', '[IP]', '[3D]']
+data_paths: ['lhallee/triplets']
+a_col: anchors
+b_col: seqs
+p_col: positives
+n_col: negatives
+label_col: aspects
+max_length: 512
+num_labels: 2
+valid_size: 100
+test_size: 100
+wandb: False
+wandb_project: SSPR
+wandb_name: triplet_test
+log_path: ./sim_benchmark_650.txt
+weight_path: None
+save_path: test.pt
+patience: 10
+limits: False
+eval_loss: 0.82582
+eval_accuracy: 0.50171
+eval_f1_max: 0.66692
+eval_precision_max: 0.50086
+eval_recall_max: 0.99772
+eval_threshold: 0.94429
+eval_distance: 0.49801
+
+
+Test aspect 5
+model_path: facebook/esm2_t33_650M_UR50D
+ESM: True
+model_type: Triplet
+contact_head: False
+huggingface_username: lhallee
+token: 
+moe_type: topk
+single_moe: False
+MOE: False
+token_moe: False
+num_experts: 4
+topk: 2
+num_tasks: 7
+contrastive_loss: clip
+expert_loss: True
+MI: False
+wBAL: 0.01
+wEX: 0.05
+hidden_dropout_prob: 0.05
+attention_probs_dropout_prob: 0.0
+new_special_tokens: False
+domains: ['[EC]', '[BP]', '[CC]', '[MF]', '[IP]', '[3D]']
+data_paths: ['lhallee/triplets']
+a_col: anchors
+b_col: seqs
+p_col: positives
+n_col: negatives
+label_col: aspects
+max_length: 512
+num_labels: 2
+valid_size: 100
+test_size: 100
+wandb: False
+wandb_project: SSPR
+wandb_name: triplet_test
+log_path: ./sim_benchmark_650.txt
+weight_path: None
+save_path: test.pt
+patience: 10
+limits: False
+eval_loss: 0.80914
+eval_accuracy: 0.49994
+eval_f1_max: 0.66667
+eval_precision_max: 0.5
+eval_recall_max: 1.0
+eval_threshold: 0.91168
+eval_distance: 0.4979
+

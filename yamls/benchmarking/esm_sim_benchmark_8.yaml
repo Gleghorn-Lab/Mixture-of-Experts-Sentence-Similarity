@@ -16,7 +16,8 @@ general_args:
   num_tasks: 7  # Number of tasks for MulitTask learning
   contrastive_loss: clip
   expert_loss: true
-  MI: false  wBAL: !!float 0.01
+  MI: false
+  wBAL: !!float 0.01
   wEX: !!float 0.05
 
 # Model settings

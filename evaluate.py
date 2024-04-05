@@ -62,6 +62,7 @@ def evaluate_triplet_model_similarity(yargs, model, tokenizer):
         log_metrics(args['log_path'], metrics, details=args, header=f'Valid aspect {aspect}')
         metrics = trainer.evaluate(eval_dataset=test_dataset)
         log_metrics(args['log_path'], metrics, details=args, header=f'Test aspect {aspect}')
+        trainer.accelerator.free_memory()
 
 
 def evaluate_triplet_model_downstream(yargs, eval_config, base_model, tokenizer): # TODO add PPI and SSQ

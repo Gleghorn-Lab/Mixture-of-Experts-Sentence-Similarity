@@ -76,10 +76,10 @@ training_args:
   num_train_epochs: !!int 1
   warmup_steps: !!int 100
   save_strategy: !!str steps
-  save_steps: !!int 2500
+  save_steps: !!int 1000
   save_total_limit: !!int 3
   evaluation_strategy: !!str steps
-  eval_steps: 2500
+  eval_steps: 1000
   logging_strategy: steps
   logging_steps: !!int 100
   fp16: true

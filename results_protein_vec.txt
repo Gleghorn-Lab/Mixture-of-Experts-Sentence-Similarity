@@ -142,3 +142,147 @@ eval_recall_max: 0.66545
 eval_threshold: 0.56261
 eval_distance: 0.37691
 
+
+Valid aspect 0
+model_path: 
+ESM: False
+model_type: ProteinVec
+contact_head: False
+huggingface_username: lhallee
+single_moe: False
+moe_type: topk
+MOE: False
+token_moe: False
+num_experts: 8
+topk: 2
+num_tasks: 7
+expert_loss: False
+MI: False
+wBAL: 0.05
+wEX: 0.01
+hidden_dropout_prob: 0.0
+attention_probs_dropout_prob: 0.0
+new_special_tokens: False
+domains: ['[EC]', '[CO]', '[BP]', '[CC]', '[MF]', '[IP]', '[3D]']
+data_paths: ['lhallee/triplets']
+a_col: anchors
+b_col: seqs
+p_col: positives
+n_col: negatives
+label_col: aspects
+max_length: 512
+num_labels: 2
+valid_size: 2500
+test_size: 2500
+wandb: False
+wandb_project: SSPR
+wandb_name: protein_vec_eval
+log_path: ./results_protein_vec.txt
+weight_path: lhallee/ProteinVec
+save_path: provec.pt
+patience: 100
+limits: False
+eval_loss: 0.08953
+eval_accuracy: 0.50064
+eval_f1_max: 0.66667
+eval_precision_max: 0.5
+eval_recall_max: 1.0
+eval_threshold: 0.99833
+eval_distance: 0.49971
+
+
+Valid aspect 0
+model_path: 
+ESM: False
+model_type: ProteinVec
+contact_head: False
+huggingface_username: lhallee
+single_moe: False
+moe_type: topk
+MOE: False
+token_moe: False
+num_experts: 8
+topk: 2
+num_tasks: 7
+expert_loss: False
+MI: False
+wBAL: 0.05
+wEX: 0.01
+hidden_dropout_prob: 0.0
+attention_probs_dropout_prob: 0.0
+new_special_tokens: False
+domains: ['[EC]', '[BP]', '[CC]', '[MF]', '[IP]', '[3D]']
+data_paths: ['lhallee/triplets']
+a_col: anchors
+b_col: seqs
+p_col: positives
+n_col: negatives
+label_col: aspects
+max_length: 512
+num_labels: 2
+valid_size: 2500
+test_size: 2500
+wandb: False
+wandb_project: SSPR
+wandb_name: protein_vec_eval
+log_path: ./results_protein_vec.txt
+weight_path: lhallee/ProteinVec
+save_path: provec.pt
+patience: 100
+limits: False
+eval_loss: 0.08953
+eval_accuracy: 0.50064
+eval_f1_max: 0.66667
+eval_precision_max: 0.5
+eval_recall_max: 1.0
+eval_threshold: 0.99833
+eval_distance: 0.49971
+
+
+Valid aspect 0
+model_path: 
+ESM: False
+model_type: ProteinVec
+contact_head: False
+huggingface_username: lhallee
+single_moe: False
+moe_type: topk
+MOE: False
+token_moe: False
+num_experts: 8
+topk: 2
+num_tasks: 7
+expert_loss: False
+MI: False
+wBAL: 0.05
+wEX: 0.01
+hidden_dropout_prob: 0.0
+attention_probs_dropout_prob: 0.0
+new_special_tokens: False
+domains: ['[EC]', '[BP]', '[CC]', '[MF]', '[IP]', '[3D]']
+data_paths: ['lhallee/triplets']
+a_col: anchors
+b_col: seqs
+p_col: positives
+n_col: negatives
+label_col: aspects
+max_length: 512
+num_labels: 2
+valid_size: 2500
+test_size: 2500
+wandb: False
+wandb_project: SSPR
+wandb_name: protein_vec_eval
+log_path: ./results_protein_vec.txt
+weight_path: lhallee/ProteinVec
+save_path: provec.pt
+patience: 100
+limits: False
+eval_loss: 0.08953
+eval_accuracy: 0.50064
+eval_f1_max: 0.66667
+eval_precision_max: 0.5
+eval_recall_max: 1.0
+eval_threshold: 0.99833
+eval_distance: 0.49971
+

@@ -26,7 +26,6 @@ general_args:
   new_special_tokens: false  # Add new special tokens for each domain token seeded with CLS
   domains: # List of domain tags
     - '[EC]'
-    - '[CO]'
     - '[BP]'
     - '[CC]'
     - '[MF]'

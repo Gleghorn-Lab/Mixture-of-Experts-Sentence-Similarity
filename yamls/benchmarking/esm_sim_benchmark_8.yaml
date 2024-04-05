@@ -24,10 +24,9 @@ general_args:
   attention_probs_dropout_prob: 0.0
 
 # New tokens
-  new_special_tokens: true  # Add new special tokens for each domain token seeded with CLS
+  new_special_tokens: false  # Add new special tokens for each domain token seeded with CLS
   domains: # List of domain tags
     - '[EC]'
-    - '[CO]'
     - '[BP]'
     - '[CC]'
     - '[MF]'
@@ -53,7 +52,7 @@ general_args:
   wandb_name: triplet_test
 
 # Paths
-  log_path: './results.txt'  # Path to save the log file
+  log_path: './sim_benchmark_8.txt'  # Path to save the log file
   weight_path: null  # Path to the model weights to load
   save_path: 'test.pt'
 
@@ -68,7 +67,7 @@ training_args:
   output_dir: !!str ./output
   logging_dir: !!str ./logs
   per_device_train_batch_size: !!int 2
-  per_device_eval_batch_size: !!int 2
+  per_device_eval_batch_size: !!int 16
   gradient_accumulation_steps: !!int 1
   learning_rate: !!float 1e-5
   lr_scheduler_type: !!str cosine

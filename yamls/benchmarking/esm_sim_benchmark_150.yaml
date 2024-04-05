@@ -24,10 +24,9 @@ general_args:
   attention_probs_dropout_prob: 0.0
 
 # New tokens
-  new_special_tokens: true  # Add new special tokens for each domain token seeded with CLS
+  new_special_tokens: false  # Add new special tokens for each domain token seeded with CLS
   domains: # List of domain tags
     - '[EC]'
-    - '[CO]'
     - '[BP]'
     - '[CC]'
     - '[MF]'

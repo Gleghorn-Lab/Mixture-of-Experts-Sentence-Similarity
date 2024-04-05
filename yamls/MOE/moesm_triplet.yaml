@@ -1,5 +1,5 @@
 general_args:
-  model_path: 'facebook/esm2_t6_8M_UR50D'
+  model_path: 'facebook/esm2_t30_150M_UR50D'
   ESM: true # ESM or BERT
   model_type: 'Triplet'
   contact_head: false
@@ -10,14 +10,14 @@ general_args:
   moe_type: 'switch'
   MOE: true
   token_moe: false
-  num_experts: 7  # Number of experts
+  num_experts: 6  # Number of experts
   topk: 2  # Number of experts per block
-  num_tasks: 7  # Number of tasks for MulitTask learning
+  num_tasks: 6  # Number of tasks for MulitTask learning
   expert_loss: true
   MI: false
   BAL: false
-  wBAL: !!float 0.05
-  wEX: !!float 0.01
+  wBAL: !!float 0.1
+  wEX: !!float 0.1
 
 # Model settings
   hidden_dropout_prob: 0.05  # Dropout rate for the model
@@ -27,7 +27,6 @@ general_args:
   new_special_tokens: true  # Add new special tokens for each domain token seeded with CLS
   domains: # List of domain tags
     - '[EC]'
-    - '[CO]'
     - '[BP]'
     - '[CC]'
     - '[MF]'
@@ -42,10 +41,11 @@ general_args:
   p_col: 'positives'
   n_col: 'negatives'
   label_col: 'aspects'
-  max_length: 512  # Maximum length of the sequences
+  max_length: 512 # Maximum length of the sequences
   num_labels: 2
-  valid_size: 2500
-  test_size: 2500
+  valid_size: 10000
+  test_size: 100000
+  trim: true
 
 # wandb settings
   wandb: false
@@ -55,7 +55,7 @@ general_args:
 # Paths
   log_path: './results_moesm_150_triplets.txt'  # Path to save the log file
   weight_path: null  # Path to the model weights to load
-  save_path: 'test.pt'
+  save_path: 'moesm_150_trip.pt'
 
 # Training settings
   patience: 100
@@ -69,7 +69,7 @@ training_args:
   logging_dir: !!str ./logs
   per_device_train_batch_size: !!int 2
   per_device_eval_batch_size: !!int 2
-  gradient_accumulation_steps: !!int 1
+  gradient_accumulation_steps: !!int 10
   learning_rate: !!float 1e-5
   lr_scheduler_type: !!str cosine
   weight_decay: !!float 0.01

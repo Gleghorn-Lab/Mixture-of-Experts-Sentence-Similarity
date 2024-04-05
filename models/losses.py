@@ -99,6 +99,9 @@ class LoadBalancingLoss(nn.Module):
         self.topk = config.topk
         self.tally = torch.zeros(config.num_experts)
 
+    def reset_tally(self):
+        self.tally = torch.zeros(self.num_experts)
+
     def forward(self, router_logits: torch.Tensor) -> torch.Tensor: 
         # enforces experts should not be used widely more than another
         num_experts = self.num_experts
@@ -126,6 +129,11 @@ class SpecifiedExpertLoss(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.wEX = torch.tensor(config.wEX, requires_grad=False)
+        self.num_experts = config.num_experts
+        self.tally = torch.zeros(config.num_experts)
+
+    def reset_tally(self):
+        self.tally = torch.zeros(self.num_experts)
 
     def forward(self, router_logits: torch.Tensor, router_labels: torch.Tensor) -> float:
         # enforces on average the router should route examples to the correct specified expert given the known origin of the input
@@ -135,6 +143,11 @@ class SpecifiedExpertLoss(nn.Module):
         if isinstance(router_logits, tuple): # (batch_size, num_experts) * num_hidden_layers
             router_logits = torch.stack(router_logits, dim=0) # num_hidden_layers, batch_size, num_experts
         avg_logits = router_logits.mean(dim=0) # (batch_size, num_experts)
+
+        tally_logits = avg_logits.argmax(dim=-1).detach().cpu()
+        for idx in tally_logits:
+            self.tally[idx] += 1
+
         return self.wEX * F.cross_entropy(avg_logits, router_labels)
 
 

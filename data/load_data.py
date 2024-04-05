@@ -137,6 +137,7 @@ def get_datasets_train_triplet(args, tokenizer):
     label_col = args['label_col']
     valid_size = args['valid_size']
     test_size = args['test_size']
+    trim = args['trim']
 
     train_p, train_a, train_n, train_label = [], [], [], []
     valid_p, valid_a, valid_n, valid_label = [], [], [], []
@@ -144,6 +145,11 @@ def get_datasets_train_triplet(args, tokenizer):
 
     for data_path in data_paths:
         dataset = load_dataset(data_path)
+        if trim:
+            print('\nLength of dataset: ', len(dataset['train'][a_col]))
+            dataset = dataset.filter(lambda x: len(x[p_col]) <= max_length and len(x[a_col]) <= max_length and len(x[n_col]) <= max_length)
+            print('\nLength of dataset: ', len(dataset['train'][a_col]))
+
         train = dataset['train']
         valid = dataset['valid']
         test = dataset['test']

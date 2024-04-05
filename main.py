@@ -62,7 +62,7 @@ def main():
 
     if args.eval:
         if args.model_type.lower() == 'triplet':
-            #evaluate_triplet_model_similarity(yargs, model, tokenizer)
+            evaluate_triplet_model_similarity(yargs, model, tokenizer)
             evaluate_triplet_model_downstream(yargs, eval_config, model, tokenizer)
         else:
             evaluate_sim_model(yargs, tokenizer, model=model)

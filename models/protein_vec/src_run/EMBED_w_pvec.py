@@ -26,12 +26,11 @@ class ProteinVec(PreTrainedModel):
         self.contrastive_loss = nn.TripletMarginLoss()
         self.aspect_to_keys_dict = {
             0: ['ENZYME'], # EC
-            1: ['TM', 'PFAM', 'GENE3D', 'ENZYME', 'MFO', 'BPO', 'CCO'], # Cofactor
-            2: ['MFO'], # MF
-            3: ['BPO'], # BP
-            4: ['CCO'], # CC
-            5: ['PFAM'], # IP
-            6: ['GENE3D'] # 3D 
+            1: ['MFO'], # MF
+            2: ['BPO'], # BP
+            3: ['CCO'], # CC
+            4: ['PFAM'], # IP
+            5: ['GENE3D'] # 3D 
         }
         self.all_cols = np.array(['TM', 'PFAM', 'GENE3D', 'ENZYME', 'MFO', 'BPO', 'CCO'])
 

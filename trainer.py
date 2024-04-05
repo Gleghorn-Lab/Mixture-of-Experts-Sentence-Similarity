@@ -6,7 +6,13 @@ from transformers.trainer_callback import TrainerCallback, TrainerControl, Train
 class TopkTallyCallback(TrainerCallback):
     def on_save(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
         model = kwargs['model']
-        tally = model.aux_loss.tally.detach().cpu().numpy()
+        try:
+            tally = model.aux_loss.tally.detach().cpu().numpy()
+            model.aux_loss.reset_tally()
+        except:
+            tally = model.expert_loss.tally.detach().cpu().numpy()
+            model.expert_loss.reset_tally()
+        
         plt.figure(figsize=(10, 5))
         plt.bar(range(tally.shape[0]), tally)
         plt.xlabel('Expert Index')

@@ -157,7 +157,8 @@ def evaluate_protein_vec(yargs):
     try:
         config = trans_basic_block_Config()
         model = ProteinVec.from_pretrained(yargs['general_args']['weight_path'],
-                                           config=config, local_files_only=False)
+                                           t5=None,
+                                           config=config)
     except:
         t5 = T5EncoderModel.from_pretrained('lhallee/prot_t5_enc')
         model = ProteinVec(t5=t5, moe_path='models/protein_vec/src_run/protein_vec_models')

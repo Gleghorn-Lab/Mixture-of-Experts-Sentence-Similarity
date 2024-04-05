@@ -13,15 +13,15 @@ class ProteinVec(PreTrainedModel):
         self.config = trans_basic_block_Config()
         super().__init__(self.config)
 
-        if t5 != None: # config is getting passed into t5 for some reason
-            self.t5 = t5
-        else:
-            self.t5 = T5EncoderModel(T5Config.from_pretrained('lhallee/prot_t5_enc'))
-
         vec_model_cpnt = moe_path + '/protein_vec.ckpt'
         vec_model_config = moe_path + '/protein_vec_params.json'
         json_config = trans_basic_block_Config.from_json(vec_model_config)
-        self.moe = trans_basic_block(config=json_config)
+        if t5 == None: # config is getting passed into t5 for some reason
+            self.t5 = T5EncoderModel(T5Config.from_pretrained('lhallee/prot_t5_enc'))
+            self.moe = trans_basic_block.load_from_checkpoint(vec_model_cpnt, config=vec_model_config)
+        else:
+            self.t5 = t5
+            self.moe = trans_basic_block(config=json_config)
 
         self.contrastive_loss = nn.TripletMarginLoss()
         self.aspect_to_keys_dict = {

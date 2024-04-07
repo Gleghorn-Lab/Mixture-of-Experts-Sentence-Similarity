@@ -200,7 +200,7 @@ def get_datasets_test_triplet(args, tokenizer):
     datasets_by_label = {}
 
     for data_path in data_paths:
-        dataset = load_dataset(data_path)
+        dataset = load_dataset(data_path, download_mode="force_redownload")
         valid = dataset['valid']
         test = dataset['test']
 

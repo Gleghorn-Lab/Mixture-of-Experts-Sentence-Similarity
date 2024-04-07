@@ -148,14 +148,11 @@ def evaluate_triplet_model_downstream(yargs, eval_config, base_model, tokenizer)
 
 
 def evaluate_protein_vec(yargs):
-    from models.protein_vec.src_run.huggingface_protein_vec import ProteinVec
-    from models.protein_vec.src_run.model_protein_moe import trans_basic_block_Config
+    from models.protein_vec.src_run.huggingface_protein_vec import ProteinVec, ProteinVecConfig
     from transformers import T5Tokenizer
     
-    tokenizer = T5Tokenizer.from_pretrained('lhallee/prot_t5_enc')
-
-    config = trans_basic_block_Config()
-    model = ProteinVec.from_pretrained(yargs['general_args']['weight_path'], config=config)
+    tokenizer = T5Tokenizer.from_pretrained(yargs['general_args']['weight_path'])
+    model = ProteinVec.from_pretrained(yargs['general_args']['weight_path'], config=ProteinVecConfig())
 
     model = model.eval()
     print(model)

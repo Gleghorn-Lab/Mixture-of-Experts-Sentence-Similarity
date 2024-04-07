@@ -5,6 +5,7 @@ import os
 import inspect
 import pytorch_lightning as pl
 
+from collections import OrderedDict
 from dataclasses import asdict
 from transformers import PreTrainedModel, T5EncoderModel, PretrainedConfig
 from transformers.modeling_outputs import SequenceClassifierOutput
@@ -123,7 +124,17 @@ class ProteinVecConfig(PretrainedConfig):
         pfam_warmup_steps=500,
         pfam_p_bernoulli=0.5,
 
-        vec_d_model=1024,
+        tm_d_model=1024,
+        tm_nhead=4,
+        tm_num_layers=4,
+        tm_dim_feedforward=2048,
+        tm_out_dim=512,
+        tm_dropout=0.1,
+        tm_activation="relu",
+        tm_lr0=0.0001,
+        tm_warmup_steps=300,
+
+        vec_d_model=512,
         vec_nhead=4,
         vec_num_layers=2,
         vec_dim_feedforward=2048,
@@ -135,16 +146,6 @@ class ProteinVecConfig(PretrainedConfig):
         vec_lr0=0.0001,
         vec_warmup_steps=500,
         vec_p_bernoulli=0.5,
-
-        tm_d_model=1024,
-        tm_nhead=4,
-        tm_num_layers=4,
-        tm_dim_feedforward=2048,
-        tm_out_dim=512,
-        tm_dropout=0.1,
-        tm_activation="relu",
-        tm_lr0=0.0001,
-        tm_warmup_steps=300,
 
         **kwargs,
     ):
@@ -378,39 +379,8 @@ class ProteinVec(PreTrainedModel):
     def load_from_disk(self,
                        aspect_path='models/protein_vec/src_run/protein_vec_models',
                        t5_path='lhallee/prot_t5_enc'):
-        self.moe = HF_trans_basic_block.load_from_checkpoint(
-            os.path.join(aspect_path, 'protein_vec.ckpt'),
-            config=BasicConfig.from_huggingface('vec', self.config)
-        )
-
-        self.moe.model_aspect_tmvec = trans_basic_block_tmvec.load_from_checkpoint(
-            os.path.join(aspect_path, 'tm_vec_swiss_model_large.ckpt'),
-            config=TmConfig.from_huggingface('tm', self.config)
-        )
-        self.moe.model_aspect_pfam = trans_basic_block_single.load_from_checkpoint(
-            os.path.join(aspect_path, 'aspect_vec_pfam.ckpt'),
-            config=SingleConfig.from_huggingface('pfam', self.config)
-        )
-        self.moe.model_aspect_gene3D = trans_basic_block_single.load_from_checkpoint(
-            os.path.join(aspect_path, 'aspect_vec_gene3d.ckpt'),
-            config=SingleConfig.from_huggingface('gene3d', self.config)
-        )
-        self.moe.model_aspect_ec = trans_basic_block_single.load_from_checkpoint(
-            os.path.join(aspect_path, 'aspect_vec_ec.ckpt'),
-            config=SingleConfig.from_huggingface('ec', self.config)
-        )
-        self.moe.model_aspect_mfo = trans_basic_block_single.load_from_checkpoint(
-            os.path.join(aspect_path, 'aspect_vec_go_mfo.ckpt'),
-            config=SingleConfig.from_huggingface('mf', self.config)
-        )
-        self.moe.model_aspect_bpo = trans_basic_block_single.load_from_checkpoint(
-            os.path.join(aspect_path, 'aspect_vec_go_bpo.ckpt'),
-            config=SingleConfig.from_huggingface('bp', self.config)
-        )
-        self.moe.model_aspect_cco = trans_basic_block_single.load_from_checkpoint(
-            os.path.join(aspect_path, 'aspect_vec_go_cco.ckpt'),
-            config=SingleConfig.from_huggingface('cc', self.config)
-        )
+        state_dict = torch.load(os.path.join(aspect_path, 'protein_vec.ckpt'))['state_dict']
+        self.moe.load_state_dict(state_dict)
         self.t5 = T5EncoderModel.from_pretrained(t5_path)
 
     def get_mask(self, aspect):

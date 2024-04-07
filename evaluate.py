@@ -148,7 +148,7 @@ def evaluate_triplet_model_downstream(yargs, eval_config, base_model, tokenizer)
 
 
 def evaluate_protein_vec(yargs):
-    from models.protein_vec.src_run.EMBED_w_pvec import ProteinVec
+    from models.protein_vec.src_run.huggingface_protein_vec import ProteinVec
     from models.protein_vec.src_run.model_protein_moe import trans_basic_block_Config
     from transformers import T5Tokenizer
     

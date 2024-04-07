@@ -2,16 +2,17 @@
 
 All credit for the original work goes to Tymor Hamamsy and the following authors of this paper https://www.biorxiv.org/content/10.1101/2023.11.26.568742v1
 
-We have added a PyTorch wrapper for ProteinVec under src_run/EMBED_w_pvec.py. Additionally, we added inheritance to the config for Huggingface PretrainedConfig, and using these the weights for the entire ProteinVec have been uploaded to lhallee/ProteinVec 
+We have added a Huggingface compatible wrapper for the model in src_run.huggingface_protein_vec.py
 
 To use from hugggingface
 
 ```
-from EMBED_w_pvec import ProteinVec
+from transformers import T5Tokenizer
+from huggingface_protein_vec import ProteinVec
 
+tokenizer = T5Tokenizer.from_pretrained('lhallee/ProteinVec')
 model = ProteinVec.from_pretrained('lhallee/ProteinVec')
 ```
-The tokenizer can be found in the ProtT5 Huggingface repos.
 
 ## The license for the protein vec code
 

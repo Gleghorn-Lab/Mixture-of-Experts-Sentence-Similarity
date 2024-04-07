@@ -355,40 +355,6 @@ class HF_trans_basic_block(trans_basic_block):
         self.model_aspect_bpo = trans_basic_block_single(SingleConfig.from_huggingface('bp', config))
         self.model_aspect_cco = trans_basic_block_single(SingleConfig.from_huggingface('cc', config))
 
-    @classmethod
-    def load_from_disk(cls, base_path: str, config: ProteinVecConfig):
-        instance = cls(config)
-
-        instance.model_aspect_tmvec = trans_basic_block_tmvec.load_from_checkpoint(
-            os.path.join(base_path, 'tm_vec_swiss_model_large.ckpt'),
-            config=TmConfig.from_huggingface('tm', config)
-        )
-        instance.model_aspect_pfam = trans_basic_block_single.load_from_checkpoint(
-            os.path.join(base_path, 'aspect_vec_pfam.ckpt'),
-            config=SingleConfig.from_huggingface('pfam', config)
-        )
-        instance.model_aspect_gene3D = trans_basic_block_single.load_from_checkpoint(
-            os.path.join(base_path, 'aspect_vec_gene3d.ckpt'),
-            config=SingleConfig.from_huggingface('gene3d', config)
-        )
-        instance.model_aspect_ec = trans_basic_block_single.load_from_checkpoint(
-            os.path.join(base_path, 'aspect_vec_ec.ckpt'),
-            config=SingleConfig.from_huggingface('ec', config)
-        )
-        instance.model_aspect_mfo = trans_basic_block_single.load_from_checkpoint(
-            os.path.join(base_path, 'aspect_vec_go_mfo.ckpt'),
-            config=SingleConfig.from_huggingface('mf', config)
-        )
-        instance.model_aspect_bpo = trans_basic_block_single.load_from_checkpoint(
-            os.path.join(base_path, 'aspect_vec_go_bpo.ckpt'),
-            config=SingleConfig.from_huggingface('bp', config)
-        )
-        instance.model_aspect_cco = trans_basic_block_single.load_from_checkpoint(
-            os.path.join(base_path, 'aspect_vec_go_cco.ckpt'),
-            config=SingleConfig.from_huggingface('cc', config)
-        )
-        return instance
-
 
 class ProteinVec(PreTrainedModel):
     def __init__(self, config: ProteinVecConfig):
@@ -409,11 +375,43 @@ class ProteinVec(PreTrainedModel):
         }
         self.all_cols = np.array(['TM', 'PFAM', 'GENE3D', 'ENZYME', 'MFO', 'BPO', 'CCO'])
 
-    def from_disk(self,
-                  aspect_path='models/protein_vec/src_run/protein_vec_models',
-                  t5_path='lhallee/prot_t5_enc'):
+    def load_from_disk(self,
+                       aspect_path='models/protein_vec/src_run/protein_vec_models',
+                       t5_path='lhallee/prot_t5_enc'):
+        self.moe = HF_trans_basic_block.load_from_checkpoint(
+            os.path.join(aspect_path, 'protein_vec.ckpt'),
+            config=BasicConfig.from_huggingface('vec', self.config)
+        )
+
+        self.moe.model_aspect_tmvec = trans_basic_block_tmvec.load_from_checkpoint(
+            os.path.join(aspect_path, 'tm_vec_swiss_model_large.ckpt'),
+            config=TmConfig.from_huggingface('tm', self.config)
+        )
+        self.moe.model_aspect_pfam = trans_basic_block_single.load_from_checkpoint(
+            os.path.join(aspect_path, 'aspect_vec_pfam.ckpt'),
+            config=SingleConfig.from_huggingface('pfam', self.config)
+        )
+        self.moe.model_aspect_gene3D = trans_basic_block_single.load_from_checkpoint(
+            os.path.join(aspect_path, 'aspect_vec_gene3d.ckpt'),
+            config=SingleConfig.from_huggingface('gene3d', self.config)
+        )
+        self.moe.model_aspect_ec = trans_basic_block_single.load_from_checkpoint(
+            os.path.join(aspect_path, 'aspect_vec_ec.ckpt'),
+            config=SingleConfig.from_huggingface('ec', self.config)
+        )
+        self.moe.model_aspect_mfo = trans_basic_block_single.load_from_checkpoint(
+            os.path.join(aspect_path, 'aspect_vec_go_mfo.ckpt'),
+            config=SingleConfig.from_huggingface('mf', self.config)
+        )
+        self.moe.model_aspect_bpo = trans_basic_block_single.load_from_checkpoint(
+            os.path.join(aspect_path, 'aspect_vec_go_bpo.ckpt'),
+            config=SingleConfig.from_huggingface('bp', self.config)
+        )
+        self.moe.model_aspect_cco = trans_basic_block_single.load_from_checkpoint(
+            os.path.join(aspect_path, 'aspect_vec_go_cco.ckpt'),
+            config=SingleConfig.from_huggingface('cc', self.config)
+        )
         self.t5 = T5EncoderModel.from_pretrained(t5_path)
-        self.moe = HF_trans_basic_block.load_from_disk(aspect_path, self.config)
 
     def get_mask(self, aspect):
         sampled_keys = self.aspect_to_keys_dict[aspect]

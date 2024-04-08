@@ -10,11 +10,14 @@ from dataclasses import asdict
 from transformers import PreTrainedModel, T5EncoderModel, PretrainedConfig, T5Config
 from transformers.modeling_outputs import SequenceClassifierOutput
 
-
-from .model_protein_moe import trans_basic_block, trans_basic_block_Config
-from .model_protein_vec_single_variable import trans_basic_block_single, trans_basic_block_Config_single
-from .embed_structure_model import trans_basic_block_tmvec, trans_basic_block_Config_tmvec
-
+try:
+    from .model_protein_moe import trans_basic_block, trans_basic_block_Config
+    from .model_protein_vec_single_variable import trans_basic_block_single, trans_basic_block_Config_single
+    from .embed_structure_model import trans_basic_block_tmvec, trans_basic_block_Config_tmvec
+except:
+    from model_protein_moe import trans_basic_block, trans_basic_block_Config
+    from model_protein_vec_single_variable import trans_basic_block_single, trans_basic_block_Config_single
+    from embed_structure_model import trans_basic_block_tmvec, trans_basic_block_Config_tmvec
 
 class ProteinVecConfig(PretrainedConfig):
     model_type = "t5"
@@ -372,9 +375,14 @@ class ProteinVec(PreTrainedModel):
             2: ['BPO'], # BP
             3: ['CCO'], # CC
             4: ['PFAM'], # IP
-            5: ['GENE3D'] # 3D 
+            5: ['GENE3D'], # 3D
+            6: ['TM', 'PFAM', 'GENE3D', 'ENZYME', 'MFO', 'BPO', 'CCO'] # all
         }
         self.all_cols = np.array(['TM', 'PFAM', 'GENE3D', 'ENZYME', 'MFO', 'BPO', 'CCO'])
+
+    def to_eval(self):
+        self.t5 = self.t5.eval()
+        self.moe = self.moe.eval()
 
     def load_from_disk(self,
                        aspect_path='models/protein_vec/src_run/protein_vec_models',
@@ -414,7 +422,7 @@ class ProteinVec(PreTrainedModel):
         self.t5 = T5EncoderModel.from_pretrained(t5_path)
 
     def get_mask(self, aspect):
-        sampled_keys = self.aspect_to_keys_dict[aspect]
+        sampled_keys = np.array(self.aspect_to_keys_dict[aspect])
         masks = [self.all_cols[k] in sampled_keys for k in range(len(self.all_cols))]
         masks = torch.logical_not(torch.tensor(masks, dtype=torch.bool))[None,:]
         return masks
@@ -423,17 +431,31 @@ class ProteinVec(PreTrainedModel):
         ### t5
         masks = self.get_mask(aspect)
         with torch.no_grad():
-            embedding = self.t5(input_ids=input_ids, attention_mask=attention_mask).last_hidden_state
+            embeddings = self.t5(input_ids=input_ids, attention_mask=attention_mask).last_hidden_state
         vecs = []
-        for seq_num in range(len(embedding)):
+        for seq_num in range(len(embeddings)):
             seq_len = (attention_mask[seq_num] == 1).sum()
-            seq_emb = embedding[seq_num][:seq_len-1].unsqueeze(0)
+            seq_emb = embeddings[seq_num][:seq_len-1].unsqueeze(0)
             ### moe
             padding = torch.zeros(seq_emb.shape[0:2]).type(torch.BoolTensor).to(seq_emb)
             out_seq = self.moe.make_matrix(seq_emb, padding)
             vec = self.moe(out_seq, masks)
             vecs.append(vec)
         return torch.cat(vecs, dim=0)
+    
+    def embed_vec(self, input_ids, attention_mask, aspect):
+        ### t5
+        masks = self.get_mask(aspect)
+        with torch.no_grad():
+            embedding = self.t5(input_ids=input_ids, attention_mask=attention_mask).last_hidden_state
+        vecs = []
+        seq_len = (attention_mask == 1).sum()
+        seq_emb = embedding[:seq_len-1].unsqueeze(0)
+        ### moe
+        padding = torch.zeros(seq_emb.shape[0:2]).type(torch.BoolTensor).to(seq_emb)
+        out_seq = self.moe.make_matrix(seq_emb, padding)
+        vec = self.moe(out_seq, masks)
+        return vec
 
     def forward(self, pos, anc, neg,
                 att_p=None, att_a=None, att_n=None, r_labels=None):

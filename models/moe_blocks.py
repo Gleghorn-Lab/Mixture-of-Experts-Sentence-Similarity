@@ -46,7 +46,7 @@ class SentenceSwitchMoeBlock(nn.Module):
         return final_hidden_states, router_logits # (batch, sequence_length, hidden_dim), (batch, num_experts)
 
 
-class SentenceEnforcedSwitchMoeBlock(nn.Module):
+class SentenceEnforcedSwitchMoeBlock(nn.Module): ### Test
     def __init__(self, config, expert):
         """
         Sentence level MoE, single expert chosen
@@ -57,9 +57,21 @@ class SentenceEnforcedSwitchMoeBlock(nn.Module):
         self.experts = nn.ModuleList([expert(config) for _ in range(self.num_experts)])
 
     def forward(self, hidden_states: torch.Tensor, router_labels: torch.tensor) -> torch.Tensor:
-        router_logits = None
-        final_hidden_states = torch.stack([self.experts[router_labels[i]](hidden_states[i]) for i in range(len(hidden_states))])
-        return final_hidden_states, router_logits # (batch, sequence_length, hidden_dim), (batch, num_experts)
+        # Group sequences based on router_labels
+        unique_labels, inverse_indices = torch.unique(router_labels, return_inverse=True)
+        grouped_hidden_states = torch.split(hidden_states, tuple(torch.bincount(inverse_indices)))
+
+        # Pass grouped sequences to corresponding experts
+        expert_outputs = []
+        for label, group in zip(unique_labels, grouped_hidden_states):
+            expert_output = self.experts[label](group)
+            expert_outputs.append(expert_output)
+
+        # Concatenate expert outputs and restore original sequence order
+        concatenated_outputs = torch.cat(expert_outputs, dim=0)
+        final_hidden_states = concatenated_outputs[inverse_indices]
+
+        return final_hidden_states  # (batch, sequence_length, hidden_dim)
 
 
 class SentenceTopKMoeBlock(nn.Module):

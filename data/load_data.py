@@ -230,7 +230,7 @@ def get_datasets_test_triplet(args, tokenizer):
     datasets_by_label = {}
 
     for data_path in data_paths:
-        dataset = load_dataset(data_path, download_mode="force_redownload")
+        dataset = load_dataset(data_path)
         valid = dataset['valid']
         test = dataset['test']
 
@@ -254,10 +254,12 @@ def get_datasets_test_triplet(args, tokenizer):
             datasets_by_label[label]['test_n'].extend([n for n, m in zip(test[n_col], label_mask_test) if m])
             datasets_by_label[label]['test_label'].extend([l for l, m in zip(test[label_col], label_mask_test) if m])
 
-    if args['model_type'] == 'ProteinVec':
+    if args['model_type'].lower() == 'proteinvec':
+        print('Adding spaces')
         for label in datasets_by_label:
             datasets_by_label[label]['valid_p'] = [(" ".join(sequence)) for sequence in datasets_by_label[label]['valid_p']]
             datasets_by_label[label]['valid_p'] = [re.sub(r"[UZOB]", "X", sequence) for sequence in datasets_by_label[label]['valid_p']]
+
             datasets_by_label[label]['valid_a'] = [(" ".join(sequence)) for sequence in datasets_by_label[label]['valid_a']]
             datasets_by_label[label]['valid_a'] = [re.sub(r"[UZOB]", "X", sequence) for sequence in datasets_by_label[label]['valid_a']]
             datasets_by_label[label]['valid_n'] = [(" ".join(sequence)) for sequence in datasets_by_label[label]['valid_n']]
@@ -274,6 +276,8 @@ def get_datasets_test_triplet(args, tokenizer):
     for label, dataset_data in datasets_by_label.items():
         valid_dataset = TripletDataset(dataset_data['valid_p'], dataset_data['valid_a'], dataset_data['valid_n'],
                                     dataset_data['valid_label'], tokenizer, domains, add_tokens, max_length)
+        
+        print(valid_dataset[0])
         test_dataset = TripletDataset(dataset_data['test_p'], dataset_data['test_a'], dataset_data['test_n'],
                                     dataset_data['test_label'], tokenizer, domains, add_tokens, max_length)
         triplet_datasets.append((label, valid_dataset, test_dataset))

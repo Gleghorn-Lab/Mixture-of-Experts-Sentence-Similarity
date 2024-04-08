@@ -39,7 +39,7 @@ def featurize_prottrans(sequences, model, tokenizer, device):
     with torch.no_grad():
         embedding = model(input_ids=input_ids, attention_mask=attention_mask)
 
-    embedding = embedding.last_hidden_state.cpu().numpy()
+    embedding = embedding.last_hidden_state.float().cpu().numpy()
 
     features = [] 
     for seq_num in range(len(embedding)):

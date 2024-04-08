@@ -21,6 +21,14 @@ def label_type_checker(labels):
     return label_type
 
 
+def encode_labels(labels, tag2id, max_length):
+    encoded_labels = [torch.full((max_length,), -100, dtype=torch.long) for _ in range(len(labels))]
+    for i, doc in enumerate(labels):
+        doc_labels = torch.tensor([tag2id[tag] for tag in doc], dtype=torch.long)
+        encoded_labels[i][:len(doc_labels)] = doc_labels
+    return encoded_labels
+
+
 def get_seqs(dataset, seq_col='seqs', label_col='labels'):
     return dataset[seq_col], dataset[label_col]
 
@@ -40,19 +48,41 @@ def get_fine_tune_data(cfg, data_path):
     
     check_labels = valid_set['labels']
     label_type = label_type_checker(check_labels)
+    num_labels = None
 
     if label_type == 'string':
         import ast
-        train_set = train_set.map(lambda example: {'labels': ast.literal_eval(example['labels'])})
-        valid_set = valid_set.map(lambda example: {'labels': ast.literal_eval(example['labels'])})
-        test_set = test_set.map(lambda example: {'labels': ast.literal_eval(example['labels'])})
-        label_type = 'multilabel'
-    try:
-        num_labels = len(train_set['labels'][0])
-    except:
-        num_labels = len(np.unique(train_set['labels']))
-    if label_type == 'regression':
-        num_labels = 1
+        ex = valid_set['labels'][0]
+        try:
+            new_ex = ast.literal_eval(ex)
+            if isinstance(new_ex, list): # if ast runs correctly and is now a list it is multilabel labels
+                train_set = train_set.map(lambda ex: {'labels': ast.literal_eval(ex['labels'])})
+                valid_set = valid_set.map(lambda ex: {'labels': ast.literal_eval(ex['labels'])})
+                test_set = test_set.map(lambda ex: {'labels': ast.literal_eval(ex['labels'])})
+                label_type = 'multilabel'
+        except:
+            train_labels = train_set['labels']
+            unique_tags = set(tag for doc in train_labels for tag in doc)
+            tag2id = {tag: id for id, tag in enumerate(sorted(unique_tags))}
+            #id2tag = {id: tag for tag, id in tag2id.items()}
+            train_set = train_set.map(lambda ex:
+                                      {'labels': encode_labels(ex['labels'],
+                                                               tag2id=tag2id, max_length=cfg.max_length)})
+            valid_set = valid_set.map(lambda ex:
+                                      {'labels': encode_labels(ex['labels'],
+                                                               tag2id=tag2id, max_length=cfg.max_length)})
+            test_set = test_set.map(lambda ex:
+                                    {'labels': encode_labels(ex['labels'],
+                                                             tag2id=tag2id, max_length=cfg.max_length)})
+            label_type = 'tokenwise'
+            num_labels = len(unique_tags)
+    if num_labels == None:
+        try:
+            num_labels = len(train_set['labels'][0])
+        except:
+            num_labels = len(np.unique(train_set['labels']))
+        if label_type == 'regression':
+            num_labels = 1
     return train_set, valid_set, test_set, num_labels, label_type
 
 

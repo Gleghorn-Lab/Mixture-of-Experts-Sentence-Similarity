@@ -2,14 +2,19 @@ import json
 import inspect
 from functools import partial
 from dataclasses import dataclass, asdict
-from .model_protein_vec_single_variable import trans_basic_block_single, trans_basic_block_Config_single
-from .embed_structure_model import trans_basic_block_tmvec, trans_basic_block_Config_tmvec
 import torch
 from torch import nn
 import torch.nn.functional as F
 import pytorch_lightning as pl
 import numpy as np
 import random
+
+try:
+    from .model_protein_vec_single_variable import trans_basic_block_single, trans_basic_block_Config_single
+    from .embed_structure_model import trans_basic_block_tmvec, trans_basic_block_Config_tmvec
+except:
+    from model_protein_vec_single_variable import trans_basic_block_single, trans_basic_block_Config_single
+    from embed_structure_model import trans_basic_block_tmvec, trans_basic_block_Config_tmvec
 
 
 

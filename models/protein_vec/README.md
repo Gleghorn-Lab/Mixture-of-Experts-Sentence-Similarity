@@ -8,10 +8,10 @@ To use from hugggingface
 
 ```
 from transformers import T5Tokenizer
-from huggingface_protein_vec import ProteinVec
+from huggingface_protein_vec import ProteinVec, ProteinVecConfig
 
 tokenizer = T5Tokenizer.from_pretrained('lhallee/ProteinVec')
-model = ProteinVec.from_pretrained('lhallee/ProteinVec')
+model = ProteinVec.from_pretrained('lhallee/ProteinVec', config=ProteinVecConfig())
 ```
 
 ## The license for the protein vec code

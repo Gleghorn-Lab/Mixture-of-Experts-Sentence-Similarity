@@ -7,7 +7,7 @@ from data.load_data import (
     get_datasets_test_sentence_sim,
 )
 from data.dataset_classes import FineTuneDatasetEmbedsFromDisk
-from models.model_zoo import LinearClassifier
+from models.model_zoo import LinearClassifier, TokenClassifier
 from utils import log_metrics, data_collator
 from trainer import HF_trainer
 from metrics import *
@@ -110,7 +110,12 @@ def evaluate_triplet_model_downstream(yargs, eval_config, base_model, tokenizer)
     # If not already done, embed all seqs to local sql database
     if not args.skip:
         base_model.to(args.device)
-        embed_dataset_and_save(args, base_model, tokenizer, all_seqs, domains=args.domains, aspects=aspects)
+        embed_dataset_and_save(args,
+                               base_model,
+                               tokenizer,
+                               all_seqs,
+                               domains=args.domains,
+                               aspects=aspects)
         base_model.to('cpu')
         del base_model
 
@@ -126,10 +131,13 @@ def evaluate_triplet_model_downstream(yargs, eval_config, base_model, tokenizer)
         print(f'Training {args.data_paths[i]}, {i+1} / {len(datasets)}')
         train_dataset, valid_dataset, test_dataset = dataset
         task_type, num_label = task_types[i], num_labels[i]
+
+        if task_type == 'tokenwise':
+            model = TokenClassifier(args, num_labels=num_label)
+        else:
+            model = LinearClassifier(args, task_type=task_type, num_labels=num_label)
         
-        model = LinearClassifier(args, task_type=task_type, num_labels=num_label)
-        
-        if task_type == 'singlelabel':
+        if task_type == 'singlelabel' or task_type == 'tokenwise':
             compute_metrics = compute_metrics_single_label_classification
         elif task_type == 'multilabel':
             compute_metrics = compute_metrics_multi_label_classification

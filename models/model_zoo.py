@@ -270,3 +270,36 @@ class LinearClassifier(nn.Module):
             hidden_states=None,
             attentions=None
         )
+
+
+class TokenClassifier(nn.Module):
+    def __init__(self, cfg, num_labels=2):
+        super().__init__()
+        self.bert_layer = nn.TransformerEncoderLayer(
+            d_model=cfg.input_dim,
+            nhead=cfg.nhead,
+            dim_feedforward=cfg.hidden_dim,
+            dropout=cfg.dropout,
+            activation='gelu',
+            batch_first=True
+        )
+        self.bert = nn.TransformerEncoder(
+            encoder_layer=self.bert_layer,
+            num_layers=cfg.num_layers
+        )
+        self.head = nn.Linear(cfg.input_dim, num_labels)
+        self.num_labels = num_labels
+        self.loss_fct = nn.CrossEntropyLoss()
+    
+    def forward(self, embeddings, labels=None):
+        logits = self.head(self.bert(embeddings))
+
+        if labels is not None:
+            loss = self.loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
+        
+        return SequenceClassifierOutput(
+            loss=loss,
+            logits=logits,
+            hidden_states=None,
+            attentions=None
+        )

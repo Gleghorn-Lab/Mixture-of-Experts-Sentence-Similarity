@@ -16,7 +16,8 @@ general_args:
   num_tasks: 7  # Number of tasks for MulitTask learning
   contrastive_loss: clip
   expert_loss: true
-  MI: false  wBAL: !!float 0.01
+  MI: false
+  wBAL: !!float 0.01
   wEX: !!float 0.05
 
 # Model settings
@@ -24,7 +25,7 @@ general_args:
   attention_probs_dropout_prob: 0.0
 
 # New tokens
-  new_special_tokens: true  # Add new special tokens for each domain token seeded with CLS
+  new_special_tokens: false  # Add new special tokens for each domain token seeded with CLS
   domains: # List of domain tags
     - '[EC]'
     - '[CO]'
@@ -117,18 +118,13 @@ eval_args:
 # Paths
   plm_path: facebook/esm2_t6_8M_UR50D
   data_paths:
-    - 'lhallee/EC_reg'
-    - 'lhallee/CC_reg'
-    - 'lhallee/MF_reg'
-    - 'lhallee/BP_reg'
-    - 'lhallee/dl_binary_reg'
-    - 'lhallee/dl_ten_reg'
-    - 'lhallee/MetalIonBinding_reg'
+    - 'lhallee/ssq8'
   weight_path: ''
   log_path: ./results.txt
   db_path: embeddings.db
 
 # New tokens
+  new_special_tokens: true
   domains:
     - '[EC]'
     - '[CC]'
@@ -139,17 +135,19 @@ eval_args:
     - '[IP]'
 
 # Model settings
-  input_dim: 768
+  input_dim: 320
   hidden_dim: 768
-  intermediate_dim: 2048
   dropout: 0.1
   num_layers: 2
   nhead: 8
+  num_labels: 4
 
 # Data settings
   trim: false
   max_length: 512
-  skip: false # skip embedding, already embedded
+  skip: true # skip embedding, already embedded
+  read_scaler: 5
+  full: true
 
 # Trainging settings
   patience: 1

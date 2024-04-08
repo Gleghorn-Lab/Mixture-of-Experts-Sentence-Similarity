@@ -75,21 +75,28 @@ def compute_metrics_multi_label_classification(p: EvalPrediction):
 
 
 def compute_metrics_single_label_classification(p: EvalPrediction):
-
     preds = p.predictions[0] if isinstance(p.predictions, tuple) else p.predictions
     labels = p.label_ids[1] if isinstance(p.label_ids, tuple) else p.label_ids
+    
     try:
         preds = torch.tensor(np.array(preds))
-        y_true = torch.tensor(np.array(labels), dtype=torch.int).flatten()
+        labels = torch.tensor(np.array(labels), dtype=torch.int)
     except:
         preds = torch.tensor(np.concatenate(preds, axis=0))
-        y_true = torch.tensor(np.concatenate(labels, axis=0), dtype=torch.int).flatten()
+        labels = torch.tensor(np.concatenate(labels, axis=0), dtype=torch.int)
     
-    if preds.flatten().size() == y_true.size():
-        y_pred = preds.flatten()
-    else: 
-        preds = preds.reshape(y_true.size(0), -1)
+    # Create a mask to exclude labels equal to -100
+    mask = labels != -100
+    
+    # Apply the mask to both preds and labels
+    preds = preds[mask]
+    y_true = labels[mask].flatten()
+    
+    if preds.size(0) == y_true.size(0):
         y_pred = preds.argmax(dim=-1).flatten()
+    else:
+        y_pred = preds.flatten()
+    
     cm = confusion_matrix(y_true, y_pred)
     print("Confusion Matrix:")
     print(cm)

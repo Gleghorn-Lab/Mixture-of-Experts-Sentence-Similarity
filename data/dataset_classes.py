@@ -106,9 +106,8 @@ class FineTuneDatasetEmbedsFromDisk(TorchDataset):
     def __init__(self, cfg, seqs, labels, task_type='binary'): 
         self.db_file = cfg.db_path
         self.batch_size = cfg.per_device_train_batch_size
-        self.emb_dim = cfg.hidden_dim if cfg.full else cfg.input_dim
+        self.emb_dim = cfg.input_dim
         read_scaler = cfg.read_scaler
-        self.full = cfg.full
         
         self.seqs, self.labels = seqs, labels
         self.length = len(labels)
@@ -146,9 +145,10 @@ class FineTuneDatasetEmbedsFromDisk(TorchDataset):
             row = result.fetchone()
             emb_data = row[0]
             emb = torch.tensor(np.frombuffer(emb_data, dtype=np.float32).reshape(-1, self.emb_dim))
-            if self.full:
+            if emb.shape[0] > 1:
                 padding_needed = self.max_length - emb.size(0)
                 emb = torch.nn.functional.pad(emb, (0, 0, 0, padding_needed), value=0)
+            print(emb.shape)
             embeddings.append(emb)
             labels.append(self.labels[i])
         conn.close()
@@ -214,6 +214,8 @@ def embed_dataset_and_save(cfg, model, tokenizer, sequences, domains, aspects):
     model.eval()
     db_file = cfg.db_path
     batch_size = 1000
+    full = cfg.full
+    add_tokens = cfg.new_special_tokens
 
     with sqlite3.connect(db_file) as conn:
         c = conn.cursor()
@@ -232,9 +234,13 @@ def embed_dataset_and_save(cfg, model, tokenizer, sequences, domains, aspects):
                                     return_tensors='pt').input_ids.to(cfg.device)
 
                     domain_token = tokenizer(domains[aspects[i+j]], add_special_tokens=False).input_ids[0]  # get the domain token
-                    ids[0][0] = domain_token  # replace the cls token with the domain token
-
-                    embeddings.append(model.embed_vec(ids).detach().cpu().numpy()) # add if cfg.full for matrix
+                    if add_tokens:
+                        ids[0][0] = domain_token  # replace the cls token with the domain token
+                    if full:
+                        embedding = model.embed_matrix(ids).detach().cpu().numpy()
+                    else:
+                        embedding = model.embed_vec(ids).detach().cpu().numpy()
+                    embeddings.append(embedding) # add if cfg.full for matrix
 
                 for seq, emb in zip(batch_sequences, embeddings):
                     emb_data = np.array(emb).tobytes()

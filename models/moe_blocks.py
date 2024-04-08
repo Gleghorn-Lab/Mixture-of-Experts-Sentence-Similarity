@@ -46,6 +46,22 @@ class SentenceSwitchMoeBlock(nn.Module):
         return final_hidden_states, router_logits # (batch, sequence_length, hidden_dim), (batch, num_experts)
 
 
+class SentenceEnforcedSwitchMoeBlock(nn.Module):
+    def __init__(self, config, expert):
+        """
+        Sentence level MoE, single expert chosen
+        """
+        super().__init__()
+        self.hidden_dim = config.hidden_size
+        self.num_experts = config.num_experts
+        self.experts = nn.ModuleList([expert(config) for _ in range(self.num_experts)])
+
+    def forward(self, hidden_states: torch.Tensor, router_labels: torch.tensor) -> torch.Tensor:
+        router_logits = None
+        final_hidden_states = torch.stack([self.experts[router_labels[i]](hidden_states[i]) for i in range(len(hidden_states))])
+        return final_hidden_states, router_logits # (batch, sequence_length, hidden_dim), (batch, num_experts)
+
+
 class SentenceTopKMoeBlock(nn.Module):
     def __init__(self, config, expert):
         """

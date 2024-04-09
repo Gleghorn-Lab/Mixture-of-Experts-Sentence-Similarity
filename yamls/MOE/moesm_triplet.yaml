@@ -41,7 +41,7 @@ general_args:
   p_col: 'positives'
   n_col: 'negatives'
   label_col: 'aspects'
-  max_length: 512 # Maximum length of the sequences
+  max_length: 1024 # Maximum length of the sequences
   num_labels: 2
   valid_size: 10000
   test_size: 100000
@@ -53,9 +53,9 @@ general_args:
   wandb_name: triplet_test
 
 # Paths
-  log_path: './results_moesm_35_triplets.txt'  # Path to save the log file
+  log_path: './results_moesm_150_triplets.txt'  # Path to save the log file
   weight_path: null  # Path to the model weights to load
-  save_path: 'moesm_35_trip.pt'
+  save_path: 'moesm_150_trip.pt'
 
 # Training settings
   patience: 100
@@ -84,10 +84,10 @@ training_args:
   logging_steps: !!int 100
   fp16: true
   seed: !!int 42
-  eval_accumulation_steps: null
+  eval_accumulation_steps: 500
   group_by_length: false
   length_column_name: !!str length
-  metric_for_best_model: !!str f1_max
+  metric_for_best_model: !!str loss
 
 # Training arugments for HF trainer during evaluation
 eval_training_args:
@@ -107,7 +107,7 @@ eval_training_args:
   logging_strategy: epoch
   fp16: false
   seed: !!int 7
-  metric_for_best_model: !!str f1
+  metric_for_best_model: !!str loss
 
 # General eval args during evaluation
 eval_args:

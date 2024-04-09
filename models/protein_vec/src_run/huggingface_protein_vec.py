@@ -443,14 +443,11 @@ class ProteinVec(PreTrainedModel):
             vecs.append(vec)
         return torch.cat(vecs, dim=0)
     
-    def embed_vec(self, input_ids, attention_mask, aspect):
+    def embed_vec(self, input_ids, aspect):
         ### t5
         masks = self.get_mask(aspect)
         with torch.no_grad():
-            embedding = self.t5(input_ids=input_ids, attention_mask=attention_mask).last_hidden_state
-        vecs = []
-        seq_len = (attention_mask == 1).sum()
-        seq_emb = embedding[:seq_len-1].unsqueeze(0)
+            seq_emb = self.t5(input_ids=input_ids).last_hidden_state
         ### moe
         padding = torch.zeros(seq_emb.shape[0:2]).type(torch.BoolTensor).to(seq_emb)
         out_seq = self.moe.make_matrix(seq_emb, padding)

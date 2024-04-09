@@ -165,5 +165,5 @@ def evaluate_protein_vec(yargs):
     model = model.eval()
     print(model)
 
-    evaluate_triplet_model_similarity(yargs, model, tokenizer)
+    #evaluate_triplet_model_similarity(yargs, model, tokenizer)
     evaluate_triplet_model_downstream(yargs, eval_config, model, tokenizer)

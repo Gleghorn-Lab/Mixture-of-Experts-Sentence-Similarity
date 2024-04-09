@@ -98,7 +98,7 @@ eval_training_args:
   learning_rate: !!float 1e-4
   lr_scheduler_type: !!str cosine
   weight_decay: !!float 0.01
-  num_train_epochs: !!int 1
+  num_train_epochs: !!int 200
   warmup_steps: !!int 100
   save_strategy: !!str epoch
   save_total_limit: !!int 3
@@ -107,7 +107,7 @@ eval_training_args:
   logging_steps: !!int 100
   fp16: false
   seed: !!int 7
-  metric_for_best_model: !!str f1_max
+  metric_for_best_model: !!str loss
 
 # General eval args during evaluation
 eval_args:
@@ -124,9 +124,10 @@ eval_args:
     - 'lhallee/MetalIonBinding_reg'
   weight_path: ''
   log_path: './results_protein_vec.txt'
-  db_path: embeddings.db
+  db_path: prot_vec.db
 
 # New tokens
+  new_special_tokens: true
   domains:
     - '[EC]'
     - '[CC]'
@@ -139,15 +140,17 @@ eval_args:
 # Model settings
   input_dim: 512
   hidden_dim: 8096
-  intermediate_dim: 2048
   dropout: 0.1
   num_layers: 2
   nhead: 8
+  num_labels: 4
 
 # Data settings
   trim: false
   max_length: 512
   skip: false # skip embedding, already embedded
+  read_scaler: 100
+  full: false
 
 # Trainging settings
   patience: 10

@@ -67,10 +67,10 @@ general_args:
 training_args:
   output_dir: !!str ./output
   logging_dir: !!str ./logs
-  per_device_train_batch_size: !!int 4
-  per_device_eval_batch_size: !!int 4
-  gradient_accumulation_steps: !!int 5
-  learning_rate: !!float 1e-5
+  per_device_train_batch_size: !!int 2
+  per_device_eval_batch_size: !!int 2
+  gradient_accumulation_steps: !!int 10
+  learning_rate: !!float 1e-6
   lr_scheduler_type: !!str cosine
   weight_decay: !!float 0.01
   num_train_epochs: !!int 1

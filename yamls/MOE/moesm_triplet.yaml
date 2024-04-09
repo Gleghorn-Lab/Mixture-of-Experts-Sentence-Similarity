@@ -1,5 +1,5 @@
 general_args:
-  model_path: 'facebook/esm2_t30_150M_UR50D'
+  model_path: 'facebook/esm2_t12_35M_UR50D'
   ESM: true # ESM or BERT
   model_type: 'Triplet'
   contact_head: false
@@ -7,13 +7,13 @@ general_args:
 
 # MOE
   single_moe: false
-  moe_type: 'switch'
+  moe_type: 'enforce'
   MOE: true
   token_moe: false
   num_experts: 6  # Number of experts
-  topk: 2  # Number of experts per block
+  topk: 1  # Number of experts per block
   num_tasks: 6  # Number of tasks for MulitTask learning
-  expert_loss: true
+  expert_loss: false
   MI: false
   BAL: false
   wBAL: !!float 0.1
@@ -53,9 +53,9 @@ general_args:
   wandb_name: triplet_test
 
 # Paths
-  log_path: './results_moesm_150_triplets.txt'  # Path to save the log file
+  log_path: './results_moesm_35_triplets.txt'  # Path to save the log file
   weight_path: null  # Path to the model weights to load
-  save_path: 'moesm_150_trip.pt'
+  save_path: 'moesm_35_trip.pt'
 
 # Training settings
   patience: 100
@@ -67,9 +67,9 @@ general_args:
 training_args:
   output_dir: !!str ./output
   logging_dir: !!str ./logs
-  per_device_train_batch_size: !!int 2
-  per_device_eval_batch_size: !!int 2
-  gradient_accumulation_steps: !!int 10
+  per_device_train_batch_size: !!int 4
+  per_device_eval_batch_size: !!int 4
+  gradient_accumulation_steps: !!int 5
   learning_rate: !!float 1e-5
   lr_scheduler_type: !!str cosine
   weight_decay: !!float 0.01
@@ -136,19 +136,19 @@ eval_args:
     - '[IP]'
 
 # Model settings
-  input_dim: 640
-  hidden_dim: 8096
-  intermediate_dim: 2048
+  input_dim: 480
+  hidden_dim: 768
   dropout: 0.1
   num_layers: 2
   nhead: 8
-  full: false
-  read_scaler: 100
+  num_labels: 4
 
 # Data settings
   trim: false
   max_length: 512
   skip: true # skip embedding, already embedded
+  read_scaler: 5
+  full: true
 
 # Trainging settings
   patience: 10

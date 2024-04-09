@@ -7,15 +7,15 @@ general_args:
   token: ''
 
 # MOE
-  moe_type: 'topk'
+  moe_type: 'enforce'
   single_moe: false
-  MOE: false 
+  MOE: true 
   token_moe: false
-  num_experts: 4  # Number of experts
-  topk: 2  # Number of experts per block
-  num_tasks: 7  # Number of tasks for MulitTask learning
+  num_experts: 6  # Number of experts
+  topk: 1  # Number of experts per block
+  num_tasks: 6  # Number of tasks for MulitTask learning
   contrastive_loss: clip
-  expert_loss: true
+  expert_loss: false
   MI: false
   wBAL: !!float 0.01
   wEX: !!float 0.05
@@ -28,7 +28,6 @@ general_args:
   new_special_tokens: false  # Add new special tokens for each domain token seeded with CLS
   domains: # List of domain tags
     - '[EC]'
-    - '[CO]'
     - '[BP]'
     - '[CC]'
     - '[MF]'
@@ -47,6 +46,7 @@ general_args:
   num_labels: 2
   valid_size: 100
   test_size: 100
+  trim: true
 
 # wandb settings
   wandb: false

@@ -57,20 +57,21 @@ class SentenceEnforcedSwitchMoeBlock(nn.Module): ### Test
         self.experts = nn.ModuleList([expert(config) for _ in range(self.num_experts)])
 
     def forward(self, hidden_states: torch.Tensor, router_labels: torch.tensor) -> torch.Tensor:
-        # Group sequences based on router_labels
-        unique_labels, inverse_indices = torch.unique(router_labels, return_inverse=True)
-        grouped_hidden_states = torch.split(hidden_states, tuple(torch.bincount(inverse_indices)))
-
-        # Pass grouped sequences to corresponding experts
+        # (batch, seq_len, hidden_size), (batch,) -> from 0 to num_experts-1
+        sorted_indices = torch.argsort(router_labels) # sort in order of expert idx
+        hidden_states = hidden_states[sorted_indices] # apply sort
+        router_labels = router_labels[sorted_indices] # apply sort
+        expert_idxs = torch.unique(router_labels) # find all experts needed
+        bins = torch.bincount(router_labels)
+        bins = bins[bins != 0]
+        grouped_hidden_states = torch.split(hidden_states, tuple(bins)) # split sorted hidden_states
         expert_outputs = []
-        for label, group in zip(unique_labels, grouped_hidden_states):
-            expert_output = self.experts[label](group)
+        for idx, group in zip(expert_idxs, grouped_hidden_states):
+            expert_output = self.experts[idx](group) # sne batched groups to their experts
             expert_outputs.append(expert_output)
 
-        # Concatenate expert outputs and restore original sequence order
         concatenated_outputs = torch.cat(expert_outputs, dim=0)
-        final_hidden_states = concatenated_outputs[inverse_indices]
-
+        final_hidden_states = concatenated_outputs[torch.argsort(sorted_indices)] # put back to original order
         return final_hidden_states  # (batch, sequence_length, hidden_dim)
 
 

@@ -179,8 +179,11 @@ class MoEsmForTripletSimilarity(MoEsmPreTrainedModel):
 
         input_ids = torch.cat([pos, anc, neg])
         attention_mask = torch.cat([att_p, att_a, att_n])
-        
-        outputs = self.esm(input_ids=input_ids, attention_mask=attention_mask)
+        router_labels = torch.cat([r_labels, r_labels, r_labels])
+
+        outputs = self.esm(input_ids=input_ids,
+                           attention_mask=attention_mask,
+                           router_labels=router_labels)
 
         pooler_output = outputs.pooler_output
 
@@ -191,8 +194,8 @@ class MoEsmForTripletSimilarity(MoEsmPreTrainedModel):
         loss = self.contrastive_loss(p, a, n)
         
         router_logits = outputs.router_logits # (3 * batch_size, num_experts) * num_hidden_layers
-        router_logits = tuple([router_logit.view(batch_size, 3, -1).mean(dim=1) for router_logit in router_logits])      
-
+        if router_logits[0] != None:
+            router_logits = tuple([router_logit.view(batch_size, 3, -1).mean(dim=1) for router_logit in router_logits])      
         if self.BAL:
             loss = loss + self.aux_loss(router_logits)
         if r_labels is not None and self.EX:
@@ -213,11 +216,14 @@ class EsmForTripletSimilarity(MoEsmPreTrainedModel):
         self.esm = EsmModel(config, add_pooling_layer=True) if esm is None else esm
         self.contrastive_loss = nn.TripletMarginLoss()
 
-    def embed_vec(self, ids, att=None):
-        return self.esm(input_ids=ids, attention_mask=att).pooler_output
+    def embed_vec(self, ids, aspect):
+        return self.esm(input_ids=ids,
+                        router_labels=torch.tensor(aspect)).pooler_output
     
-    def embed_matrix(self, ids, att=None):
-        return self.esm(input_ids=ids, attention_mask=att).last_hidden_state
+    def embed_matrix(self, ids, aspect, att=None):
+        return self.esm(input_ids=ids,
+                        attention_mask=att,
+                        router_labels=torch.tensor(aspect)).last_hidden_state
 
     def forward(self, pos, anc, neg,
                 att_p=None, att_a=None, att_n=None, r_labels=None):

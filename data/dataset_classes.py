@@ -148,7 +148,6 @@ class FineTuneDatasetEmbedsFromDisk(TorchDataset):
             if emb.shape[0] > 1:
                 padding_needed = self.max_length - emb.size(0)
                 emb = torch.nn.functional.pad(emb, (0, 0, 0, padding_needed), value=0)
-            print(emb.shape)
             embeddings.append(emb)
             labels.append(self.labels[i])
         conn.close()

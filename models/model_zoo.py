@@ -167,7 +167,7 @@ class MoEsmForTripletSimilarity(MoEsmPreTrainedModel):
             else:
                 self.expert_loss = SpecifiedExpertLoss(config)
     
-    def embed_vec(self, ids, att=None):
+    def embed(self, ids, att=None):
         return self.esm(input_ids=ids, attention_mask=att).pooler_output
 
     def embed_matrix(self, ids, att=None):
@@ -216,7 +216,7 @@ class EsmForTripletSimilarity(MoEsmPreTrainedModel):
         self.esm = EsmModel(config, add_pooling_layer=True) if esm is None else esm
         self.contrastive_loss = nn.TripletMarginLoss()
 
-    def embed_vec(self, ids, aspect):
+    def embed(self, ids, aspect):
         return self.esm(input_ids=ids,
                         router_labels=torch.tensor(aspect)).pooler_output
     

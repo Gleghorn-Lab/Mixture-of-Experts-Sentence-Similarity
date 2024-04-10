@@ -226,19 +226,21 @@ def embed_dataset_and_save(cfg, model, tokenizer, sequences, domains, aspects):
                 embeddings = []
 
                 for j, sample in tqdm(enumerate(batch_sequences), total=len(batch_sequences), desc='Embedding'):  # Process embeddings in batches
-                    ids = tokenizer(sample,
+                    toks = tokenizer(sample,
                                     add_special_tokens=True,
                                     padding=False,
                                     return_token_type_ids=False,
-                                    return_tensors='pt').input_ids.to(cfg.device)
+                                    return_tensors='pt')
+                    ids = toks.input_ids.to(cfg.device)
+                    att = toks.attention_mask.to(cfg.device)
                     aspect = aspects[i+j]
-                    domain_token = tokenizer(domains[aspect], add_special_tokens=False).input_ids[0]  # get the domain token
                     if add_tokens:
+                        domain_token = tokenizer(domains[aspect], add_special_tokens=False).input_ids[0]  # get the domain token
                         ids[0][0] = domain_token  # replace the cls token with the domain token
                     if full:
                         embedding = model.embed_matrix(ids).detach().cpu().numpy()
                     else:
-                        embedding = model.embed_vec(ids, aspect=aspect).detach().cpu().numpy()
+                        embedding = model.embed(ids, att, aspect=aspect).detach().cpu().numpy()
                     embeddings.append(embedding) # add if cfg.full for matrix
 
                 for seq, emb in zip(batch_sequences, embeddings):

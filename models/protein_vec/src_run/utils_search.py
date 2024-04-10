@@ -46,10 +46,10 @@ def featurize_prottrans(sequences, model, tokenizer, device):
         seq_len = (attention_mask[seq_num] == 1).sum()
         seq_emd = embedding[seq_num][:seq_len-1]
         features.append(seq_emd)
-    
+
     prottrans_embedding = torch.tensor(features[0])
     prottrans_embedding = torch.unsqueeze(prottrans_embedding, 0).to(device)
-    
+
     return(prottrans_embedding)
 
 

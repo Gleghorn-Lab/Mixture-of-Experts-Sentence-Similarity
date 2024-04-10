@@ -426,39 +426,43 @@ class ProteinVec(PreTrainedModel):
         masks = [self.all_cols[k] in sampled_keys for k in range(len(self.all_cols))]
         masks = torch.logical_not(torch.tensor(masks, dtype=torch.bool))[None,:]
         return masks
-        
-    def embed_batch(self, input_ids, attention_mask, aspect):
-        ### t5
-        masks = self.get_mask(aspect)
+
+    def featurize_prottrans(self, input_ids, attention_mask):
         with torch.no_grad():
-            embeddings = self.t5(input_ids=input_ids, attention_mask=attention_mask).last_hidden_state
-        vecs = []
-        for seq_num in range(len(embeddings)):
+            embedding = self.t5(input_ids=input_ids, attention_mask=attention_mask)
+        embedding = embedding.last_hidden_state
+        features = [] 
+        for seq_num in range(len(embedding)):
             seq_len = (attention_mask[seq_num] == 1).sum()
-            seq_emb = embeddings[seq_num][:seq_len-1].unsqueeze(0)
-            ### moe
-            padding = torch.zeros(seq_emb.shape[0:2]).type(torch.BoolTensor).to(seq_emb)
-            out_seq = self.moe.make_matrix(seq_emb, padding)
-            vec = self.moe(out_seq, masks)
-            vecs.append(vec)
-        return torch.cat(vecs, dim=0)
-    
-    def embed_vec(self, input_ids, aspect):
-        ### t5
+            seq_emd = embedding[seq_num][:seq_len-1]
+            features.append(seq_emd)
+        prottrans_embedding = torch.tensor(features[0])
+        prottrans_embedding = torch.unsqueeze(prottrans_embedding, 0)
+        return(prottrans_embedding)
+
+    def embed_vec(self, prottrans_embedding, masks):
+        padding = torch.zeros(prottrans_embedding.shape[0:2], dtype=torch.BoolTensor).to(prottrans_embedding)
+        out_seq = self.moe.make_matrix(prottrans_embedding, padding)
+        vec_embedding = self.moe(out_seq, masks)
+        return(vec_embedding)
+
+    def embed(self, input_ids, attention_mask, aspect):
         masks = self.get_mask(aspect)
-        with torch.no_grad():
-            seq_emb = self.t5(input_ids=input_ids).last_hidden_state
-        ### moe
-        padding = torch.zeros(seq_emb.shape[0:2]).type(torch.BoolTensor).to(seq_emb)
-        out_seq = self.moe.make_matrix(seq_emb, padding)
-        vec = self.moe(out_seq, masks)
-        return vec
+        embed_all_sequences = []
+        if input_ids.ndim == 1:
+            input_ids = input_ids.unsqueeze(0)
+            attention_mask = attention_mask.unsqueeze(0)
+        for id, mask in zip(input_ids, attention_mask):
+            protrans_sequence = self.featurize_prottrans(id, mask)
+            embedded_sequence = self.embed_vec(protrans_sequence, masks)
+            embed_all_sequences.append(embedded_sequence)
+        return torch.cat(embed_all_sequences)
 
     def forward(self, pos, anc, neg,
                 att_p=None, att_a=None, att_n=None, r_labels=None):
-        p = self.embed_batch(input_ids=pos, attention_mask=att_p, aspect=r_labels[0].item())
-        a = self.embed_batch(input_ids=anc, attention_mask=att_a, aspect=r_labels[0].item())
-        n = self.embed_batch(input_ids=neg, attention_mask=att_n, aspect=r_labels[0].item())
+        p = self.embed(input_ids=pos, attention_mask=att_p, aspect=r_labels[0].item())
+        a = self.embed(input_ids=anc, attention_mask=att_a, aspect=r_labels[0].item())
+        n = self.embed(input_ids=neg, attention_mask=att_n, aspect=r_labels[0].item())
 
         loss = self.contrastive_loss(p, a, n)
         logits = (p, a, n)

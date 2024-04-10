@@ -1,5 +1,5 @@
 general_args:
-  model_path: 'facebook/esm2_t12_35M_UR50D'
+  model_path: 'facebook/esm2_t30_150M_UR50D'
   ESM: true # ESM or BERT
   model_type: 'Triplet'
   contact_head: false
@@ -83,7 +83,6 @@ training_args:
   logging_strategy: steps
   logging_steps: !!int 100
   fp16: true
-  seed: !!int 42
   eval_accumulation_steps: 500
   group_by_length: false
   length_column_name: !!str length

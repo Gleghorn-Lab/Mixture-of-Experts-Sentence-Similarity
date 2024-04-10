@@ -57,7 +57,7 @@ def embed_vec(prottrans_embedding, model_deep, masks, device):
     padding = torch.zeros(prottrans_embedding.shape[0:2]).type(torch.BoolTensor).to(device)
     out_seq = model_deep.make_matrix(prottrans_embedding, padding)
     vec_embedding = model_deep(out_seq, masks)
-    return(vec_embedding.cpu().detach().numpy())
+    return(vec_embedding.detach().cpu().numpy())
 
 def encode(sequences, model_deep, model, tokenizer, masks, device):
     i = 0

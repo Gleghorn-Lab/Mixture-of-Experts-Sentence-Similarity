@@ -124,7 +124,7 @@ eval_args:
     - 'lhallee/MetalIonBinding_reg'
   weight_path: ''
   log_path: './results_protein_vec.txt'
-  db_path: prot_vec.db
+  db_path: prot_vec_local.db
 
 # New tokens
   new_special_tokens: true
@@ -146,8 +146,8 @@ eval_args:
   num_labels: 4
 
 # Data settings
-  trim: false
-  max_length: 512
+  trim: true
+  max_length: 1024
   skip: false # skip embedding, already embedded
   read_scaler: 100
   full: false

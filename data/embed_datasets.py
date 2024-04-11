@@ -37,9 +37,10 @@ def embed_standard_plm(cfg, model, tokenizer, seqs, full=False, pooling='mean', 
     return input_embeddings
 
 
-def embed_moe_dataset(args, model, tokenizer, seqs, expert):
+def embed_moe_dataset(args, model, tokenizer, seqs, expert, domain):
     model.eval()
     input_embeddings = []
+    add_token = args.new_special_tokens
     with torch.no_grad():
         for sample in tqdm(seqs, desc='Embedding'):
             ids = tokenizer(sample,
@@ -47,6 +48,8 @@ def embed_moe_dataset(args, model, tokenizer, seqs, expert):
                             padding=False,
                             return_token_type_ids=False,
                             return_tensors='pt').input_ids.to(args.device)
+            if add_token:
+                ids[0][0] = tokenizer(domain, add_special_tokens=False).input_ids[0]
             if args.full:
                 emb = model.embed_matrix(ids, r_labels=expert).float().detach().cpu().numpy()
                 if emb.size(1) < args.max_length:

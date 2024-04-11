@@ -51,7 +51,7 @@ general_args:
   wandb_name: protein_vec_eval
 
 # Paths
-  log_path: './results_protein_vec_local.txt'  # Path to save the log file
+  log_path: './results_protein_vec_hf_down.txt'  # Path to save the log file
   weight_path: 'lhallee/ProteinVec'  # Path to the model weights to load
   save_path: 'provec.pt'
 
@@ -115,13 +115,16 @@ eval_args:
 # Paths
   plm_path: ''
   data_paths:
+    - 'lhallee/EC_reg'
+    - 'lhallee/CC_reg'
+    - 'lhallee/MF_reg'
     - 'lhallee/BP_reg'
     - 'lhallee/dl_binary_reg'
     - 'lhallee/dl_ten_reg'
     - 'lhallee/MetalIonBinding_reg'
   weight_path: ''
-  log_path: './results_protein_vec.txt'
-  db_path: prot_vec_local.db
+  log_path: './results_protein_vec_hf_down.txt'
+  db_path: prot_vec_hf.db
 
 # New tokens
   new_special_tokens: false
@@ -145,7 +148,7 @@ eval_args:
 # Data settings
   trim: true
   max_length: 1024
-  skip: true # skip embedding, already embedded
+  skip: false # skip embedding, already embedded
   read_scaler: 100
   full: false
 

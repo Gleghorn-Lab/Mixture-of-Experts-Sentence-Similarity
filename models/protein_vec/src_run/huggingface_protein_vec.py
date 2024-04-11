@@ -422,7 +422,7 @@ class ProteinVec(PreTrainedModel):
         self.t5 = T5EncoderModel.from_pretrained(t5_path)
 
     def get_mask(self, aspect):
-        sampled_keys = np.array(self.aspect_to_keys_dict[aspect])
+        sampled_keys = np.array(self.aspect_to_keys_dict[6])
         masks = [self.all_cols[k] in sampled_keys for k in range(len(self.all_cols))]
         masks = torch.logical_not(torch.tensor(masks, dtype=torch.bool))[None,:]
         return masks
@@ -441,7 +441,7 @@ class ProteinVec(PreTrainedModel):
         return(prottrans_embedding)
 
     def embed_vec(self, prottrans_embedding, masks):
-        padding = torch.zeros(prottrans_embedding.shape[0:2], dtype=torch.BoolTensor).to(prottrans_embedding)
+        padding = torch.zeros(prottrans_embedding.shape[0:2]).type(torch.BoolTensor).to(prottrans_embedding)
         out_seq = self.moe.make_matrix(prottrans_embedding, padding)
         vec_embedding = self.moe(out_seq, masks)
         return(vec_embedding)
@@ -453,7 +453,7 @@ class ProteinVec(PreTrainedModel):
             input_ids = input_ids.unsqueeze(0)
             attention_mask = attention_mask.unsqueeze(0)
         for id, mask in zip(input_ids, attention_mask):
-            protrans_sequence = self.featurize_prottrans(id, mask)
+            protrans_sequence = self.featurize_prottrans(id.unsqueeze(0), mask.unsqueeze(0))
             embedded_sequence = self.embed_vec(protrans_sequence, masks)
             embed_all_sequences.append(embedded_sequence)
         return torch.cat(embed_all_sequences)

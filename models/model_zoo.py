@@ -167,11 +167,12 @@ class MoEsmForTripletSimilarity(MoEsmPreTrainedModel):
             else:
                 self.expert_loss = SpecifiedExpertLoss(config)
     
-    def embed(self, ids, att=None):
-        return self.esm(input_ids=ids, attention_mask=att).pooler_output
+    def embed(self, ids, att=None, r_labels=None): # tensor, tensor, int
+        r_labels = torch.tensor(r_labels).unsqueeze(0)
+        return self.esm(input_ids=ids, attention_mask=att, router_labels=r_labels).pooler_output
 
-    def embed_matrix(self, ids, att=None):
-        return self.esm(input_ids=ids, attention_mask=att).last_hidden_state
+    def embed_matrix(self, ids, att=None, r_labels=None):
+        return self.esm(input_ids=ids, attention_mask=att, router_labels=r_labels).last_hidden_state
 
     def forward(self, pos, anc, neg,
                 att_p=None, att_a=None, att_n=None, r_labels=None):

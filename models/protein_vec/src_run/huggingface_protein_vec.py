@@ -4,11 +4,10 @@ import numpy as np
 import os
 import inspect
 import pytorch_lightning as pl
-
-from collections import OrderedDict
 from dataclasses import asdict
 from transformers import PreTrainedModel, T5EncoderModel, PretrainedConfig, T5Config
 from transformers.modeling_outputs import SequenceClassifierOutput
+from tqdm.auto import tqdm
 
 try:
     from .model_protein_moe import trans_basic_block, trans_basic_block_Config
@@ -370,13 +369,13 @@ class ProteinVec(PreTrainedModel):
 
         self.contrastive_loss = nn.TripletMarginLoss()
         self.aspect_to_keys_dict = {
-            0: ['ENZYME'], # EC
-            1: ['MFO'], # MF
-            2: ['BPO'], # BP
-            3: ['CCO'], # CC
-            4: ['PFAM'], # IP
-            5: ['GENE3D'], # 3D
-            6: ['TM', 'PFAM', 'GENE3D', 'ENZYME', 'MFO', 'BPO', 'CCO'] # all
+            '[EC]': ['ENZYME'],
+            '[MF]': ['MFO'],
+            '[BP]': ['BPO'],
+            '[CC]': ['CCO'],
+            '[IP]': ['PFAM'],
+            '[3D]': ['GENE3D'],
+            'ALL': ['TM', 'PFAM', 'GENE3D', 'ENZYME', 'MFO', 'BPO', 'CCO'] 
         }
         self.all_cols = np.array(['TM', 'PFAM', 'GENE3D', 'ENZYME', 'MFO', 'BPO', 'CCO'])
 
@@ -422,7 +421,7 @@ class ProteinVec(PreTrainedModel):
         self.t5 = T5EncoderModel.from_pretrained(t5_path)
 
     def get_mask(self, aspect):
-        sampled_keys = np.array(self.aspect_to_keys_dict[6])
+        sampled_keys = np.array(self.aspect_to_keys_dict[aspect])
         masks = [self.all_cols[k] in sampled_keys for k in range(len(self.all_cols))]
         masks = torch.logical_not(torch.tensor(masks, dtype=torch.bool))[None,:]
         return masks
@@ -446,16 +445,23 @@ class ProteinVec(PreTrainedModel):
         vec_embedding = self.moe(out_seq, masks)
         return(vec_embedding)
 
-    def embed(self, input_ids, attention_mask, aspect):
+    def embed(self, input_ids, attention_mask, aspect, progress=False):
         masks = self.get_mask(aspect)
         embed_all_sequences = []
         if input_ids.ndim == 1:
             input_ids = input_ids.unsqueeze(0)
             attention_mask = attention_mask.unsqueeze(0)
-        for id, mask in zip(input_ids, attention_mask):
-            protrans_sequence = self.featurize_prottrans(id.unsqueeze(0), mask.unsqueeze(0))
-            embedded_sequence = self.embed_vec(protrans_sequence, masks)
-            embed_all_sequences.append(embedded_sequence)
+        
+        if progress:
+            for id, mask in tqdm(zip(input_ids, attention_mask), total=len(input_ids)):
+                protrans_sequence = self.featurize_prottrans(id.unsqueeze(0), mask.unsqueeze(0))
+                embedded_sequence = self.embed_vec(protrans_sequence, masks)
+                embed_all_sequences.append(embedded_sequence)
+        else:
+            for id, mask in zip(input_ids, attention_mask):
+                protrans_sequence = self.featurize_prottrans(id.unsqueeze(0), mask.unsqueeze(0))
+                embedded_sequence = self.embed_vec(protrans_sequence, masks)
+                embed_all_sequences.append(embedded_sequence)
         return torch.cat(embed_all_sequences)
 
     def forward(self, pos, anc, neg,

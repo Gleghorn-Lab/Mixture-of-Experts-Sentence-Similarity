@@ -156,17 +156,20 @@ def evaluate_triplet_model_downstream(yargs, eval_config, base_model, tokenizer)
             train_downstream_model(args, training_args, general_args, task_types, num_labels, dataset, i)
 
     else:
-        base_model.to(args.device)
         for i in range(len(train_sets)):
+            base_model.to(args.device)
             seqs = train_sets[i][0] + valid_sets[i][0] + test_sets[i][0]
             if model_type.lower() == 'triplet':
-                expert = domain_dict[eval_domains[i]] # int for what expert to call based on original train domains
+                expert = domain_dict[eval_domains[i]]  # int for what expert to call based on original train domains
                 emb_dict = dict(zip(seqs, embed_moe_dataset(args, base_model, tokenizer, seqs, expert, eval_domains[i])))
             elif model_type.lower() == 'proteinvec':
                 aspect_token = eval_domains[i]
                 emb_dict = dict(zip(seqs, embed_protein_vec_dataset(args, base_model, tokenizer, seqs, aspect_token)))
             else:
                 emb_dict = dict(zip(seqs, embed_standard_plm(args, base_model, tokenizer, seqs)))
+
+            base_model.to('cpu')  # Move base_model off the device
+            torch.cuda.empty_cache()  # Clear the VRAM
 
             train_dataset = FineTuneDatasetEmbeds(args, emb_dict, train_sets[i][0], train_sets[i][1], task_types[i])
             valid_dataset = FineTuneDatasetEmbeds(args, emb_dict, valid_sets[i][0], valid_sets[i][1], task_types[i])

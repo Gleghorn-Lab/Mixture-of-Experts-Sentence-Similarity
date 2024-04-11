@@ -115,11 +115,11 @@ eval_args:
 # Paths
   plm_path: ''
   data_paths:
+    - 'lhallee/dl_binary_reg'
     - 'lhallee/EC_reg'
     - 'lhallee/CC_reg'
     - 'lhallee/MF_reg'
     - 'lhallee/BP_reg'
-    - 'lhallee/dl_binary_reg'
     - 'lhallee/dl_ten_reg'
     - 'lhallee/MetalIonBinding_reg'
   weight_path: ''
@@ -129,11 +129,11 @@ eval_args:
 # New tokens
   new_special_tokens: false
   domains:
+    - '[CC]'
     - '[EC]'
     - '[CC]'
     - '[MF]'
     - '[BP]'
-    - '[CC]'
     - '[CC]'
     - '[IP]'
 

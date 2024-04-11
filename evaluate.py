@@ -118,7 +118,6 @@ def evaluate_triplet_model_downstream(yargs, eval_config, base_model, tokenizer)
     domain_dict = {train_domains[i]:i for i in range(len(train_domains))}
     eval_domains = args.domains
 
-
     all_seqs, train_sets, valid_sets, test_sets, num_labels, task_types = [], [], [], [], [], []
 
     for i, data_path in enumerate(args.data_paths): # Get all datasets
@@ -141,8 +140,6 @@ def evaluate_triplet_model_downstream(yargs, eval_config, base_model, tokenizer)
         if args.sql and not args.skip:
             all_seqs.extend(train_seqs + valid_seqs + test_seqs)
 
-
-
     if args.sql:
         if not args.skip:
             all_seqs = list(set(all_seqs)) # set of all sequences from all datasets
@@ -164,7 +161,7 @@ def evaluate_triplet_model_downstream(yargs, eval_config, base_model, tokenizer)
             seqs = train_sets[i][0] + valid_sets[i][0] + test_sets[i][0]
             if model_type.lower() == 'triplet':
                 expert = domain_dict[eval_domains[i]] # int for what expert to call based on original train domains
-                emb_dict = dict(zip(seqs, embed_moe_dataset(args, base_model, tokenizer, seqs, expert)))
+                emb_dict = dict(zip(seqs, embed_moe_dataset(args, base_model, tokenizer, seqs, expert, eval_domains[i])))
             elif model_type.lower() == 'proteinvec':
                 aspect_token = eval_domains[i]
                 emb_dict = dict(zip(seqs, embed_protein_vec_dataset(args, base_model, tokenizer, seqs, aspect_token)))
@@ -176,7 +173,6 @@ def evaluate_triplet_model_downstream(yargs, eval_config, base_model, tokenizer)
             test_dataset = FineTuneDatasetEmbeds(args, emb_dict, test_sets[i][0], test_sets[i][1], task_types[i])
             dataset = (train_dataset, valid_dataset, test_dataset)
             train_downstream_model(args, training_args, general_args, task_types, num_labels, dataset, i)
-
 
 
 def evaluate_protein_vec(yargs):

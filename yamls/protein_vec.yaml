@@ -146,11 +146,13 @@ eval_args:
   num_labels: 4
 
 # Data settings
-  trim: true
-  max_length: 1024
+  trim: false
+  max_length: 512
   skip: false # skip embedding, already embedded
   read_scaler: 100
   full: false
+  new_special_tokens: true
+  sql: false
 
 # Trainging settings
   patience: 10

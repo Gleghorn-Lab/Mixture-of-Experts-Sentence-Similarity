@@ -65,7 +65,7 @@ def embed_protein_vec_dataset(args, model, tokenizer, seqs, aspect_token):
     toks = tokenizer.batch_encode_plus(seqs, add_special_tokens=True, padding=True)
     input_ids = torch.tensor(toks['input_ids']).to(args.device)
     attention_mask = torch.tensor(toks['attention_mask']).to(args.device)
-    embeds = model.embed(input_ids, attention_mask, aspect_token, process=True).detach().cpu().numpy()
+    embeds = model.embed(input_ids, attention_mask, aspect_token, progress=True).detach().cpu().numpy()
     return embeds.tolist()
 
 

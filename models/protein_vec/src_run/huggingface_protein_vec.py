@@ -456,7 +456,7 @@ class ProteinVec(PreTrainedModel):
             for id, mask in tqdm(zip(input_ids, attention_mask), total=len(input_ids)):
                 protrans_sequence = self.featurize_prottrans(id.unsqueeze(0), mask.unsqueeze(0))
                 embedded_sequence = self.embed_vec(protrans_sequence, masks)
-                embed_all_sequences.append(embedded_sequence)
+                embed_all_sequences.append(embedded_sequence.detach().cpu()) # if there is enough to need progress you probably need to keep in RAM
         else:
             for id, mask in zip(input_ids, attention_mask):
                 protrans_sequence = self.featurize_prottrans(id.unsqueeze(0), mask.unsqueeze(0))

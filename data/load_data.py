@@ -1,4 +1,3 @@
-import re
 from datasets import load_dataset
 from .dataset_classes import *
 
@@ -177,7 +176,8 @@ def get_datasets_train_triplet(args, tokenizer):
         dataset = load_dataset(data_path)
         if trim:
             print('\nLength of dataset: ', len(dataset['train'][a_col]))
-            dataset = dataset.filter(lambda x: len(x[p_col]) <= max_length and len(x[a_col]) <= max_length and len(x[n_col]) <= max_length)
+            dataset = dataset.filter(lambda x: len(x[p_col]) <= max_length
+                                     and len(x[a_col]) <= max_length and len(x[n_col]) <= max_length)
             print('\nLength of dataset: ', len(dataset['train'][a_col]))
 
         train = dataset['train']
@@ -253,24 +253,6 @@ def get_datasets_test_triplet(args, tokenizer):
             datasets_by_label[label]['test_a'].extend([a for a, m in zip(test[a_col], label_mask_test) if m])
             datasets_by_label[label]['test_n'].extend([n for n, m in zip(test[n_col], label_mask_test) if m])
             datasets_by_label[label]['test_label'].extend([l for l, m in zip(test[label_col], label_mask_test) if m])
-
-    if args['model_type'].lower() == 'proteinvec':
-        print('Adding spaces')
-        for label in datasets_by_label:
-            datasets_by_label[label]['valid_p'] = [(" ".join(sequence)) for sequence in datasets_by_label[label]['valid_p']]
-            datasets_by_label[label]['valid_p'] = [re.sub(r"[UZOB]", "X", sequence) for sequence in datasets_by_label[label]['valid_p']]
-
-            datasets_by_label[label]['valid_a'] = [(" ".join(sequence)) for sequence in datasets_by_label[label]['valid_a']]
-            datasets_by_label[label]['valid_a'] = [re.sub(r"[UZOB]", "X", sequence) for sequence in datasets_by_label[label]['valid_a']]
-            datasets_by_label[label]['valid_n'] = [(" ".join(sequence)) for sequence in datasets_by_label[label]['valid_n']]
-            datasets_by_label[label]['valid_n'] = [re.sub(r"[UZOB]", "X", sequence) for sequence in datasets_by_label[label]['valid_n']]
-
-            datasets_by_label[label]['test_p'] = [(" ".join(sequence)) for sequence in datasets_by_label[label]['test_p']]
-            datasets_by_label[label]['test_p'] = [re.sub(r"[UZOB]", "X", sequence) for sequence in datasets_by_label[label]['test_p']]
-            datasets_by_label[label]['test_a'] = [(" ".join(sequence)) for sequence in datasets_by_label[label]['test_a']]
-            datasets_by_label[label]['test_a'] = [re.sub(r"[UZOB]", "X", sequence) for sequence in datasets_by_label[label]['test_a']]
-            datasets_by_label[label]['test_n'] = [(" ".join(sequence)) for sequence in datasets_by_label[label]['test_n']]
-            datasets_by_label[label]['test_n'] = [re.sub(r"[UZOB]", "X", sequence) for sequence in datasets_by_label[label]['test_n']]
 
     triplet_datasets = []
     for label, dataset_data in datasets_by_label.items():

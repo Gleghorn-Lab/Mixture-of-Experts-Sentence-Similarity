@@ -164,7 +164,7 @@ def evaluate_triplet_model_downstream(yargs, eval_config, base_model, tokenizer)
                 emb_dict = dict(zip(seqs, embed_moe_dataset(args, base_model, tokenizer, seqs, expert, eval_domains[i])))
             elif model_type.lower() == 'proteinvec':
                 aspect_token = eval_domains[i]
-                emb_dict = dict(zip(seqs, embed_protein_vec_dataset(args, base_model, tokenizer, seqs, aspect_token)))
+                emb_dict = dict(zip(seqs, embed_protein_vec_dataset(base_model, seqs, aspect_token)))
             else:
                 emb_dict = dict(zip(seqs, embed_standard_plm(args, base_model, tokenizer, seqs)))
 
@@ -185,7 +185,7 @@ def evaluate_protein_vec(yargs):
     tokenizer = T5Tokenizer.from_pretrained(yargs['general_args']['weight_path'])
     model = ProteinVec.from_pretrained(yargs['general_args']['weight_path'], config=ProteinVecConfig())
 
-    model = model.eval()
+    model.to_eval()
     print(model)
 
     #evaluate_triplet_model_similarity(yargs, model, tokenizer)

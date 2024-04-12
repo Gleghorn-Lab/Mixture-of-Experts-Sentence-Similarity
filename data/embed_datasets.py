@@ -63,12 +63,8 @@ def embed_moe_dataset(args, model, tokenizer, seqs, expert, domain):
     return input_embeddings
 
 
-def embed_protein_vec_dataset(args, model, tokenizer, seqs, aspect_token):
-    model.eval()
-    toks = tokenizer.batch_encode_plus(seqs, add_special_tokens=True, padding=True)
-    input_ids = torch.tensor(toks['input_ids']).to(args.device)
-    attention_mask = torch.tensor(toks['attention_mask']).to(args.device)
-    embeds = model.embed(input_ids, attention_mask, aspect_token, progress=True).detach().cpu().numpy()
+def embed_protein_vec_dataset(model, seqs, aspect_token):
+    embeds = model.embed(seqs, aspect_token)
     return embeds.tolist()
 
 

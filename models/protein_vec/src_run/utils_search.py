@@ -32,7 +32,7 @@ def query(index, queries, k=10):
 def featurize_prottrans(sequences, model, tokenizer, device):
     sequences = [(" ".join(sequences[i])) for i in range(len(sequences))]
     sequences = [re.sub(r"[UZOB]", "X", sequence) for sequence in sequences]
-    ids = tokenizer.batch_encode_plus(sequences, add_special_tokens=True, padding=True)
+    ids = tokenizer.batch_encode_plus(sequences, add_special_tokens=True, padding=True, max_length=1024, truncation=True)
     input_ids = torch.tensor(ids['input_ids']).to(device)
     attention_mask = torch.tensor(ids['attention_mask']).to(device)
 

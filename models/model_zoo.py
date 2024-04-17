@@ -123,6 +123,13 @@ class MoEsmForSentenceSimilarity(MoEsmPreTrainedModel):
         )
 
 
+class MoEsmVec(MoEsmPreTrainedModel):
+    def __init__(self, config, esm=None):
+        super().__init__(config)
+        from transformers import T5EncoderModel
+        self.base = T5EncoderModel.from_pretrained('')
+
+
 class EsmForSentenceSimilarity(MoEsmPreTrainedModel):
     def __init__(self, config, esm=None):
         super().__init__(config)

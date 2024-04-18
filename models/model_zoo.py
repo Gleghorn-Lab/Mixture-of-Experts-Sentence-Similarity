@@ -159,17 +159,15 @@ class PoolingAdapter(nn.Module):
         self.conv_pool = nn.Sequential(
             ConvPool(C, C * 2),
             ConvPool(C * 2, C * 4),
-            ConvPool(C * 4, 2 * base_dim),
+            ConvPool(C * 4, base_dim),
             nn.AdaptiveMaxPool2d((1, 1)),
             nn.Flatten()
         )
         ### Project to useful dim
         self.proj = nn.Sequential(
-            nn.Linear(2 * base_dim, 2 * base_dim),
+            nn.Linear(base_dim, base_dim),
             nn.GELU(),
-            nn.Linear(2 * base_dim, int(1.5 * base_dim)),
-            nn.GELU(),
-            nn.Linear(int(1.5 * base_dim), base_dim)
+            nn.Linear(base_dim, base_dim)
         )
 
     def forward(self, base_state, esm_state):

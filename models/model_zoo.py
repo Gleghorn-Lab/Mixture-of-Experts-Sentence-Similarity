@@ -123,19 +123,61 @@ class MoEsmForSentenceSimilarity(MoEsmPreTrainedModel):
         )
 
 
-class PLMAdapter(nn.Module):
+class BaseAdapter(nn.Module):
     def __init__(self, num_layers, base_dim, hidden_dim):
         super().__init__()
         self.base_conv = nn.Conv2d(num_layers+1, 1, 3, 1, 1)
         self.base_proj = nn.Linear(base_dim, hidden_dim)
         self.combine_conv = nn.Conv2d(2, 1, 3, 1, 1)
 
-    def forward(self, base_state, plm_state): # (B, num_layers, L, b) (B, L, d)
+    def forward(self, base_state, esm_state): # (B, num_layers, L, b) (B, L, d)
         base_state = self.base_conv(base_state) # (B, 1, L, b)
         base_state = self.base_proj(base_state) # (B, 1, L, d)
-        combined_state = torch.cat([base_state, plm_state.unsqueeze(1)], dim=1) # (B, 2, L, d)
+        combined_state = torch.cat([base_state, esm_state.unsqueeze(1)], dim=1) # (B, 2, L, d)
         combined = self.combine_conv(combined_state).squeeze(1) # (B, L, d)
         return combined
+    
+
+class ConvPool(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super().__init__()
+        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1)
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.gelu = nn.GELU()
+
+    def forward(self, x):
+        return self.pool(self.gelu(self.conv(x)))
+
+
+class PoolingAdapter(nn.Module):
+    def __init__(self, base_layers, base_dim, esm_layers, hidden_dim):
+        super().__init__()
+        ### Project esm to base dim
+        self.esm_proj = nn.Linear(hidden_dim, base_dim)
+        ### Combine esm and base into single vector
+        C = base_layers + esm_layers + 2
+        self.conv_pool = nn.Sequential(
+            ConvPool(C, C * 2),
+            ConvPool(C * 2, C * 4),
+            ConvPool(C * 4, 2 * base_dim),
+            nn.AdaptiveMaxPool2d((1, 1)),
+            nn.Flatten()
+        )
+        ### Project to useful dim
+        self.proj = nn.Sequential(
+            nn.Linear(2 * base_dim, 2 * base_dim),
+            nn.GELU(),
+            nn.Linear(2 * base_dim, int(1.5 * base_dim)),
+            nn.GELU(),
+            nn.Linear(int(1.5 * base_dim), base_dim)
+        )
+
+    def forward(self, base_state, esm_state):
+        esm_state = self.esm_proj(esm_state)
+        x = torch.cat([base_state, esm_state], dim=1)
+        x = self.conv_pool(x)
+        x = self.proj(x)
+        return x
 
 
 class MoEsmVec(MoEsmPreTrainedModel):
@@ -148,8 +190,9 @@ class MoEsmVec(MoEsmPreTrainedModel):
             param.requires_grad = False
         base_config = self.base.config
         num_base_layers = base_config.num_layers
-        self.adapter = PLMAdapter(num_base_layers, base_config.d_model, config.hidden_size)
-        self.esm = esm if esm is not None else MoEsmModel(config, add_pooling_layer=True)
+        self.base_adapter = BaseAdapter(num_base_layers, base_config.d_model, config.hidden_size)
+        self.pooler = PoolingAdapter(num_base_layers, base_config.d_model, config.num_hidden_layers, config.hidden_size)
+        self.esm = esm if esm is not None else MoEsmModel(config, add_pooling_layer=False)
         self.contrastive_loss = clip_loss
         self.temp = nn.Parameter(torch.tensor(0.7))
         self.aux_loss = LoadBalancingLoss(config)
@@ -161,18 +204,22 @@ class MoEsmVec(MoEsmPreTrainedModel):
                 self.expert_loss = SpecifiedExpertLoss(config)
 
     def process_batch(self, base_input_ids, base_attention_mask, plm_input_ids, plm_attention_mask):
-        base_state = self.base(base_input_ids, base_attention_mask, output_hidden_states=True).hidden_states
+        base_state = self.base(base_input_ids,
+                               base_attention_mask,
+                               output_hidden_states=True).hidden_states
         base_state = torch.stack(base_state, dim=1).float()
-        plm_state = self.esm.get_word_embeddings(plm_input_ids)
-        input_embeddings = self.adapter(base_state, plm_state)
-        return self.esm(inputs_embeds=input_embeddings, attention_mask=plm_attention_mask)
+        esm_state = self.esm.get_word_embeddings(plm_input_ids)
+        input_embeddings = self.base_adapter(base_state, esm_state)
+        esm_output = self.esm(inputs_embeds=input_embeddings,
+                             attention_mask=plm_attention_mask,
+                             output_hidden_states=True)
+        router_logits = esm_output.router_logits
+        esm_state = torch.stack(esm_output.hidden_states, dim=1)
+        pooled_output = self.pooler(base_state, esm_state)
+        return pooled_output, router_logits
     
     def embed(self, base_input_ids, base_attention_mask, plm_input_ids, plm_attention_mask):
-        base_state = self.base(base_input_ids, base_attention_mask, output_hidden_states=True).hidden_states
-        base_state = torch.stack(base_state, dim=1).float()
-        plm_state = self.esm.get_word_embeddings(plm_input_ids)
-        input_embeddings = self.adapter(base_state, plm_state)
-        return self.esm(inputs_embeds=input_embeddings, attention_mask=plm_attention_mask).pooler_output
+        return self.process_batch(base_input_ids, base_attention_mask, plm_input_ids, plm_attention_mask)[0]
 
     def forward(self,
                 base_a_ids,
@@ -187,22 +234,19 @@ class MoEsmVec(MoEsmPreTrainedModel):
                 labels=None):
         
         if random.random() < 0.5:
-            outputa = self.process_batch(base_a_ids, base_a_mask, plm_a_ids, plm_a_mask)
-            outputb = self.process_batch(base_b_ids, base_b_mask, plm_b_ids, plm_b_mask)
+            emb_a, router_logits_a = self.process_batch(base_a_ids, base_a_mask, plm_a_ids, plm_a_mask)
+            emb_b, router_logits_b = self.process_batch(base_b_ids, base_b_mask, plm_b_ids, plm_b_mask)
         else:
-            outputb = self.process_batch(base_a_ids, base_a_mask, plm_a_ids, plm_a_mask)
-            outputa = self.process_batch(base_b_ids, base_b_mask, plm_b_ids, plm_b_mask)
+            emb_b, router_logits_b = self.process_batch(base_a_ids, base_a_mask, plm_a_ids, plm_a_mask)
+            emb_a, router_logits_a = self.process_batch(base_b_ids, base_b_mask, plm_b_ids, plm_b_mask)
 
-        emba = outputa.pooler_output
-        embb = outputb.pooler_output
-
-        c_loss = self.contrastive_loss(emba, embb, self.temp)
-        router_logits = tuple((a + b) / 2 for a, b in zip(outputa.router_logits, outputb.router_logits))
+        c_loss = self.contrastive_loss(emb_a, emb_b, self.temp)
+        router_logits = tuple((a + b) / 2 for a, b in zip(router_logits_a, router_logits_b))
         r_loss = self.aux_loss(router_logits)
         if r_labels != None and self.EX:
             r_loss = r_loss + self.expert_loss(router_logits, r_labels)
 
-        logits = (emba, embb)
+        logits = (emb_a, emb_b)
         loss = c_loss + r_loss
         
         return SentenceSimilarityOutput(

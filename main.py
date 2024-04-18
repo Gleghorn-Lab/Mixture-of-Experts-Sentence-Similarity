@@ -2,15 +2,23 @@ import argparse
 import torch
 from models.load_model import load_models
 from utils import get_yaml
-from metrics import compute_metrics_sentence_similarity, compute_metrics_triplet
+from metrics import (
+    compute_metrics_sentence_similarity,
+    compute_metrics_sentence_similarity_test,
+    compute_metrics_double,
+    compute_metrics_triplet
+)
 from evaluate import (
-    evaluate_sim_model,
-    evaluate_triplet_model_similarity,
-    evaluate_triplet_model_downstream,
+    evaluate_contrastive_model,
+    evaluate_model_downstream,
     evaluate_protein_vec,
     eval_config
 )
-from train import train_sim_model, train_triplet_model
+from data.load_data import (
+    get_datasets_test_sentence_sim,
+    get_datasets_test_triplet
+)
+from train import train_sim_model, train_triplet_model, train_double_model
 
 
 def get_args():
@@ -62,20 +70,39 @@ def main():
 
     if args.eval:
         if args.model_type.lower() == 'triplet':
-            #evaluate_triplet_model_similarity(yargs, model, tokenizer)
-            evaluate_triplet_model_downstream(yargs, eval_config, model, tokenizer)
+            evaluate_contrastive_model(yargs,
+                                       tokenizer,
+                                       model=model,
+                                       compute_metrics=compute_metrics_triplet,
+                                       get_dataset=get_datasets_test_triplet,
+                                       token=args.token)
+            evaluate_model_downstream(yargs, eval_config, model, tokenizer, token=args.token)
+        elif args.model_type.lower() == 'sentencesimilarity':
+            evaluate_contrastive_model(yargs,
+                                       tokenizer,
+                                       model=model,
+                                       compute_metrics=compute_metrics_sentence_similarity_test,
+                                       get_dataset=get_datasets_test_sentence_sim)
         else:
-            evaluate_sim_model(yargs, tokenizer, model=model)
+            evaluate_contrastive_model(yargs,
+                                       tokenizer,
+                                       model=model,
+                                       compute_metrics=compute_metrics_double,
+                                       get_dataset=get_datasets_test_sentence_sim,
+                                       token=args.token)
 
     else:
         if args.model_type.lower() == 'triplet':
             train_triplet_model(yargs, model, tokenizer,
                                 compute_metrics=compute_metrics_triplet, token=args.token)
 
-        else:
+        elif args.model_type.lower() == 'sentencesimilarity':
             train_sim_model(yargs, model, tokenizer,
                             compute_metrics=compute_metrics_sentence_similarity, token=args.token)
 
+        else:
+            train_double_model(yargs, model, tokenizer,
+                            compute_metrics=compute_metrics_double, token=args.token)
 
 if __name__ == '__main__':
     main()

@@ -32,8 +32,8 @@ def get_seqs(dataset, seq_col='seqs', label_col='labels'):
     return dataset[seq_col], dataset[label_col]
 
 
-def get_fine_tune_data(cfg, data_path):
-    dataset = load_dataset(data_path)
+def get_fine_tune_data(cfg, data_path, token=None):
+    dataset = load_dataset(data_path, token=token)
     train_set, valid_set, test_set = dataset['train'], dataset['valid'], dataset['test']
 
     if cfg.trim:
@@ -85,7 +85,7 @@ def get_fine_tune_data(cfg, data_path):
     return train_set, valid_set, test_set, num_labels, label_type
 
 
-def get_datasets_train_sentence_sim(args, tokenizer):
+def get_datasets_train_sentence_sim(args, tokenizer, token):
     data_paths = args['data_paths']
     domains = args['domains']
     add_tokens = args['new_special_tokens']
@@ -93,37 +93,64 @@ def get_datasets_train_sentence_sim(args, tokenizer):
     a_col = args['a_col']
     b_col = args['b_col']
     label_col = args['label_col']
+    valid_size = args['valid_size']
+    test_size = args['test_size']
+
+    if args['model_type'].lower() == 'sentencesimilarity':
+        DATASET = SimDataset
+    else:
+        DATASET = DoubleDatast
 
     train_a, train_b, train_c_label, train_r_label = [], [], [], []
     valid_a, valid_b, valid_c_label, valid_r_label = [], [], [], []
     test_a, test_b, test_c_label, test_r_label = [], [], [], []
     for i, data_path in enumerate(data_paths):
-        dataset = load_dataset(data_path)
+        dataset = load_dataset(data_path, token=token)
         train = dataset['train']
         valid = dataset['valid']
         test = dataset['test']
         train_a.extend(train[a_col])
         train_b.extend(train[b_col])
-        train_c_label.extend(train[label_col])
-        train_r_label.extend([i] * len(train[label_col]))
+        if label_col in train.column_names:
+            train_c_label.extend(train[label_col])
+        else:
+            train_c_label.extend([0] * len(train[a_col]))
+        train_r_label.extend([i] * len(train[a_col]))
         valid_a.extend(valid[a_col])
         valid_b.extend(valid[b_col])
-        valid_c_label.extend(valid[label_col])
-        valid_r_label.extend([i] * len(valid[label_col]))
+        if label_col in valid.column_names:
+            valid_c_label.extend(valid[label_col])
+        else:
+            valid_c_label.extend([0] * len(valid[a_col]))
+        valid_r_label.extend([i] * len(valid[a_col]))
         test_a.extend(test[a_col])
         test_b.extend(test[b_col])
-        test_c_label.extend(test[label_col])
-        test_r_label.extend([i] * len(test[label_col]))
-    train_dataset = SimDataset(train_a, train_b, train_c_label, train_r_label,
+        if label_col in test.column_names:
+            test_c_label.extend(test[label_col])
+        else:
+            test_c_label.extend([0] * len(test[a_col]))
+        test_r_label.extend([i] * len(test[a_col]))
+
+    if len(valid) > valid_size:
+        valid = list(zip(valid_a[:valid_size], valid_b[:valid_size], valid_r_label[:valid_size], valid_c_label[:valid_size]))
+        random.shuffle(valid)
+        valid_a, valid_b, valid_r_label, valid_c_label = zip(*valid)
+
+    if len(test) > test_size:
+        test = list(zip(test_a[:test_size], test_b[:test_size], test_r_label[:test_size], test_c_label[:test_size]))
+        random.shuffle(test)
+        test_a, test_b, test_r_label, test_c_label = zip(*test)
+
+    train_dataset = DATASET(train_a, train_b, train_c_label, train_r_label,
                                 tokenizer, domains, add_tokens, max_length)
-    valid_dataset = SimDataset(valid_a, valid_b, valid_c_label, valid_r_label,
+    valid_dataset = DATASET(valid_a, valid_b, valid_c_label, valid_r_label,
                                 tokenizer, domains, add_tokens,  max_length)
-    test_dataset = SimDataset(test_a, test_b, test_c_label, test_r_label,
+    test_dataset = DATASET(test_a, test_b, test_c_label, test_r_label,
                                tokenizer, domains, add_tokens,  max_length)
     return train_dataset, valid_dataset, test_dataset
 
 
-def get_datasets_test_sentence_sim(args, tokenizer):
+def get_datasets_test_sentence_sim(args, tokenizer, token):
     data_paths = args['data_paths']
     domains = args['domains']
     add_tokens = args['new_special_tokens']
@@ -131,13 +158,18 @@ def get_datasets_test_sentence_sim(args, tokenizer):
     a_col = args['a_col']
     b_col = args['b_col']
     label_col = args['label_col']
+
+    if args['model_type'].lower() == 'sentencesimilarity':
+        DATASET = SimDataset
+    else:
+        DATASET = DoubleDatast
 
     valid_datasets = []
     test_datasets = []
     for i, data_path in enumerate(data_paths):
         valid_a, valid_b, valid_c_label, valid_r_label = [], [], [], []
         test_a, test_b, test_c_label, test_r_label = [], [], [], []
-        dataset = load_dataset(data_path)
+        dataset = load_dataset(data_path, token=token)
         valid = dataset['valid']
         test = dataset['test']
         valid_a.extend(valid[a_col])
@@ -148,14 +180,14 @@ def get_datasets_test_sentence_sim(args, tokenizer):
         test_b.extend(test[b_col])
         test_c_label.extend(test[label_col])
         test_r_label.extend([i] * len(test[label_col]))
-        valid_datasets.append(SimDataset(valid_a, valid_b, valid_c_label, valid_r_label,
+        valid_datasets.append(DATASET(valid_a, valid_b, valid_c_label, valid_r_label,
                                           tokenizer, domains, add_tokens, max_length))
-        test_datasets.append(SimDataset(test_a, test_b, test_c_label, test_r_label,
+        test_datasets.append(DATASET(test_a, test_b, test_c_label, test_r_label,
                                          tokenizer, domains, add_tokens, max_length))
     return valid_datasets, test_datasets
 
 
-def get_datasets_train_triplet(args, tokenizer):
+def get_datasets_train_triplet(args, tokenizer, token):
     data_paths = args['data_paths']
     domains = args['domains']
     add_tokens = args['new_special_tokens']
@@ -173,7 +205,7 @@ def get_datasets_train_triplet(args, tokenizer):
     test_p, test_a, test_n, test_label = [], [], [], []
 
     for data_path in data_paths:
-        dataset = load_dataset(data_path)
+        dataset = load_dataset(data_path, token=token)
         if trim:
             print('\nLength of dataset: ', len(dataset['train'][a_col]))
             dataset = dataset.filter(lambda x: len(x[p_col]) <= max_length
@@ -199,13 +231,15 @@ def get_datasets_train_triplet(args, tokenizer):
         test_n.extend(test[n_col])
         test_label.extend(test[label_col])
     
-    valid = list(zip(valid_p[:valid_size], valid_a[:valid_size], valid_n[:valid_size], valid_label[:valid_size]))
-    random.shuffle(valid)
-    valid_p, valid_a, valid_n, valid_label = zip(*valid)
+    if len(valid) > valid_size:
+        valid = list(zip(valid_p[:valid_size], valid_a[:valid_size], valid_n[:valid_size], valid_label[:valid_size]))
+        random.shuffle(valid)
+        valid_p, valid_a, valid_n, valid_label = zip(*valid)
 
-    test = list(zip(test_p[:test_size], test_a[:test_size], test_n[:test_size], test_label[:test_size]))
-    random.shuffle(test)
-    test_p, test_a, test_n, test_label = zip(*test)
+    if len(test) > test_size:
+        test = list(zip(test_p[:test_size], test_a[:test_size], test_n[:test_size], test_label[:test_size]))
+        random.shuffle(test)
+        test_p, test_a, test_n, test_label = zip(*test)
 
     train_dataset = TripletDataset(train_p, train_a, train_n, train_label,
                                    tokenizer, domains, add_tokens, max_length)
@@ -217,7 +251,7 @@ def get_datasets_train_triplet(args, tokenizer):
     return train_dataset, valid_dataset, test_dataset
 
 
-def get_datasets_test_triplet(args, tokenizer):
+def get_datasets_test_triplet(args, tokenizer, token):
     data_paths = args['data_paths']
     domains = args['domains']
     add_tokens = args['new_special_tokens']
@@ -228,9 +262,9 @@ def get_datasets_test_triplet(args, tokenizer):
     label_col = args['label_col']
 
     datasets_by_label = {}
-
+    
     for data_path in data_paths:
-        dataset = load_dataset(data_path)
+        dataset = load_dataset(data_path, token=token)
         valid = dataset['valid']
         test = dataset['test']
 
@@ -254,14 +288,13 @@ def get_datasets_test_triplet(args, tokenizer):
             datasets_by_label[label]['test_n'].extend([n for n, m in zip(test[n_col], label_mask_test) if m])
             datasets_by_label[label]['test_label'].extend([l for l, m in zip(test[label_col], label_mask_test) if m])
 
-    triplet_datasets = []
+    valid_datasets, test_datasets = [], []
     for label, dataset_data in datasets_by_label.items():
         valid_dataset = TripletDataset(dataset_data['valid_p'], dataset_data['valid_a'], dataset_data['valid_n'],
                                     dataset_data['valid_label'], tokenizer, domains, add_tokens, max_length)
-        
-        print(valid_dataset[0])
         test_dataset = TripletDataset(dataset_data['test_p'], dataset_data['test_a'], dataset_data['test_n'],
                                     dataset_data['test_label'], tokenizer, domains, add_tokens, max_length)
-        triplet_datasets.append((label, valid_dataset, test_dataset))
+        valid_datasets.append(valid_dataset)
+        test_datasets.append(test_dataset)
 
-    return triplet_datasets
+    return valid_datasets, test_datasets

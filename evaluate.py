@@ -3,7 +3,6 @@ from data.load_data import (
     get_datasets_test_triplet,
     get_fine_tune_data,
     get_seqs,
-    get_datasets_test_sentence_sim,
 )
 from data.dataset_classes import FineTuneDatasetEmbedsFromDisk, FineTuneDatasetEmbeds
 from data.embed_datasets import *
@@ -18,51 +17,19 @@ class eval_config:
     db_path = 'embeddings.db'
 
 
-def evaluate_sim_model(yargs, tokenizer, model=None):
-    training_args = yargs['training_args']
-    args = yargs['general_args']
-    data_paths = args['data_paths']
-    
-    validation_datasets, testing_datasets = get_datasets_test_sentence_sim(args, tokenizer)
-    details = {
-        'model_path': args['model_path'],
-        'MOE': args['MOE']
-    }
-    
-    trainer = HF_trainer(model, train_dataset=None, valid_dataset=None,
-                    compute_metrics=compute_metrics_sentence_similarity,
-                    data_collator=data_collator, **training_args)
-
-    for i, val_dataset in enumerate(validation_datasets):
-        metrics = trainer.predict(val_dataset)[-1]
-        log_metrics(args['log_path'], metrics, details=details, header=f'Validation {data_paths[i]}')
-
-    trainer.accelerator.free_memory()
-
-    trainer = HF_trainer(model, train_dataset=None, valid_dataset=None,
-                    compute_metrics=compute_metrics_sentence_similarity_test,
-                    data_collator=data_collator, **training_args)
-
-    for i, test_dataset in enumerate(testing_datasets):
-        metrics = trainer.predict(test_dataset)[-1]
-        log_metrics(args['log_path'], metrics, details=details, header=f'Test {data_paths[i]}')
-    
-    trainer.accelerator.free_memory()
-
-
-def evaluate_triplet_model_similarity(yargs, model, tokenizer):
+def evaluate_contrastive_model(yargs, model, tokenizer, compute_metrics, get_dataset, token):
     training_args = yargs['training_args']
     args = yargs['general_args']
     trainer = HF_trainer(model, train_dataset=None, valid_dataset=None,
-                         compute_metrics=compute_metrics_triplet, data_collator=data_collator,
+                         compute_metrics=compute_metrics, data_collator=data_collator,
                          patience=args['patience'], EX=args['expert_loss'], **training_args)
     
-    triplet_datasets = get_datasets_test_triplet(args, tokenizer) # (aspect, valid_dataset, test_dataset) * aspects * num_dataset
-    for (aspect, valid_dataset, test_dataset) in tqdm(triplet_datasets, desc='Evaluating sim metrics'):
-        metrics = trainer.evaluate(eval_dataset=valid_dataset)
-        log_metrics(args['log_path'], metrics, details=args, header=f'Valid aspect {aspect}')
-        metrics = trainer.evaluate(eval_dataset=test_dataset)
-        log_metrics(args['log_path'], metrics, details=args, header=f'Test aspect {aspect}')
+    valid_datasets, test_datasets = get_dataset(args, tokenizer, token) # (aspect, valid_dataset, test_dataset) * aspects * num_dataset
+    for i in tqdm(len(args['data_paths']), desc='Evaluating sim metrics'):
+        metrics = trainer.evaluate(eval_dataset=valid_datasets[i])
+        log_metrics(args['log_path'], metrics, details=args, header=f'Valid dataset {i}')
+        metrics = trainer.evaluate(eval_dataset=test_datasets[i])
+        log_metrics(args['log_path'], metrics, details=args, header=f'Test dataset {i}')
         trainer.accelerator.free_memory()
 
 
@@ -99,7 +66,7 @@ def train_downstream_model(args,
     log_metrics(general_args['log_path'], metrics, details=general_args, header=f'Evaluation {args.data_paths[i]}')
 
 
-def evaluate_triplet_model_downstream(yargs, eval_config, base_model, tokenizer): # TODO add PPI and SSQ
+def evaluate_model_downstream(yargs, eval_config, base_model, tokenizer, token): # TODO add PPI and SSQ
     training_args = yargs['eval_training_args']
     eval_args = yargs['eval_args']
     general_args = yargs['general_args']
@@ -121,7 +88,7 @@ def evaluate_triplet_model_downstream(yargs, eval_config, base_model, tokenizer)
     all_seqs, train_sets, valid_sets, test_sets, num_labels, task_types = [], [], [], [], [], []
 
     for i, data_path in enumerate(args.data_paths): # Get all datasets
-        train_set, valid_set, test_set, num_label, task_type = get_fine_tune_data(args, data_path)
+        train_set, valid_set, test_set, num_label, task_type = get_fine_tune_data(args, data_path, token)
         num_labels.append(num_label)
         task_types.append(task_type)
 
@@ -178,7 +145,7 @@ def evaluate_triplet_model_downstream(yargs, eval_config, base_model, tokenizer)
             train_downstream_model(args, training_args, general_args, task_types, num_labels, dataset, i)
 
 
-def evaluate_protein_vec(yargs):
+def evaluate_protein_vec(yargs, token):
     from models.protein_vec.src_run.huggingface_protein_vec import ProteinVec, ProteinVecConfig
     from transformers import T5Tokenizer
     
@@ -188,5 +155,5 @@ def evaluate_protein_vec(yargs):
     model.to_eval()
     print(model)
 
-    #evaluate_triplet_model_similarity(yargs, model, tokenizer)
-    evaluate_triplet_model_downstream(yargs, eval_config, model, tokenizer)
+    evaluate_contrastive_model(yargs, model, tokenizer, compute_metrics_triplet, get_datasets_test_triplet, token)
+    evaluate_model_downstream(yargs, eval_config, model, tokenizer, token)

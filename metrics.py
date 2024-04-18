@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from transformers import EvalPrediction
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, hamming_loss, confusion_matrix
 from scipy.stats import spearmanr
+from itertools import combinations_with_replacement
 
 
 def align_predictions(predictions, label_ids, id2tag):
@@ -173,6 +174,42 @@ def compute_metrics_sentence_similarity(p: EvalPrediction):
         'recall_max': recall,
         'threshold': thres,
         'distance': dist,
+    }
+
+
+def compute_metrics_double(p: EvalPrediction):
+    preds = p.predictions
+    emb_a, emb_b = preds[0], preds[1]
+    # Convert embeddings to tensors
+    emb_a_tensor = torch.tensor(emb_a)
+    emb_b_tensor = torch.tensor(emb_b)
+
+    # Compute cosine similarity between all combinations of indices in the batch
+    batch_size = emb_a_tensor.shape[0]
+    pair_similarities = []
+    non_pair_similarities = []
+
+    for i, j in combinations_with_replacement(range(batch_size), 2):
+        cosine_sim = F.cosine_similarity(emb_a_tensor[i], emb_b_tensor[j], dim=0).item()
+        if i == j:
+            pair_similarities.append(cosine_sim)
+        else:
+            non_pair_similarities.append(cosine_sim)
+
+    # Compute average cosine similarity of pairs
+    avg_pair_similarity = sum(pair_similarities) / len(pair_similarities) if pair_similarities else 0
+
+    # Compute average cosine similarity of non-pairs
+    avg_non_pair_similarity = sum(non_pair_similarities) / len(non_pair_similarities) if non_pair_similarities else 0
+
+    # Compute the ratio of similarity between pairs vs. non-pairs
+    similarity_ratio = avg_pair_similarity / avg_non_pair_similarity if avg_non_pair_similarity != 0 else float('inf')
+
+    # Return a dictionary of the computed metrics
+    return {
+        'avg_pair_similarity': avg_pair_similarity,
+        'avg_non_pair_similarity': avg_non_pair_similarity,
+        'similarity_ratio': similarity_ratio,
     }
 
 

@@ -98,11 +98,11 @@ class MoEsmForSentenceSimilarity(MoEsmPreTrainedModel):
     def forward(self, a, b,
                 att_a=None, att_b=None, r_labels=None, labels=None):
         if random.random() < 0.5:
-            outputa = self.bert(input_ids=a, attention_mask=att_a)
-            outputb = self.bert(input_ids=b, attention_mask=att_b)
+            outputa = self.esm(input_ids=a, attention_mask=att_a)
+            outputb = self.esm(input_ids=b, attention_mask=att_b)
         else:
-            outputa = self.bert(input_ids=b, attention_mask=att_b)
-            outputb = self.bert(input_ids=a, attention_mask=att_a)
+            outputa = self.esm(input_ids=b, attention_mask=att_b)
+            outputb = self.esm(input_ids=a, attention_mask=att_a)
 
         emba = outputa.pooler_output
         embb = outputb.pooler_output
@@ -123,11 +123,92 @@ class MoEsmForSentenceSimilarity(MoEsmPreTrainedModel):
         )
 
 
+class PLMAdapter(nn.Module):
+    def __init__(self, num_layers, base_dim, hidden_dim):
+        super().__init__()
+        self.base_conv = nn.Conv2d(num_layers+1, 1, 3, 1, 1)
+        self.base_proj = nn.Linear(base_dim, hidden_dim)
+        self.combine_conv = nn.Conv2d(2, 1, 3, 1, 1)
+
+    def forward(self, base_state, plm_state): # (B, num_layers, L, b) (B, L, d)
+        base_state = self.base_conv(base_state) # (B, 1, L, b)
+        base_state = self.base_proj(base_state) # (B, 1, L, d)
+        combined_state = torch.cat([base_state, plm_state.unsqueeze(1)], dim=1) # (B, 2, L, d)
+        combined = self.combine_conv(combined_state).squeeze(1) # (B, L, d)
+        return combined
+
+
 class MoEsmVec(MoEsmPreTrainedModel):
     def __init__(self, config, esm=None):
         super().__init__(config)
         from transformers import T5EncoderModel
-        self.base = T5EncoderModel.from_pretrained('')
+        self.base = T5EncoderModel.from_pretrained('lhallee/ankh_base_encoder')
+        for param in self.base.parameters():
+            param.data = param.data.to(torch.bfloat16)
+            param.requires_grad = False
+        base_config = self.base.config
+        num_base_layers = base_config.num_layers
+        self.adapter = PLMAdapter(num_base_layers, base_config.d_model, config.hidden_size)
+        self.esm = esm if esm is not None else MoEsmModel(config, add_pooling_layer=True)
+        self.contrastive_loss = clip_loss
+        self.temp = nn.Parameter(torch.tensor(0.7))
+        self.aux_loss = LoadBalancingLoss(config)
+        self.EX = config.expert_loss
+        if self.EX:
+            if config.MI:
+                self.expert_loss = MI_loss(config)
+            else:
+                self.expert_loss = SpecifiedExpertLoss(config)
+
+    def process_batch(self, base_input_ids, base_attention_mask, plm_input_ids, plm_attention_mask):
+        base_state = self.base(base_input_ids, base_attention_mask, output_hidden_states=True).hidden_states
+        base_state = torch.stack(base_state, dim=1).float()
+        plm_state = self.esm.get_word_embeddings(plm_input_ids)
+        input_embeddings = self.adapter(base_state, plm_state)
+        return self.esm(inputs_embeds=input_embeddings, attention_mask=plm_attention_mask)
+    
+    def embed(self, base_input_ids, base_attention_mask, plm_input_ids, plm_attention_mask):
+        base_state = self.base(base_input_ids, base_attention_mask, output_hidden_states=True).hidden_states
+        base_state = torch.stack(base_state, dim=1).float()
+        plm_state = self.esm.get_word_embeddings(plm_input_ids)
+        input_embeddings = self.adapter(base_state, plm_state)
+        return self.esm(inputs_embeds=input_embeddings, attention_mask=plm_attention_mask).pooler_output
+
+    def forward(self,
+                base_a_ids,
+                base_b_ids,
+                base_a_mask,
+                base_b_mask,
+                plm_a_ids,
+                plm_b_ids,
+                plm_a_mask,
+                plm_b_mask,
+                r_labels=None,
+                labels=None):
+        
+        if random.random() < 0.5:
+            outputa = self.process_batch(base_a_ids, base_a_mask, plm_a_ids, plm_a_mask)
+            outputb = self.process_batch(base_b_ids, base_b_mask, plm_b_ids, plm_b_mask)
+        else:
+            outputb = self.process_batch(base_a_ids, base_a_mask, plm_a_ids, plm_a_mask)
+            outputa = self.process_batch(base_b_ids, base_b_mask, plm_b_ids, plm_b_mask)
+
+        emba = outputa.pooler_output
+        embb = outputb.pooler_output
+
+        c_loss = self.contrastive_loss(emba, embb, self.temp)
+        router_logits = tuple((a + b) / 2 for a, b in zip(outputa.router_logits, outputb.router_logits))
+        r_loss = self.aux_loss(router_logits)
+        if r_labels != None and self.EX:
+            r_loss = r_loss + self.expert_loss(router_logits, r_labels)
+
+        logits = (emba, embb)
+        loss = c_loss + r_loss
+        
+        return SentenceSimilarityOutput(
+            logits=logits,
+            loss=loss
+        )
 
 
 class EsmForSentenceSimilarity(MoEsmPreTrainedModel):

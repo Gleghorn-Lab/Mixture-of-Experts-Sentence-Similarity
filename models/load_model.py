@@ -21,7 +21,8 @@ from .model_zoo import (
     MoEsmForSentenceSimilarity,
     MoEBertForSentenceSimilarity,
     BertForSentenceSimilarity,
-    MoEsmForTripletSimilarity
+    MoEsmForTripletSimilarity,
+    MoEsmVec
 )
 
 
@@ -36,7 +37,7 @@ def load_models(args):
             model, tokenizer = loader.get_seeded_model(tokenizer=tokenizer)
         elif args.model_type.lower() == 'sentencesimilarity':
             model = EsmForSentenceSimilarity(base_model.config, base_model)
-        else:
+        elif args.model_type.lower() == 'triplet':
             model = EsmForTripletSimilarity(base_model.config, base_model)
     
     else:
@@ -276,7 +277,13 @@ class MoEsmLoadWeights:
             self.config = self.get_config(self.esm_base)
             model = MoEsmForTripletSimilarity(config=self.config)
 
-        else: print(f'You entered {self.model_type}\nValid options are:\nModel , MaskedLM , SequenceClassification , TokenClassification , Triplet , SentenceSimilarity')
+        elif self.model_type.lower() == 'double':
+            from transformers import EsmModel as EsmModelTransformers
+            self.esm_base = EsmModelTransformers.from_pretrained(self.model_path)
+            self.config = self.get_config(self.esm_base)
+            model = MoEsmVec(config=self.config)
+
+        else: print(f'You entered {self.model_type}\nValid options are:\nModel , MaskedLM , SequenceClassification , TokenClassification , Triplet , SentenceSimilarity , Double')
         
         model = self.match_weights(model)
 
@@ -326,7 +333,10 @@ class MoEsmLoadWeights:
         elif self.model_type.lower() == 'triplet':
             model = MoEsmForTripletSimilarity.from_pretrained(self.model_path)
 
-        else: print(f'You entered {self.model_type}\nValid options are:\nModel , MaskedLM , SequenceClassification , TokenClassification , Triplet , SentenceSimilarity')
+        elif self.model_type.lower() == 'double':
+            model = MoEsmVec.from_pretrained(self.model_path)
+
+        else: print(f'You entered {self.model_type}\nValid options are:\nModel , MaskedLM , SequenceClassification , TokenClassification , Triplet , SentenceSimilarity , Double')
 
         self.config = self.get_config(model)
         end_time = time.time()
@@ -357,7 +367,7 @@ class MoEsmLoadWeights:
                 position_embedding_type=esm_config.position_embedding_type,
                 use_cache=esm_config.use_cache,
                 emb_layer_norm_before=esm_config.emb_layer_norm_before,
-                token_dropout=esm_config.token_dropout,
+                token_dropout=False,
                 is_folding_model=esm_config.is_folding_model,
                 esmfold_config=esm_config.esmfold_config,
                 vocab_list=esm_config.vocab_list,

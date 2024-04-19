@@ -56,12 +56,10 @@ class DoubleDatast(TorchDataset):
         return {
             'base_a_ids':tokenized_a_base['input_ids'].squeeze(),
             'base_b_ids':tokenized_b_base['input_ids'].squeeze(),
-            'base_a_mask':tokenized_a_base['attention_mask'].squeeze(),
-            'base_b_mask':tokenized_b_base['attention_mask'].squeeze(),
             'plm_a_ids':tokenized_a['input_ids'].squeeze(),
             'plm_b_ids':tokenized_b['input_ids'].squeeze(),
-            'plm_a_mask':tokenized_a['attention_mask'].squeeze(),
-            'plm_b_mask':tokenized_b['attention_mask'].squeeze(),
+            'a_mask':tokenized_a['attention_mask'].squeeze(),
+            'b_mask':tokenized_b['attention_mask'].squeeze(),
             'r_labels':r_label,
             'labels':c_label
         }

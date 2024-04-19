@@ -136,6 +136,7 @@ class MoEsmVec(MoEsmPreTrainedModel):
         num_base_layers = base_config.num_layers
         base_dim = base_config.d_model
         esm_dim = config.hidden_size
+        self.scale_dim = math.sqrt(base_dim)
         self.base_adapter = BaseAdapter(num_base_layers, base_dim, esm_dim)
         self.esm_adapter = EsmAdapter(num_base_layers, config.num_hidden_layers, base_dim, esm_dim)
 
@@ -149,7 +150,7 @@ class MoEsmVec(MoEsmPreTrainedModel):
         
         self.esm = esm if esm is not None else MoEsmModel(config, add_pooling_layer=False)
         self.contrastive_loss = clip_loss
-        self.temp = torch.tensor(math.sqrt(base_dim))
+        self.temp = torch.tensor(1.0)
         self.aux_loss = LoadBalancingLoss(config)
         self.EX = config.expert_loss
         if self.EX:
@@ -197,6 +198,9 @@ class MoEsmVec(MoEsmPreTrainedModel):
         else:
             emb_b, router_logits_b = self.process_batch(base_a_ids, plm_a_ids, a_mask)
             emb_a, router_logits_a = self.process_batch(base_b_ids, plm_b_ids, b_mask)
+
+        emb_a = emb_a / self.scale_dim # for numerical stability
+        emb_b = emb_b / self.scale_dim
 
         c_loss = self.contrastive_loss(emb_a, emb_b, self.temp)
         router_logits = tuple((a + b) / 2 for a, b in zip(router_logits_a, router_logits_b))

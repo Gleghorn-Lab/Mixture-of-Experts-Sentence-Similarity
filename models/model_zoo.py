@@ -1,4 +1,5 @@
 import random
+import math
 import torch
 import torch.nn as nn
 from transformers.modeling_outputs import SequenceClassifierOutput
@@ -142,13 +143,13 @@ class MoEsmVec(MoEsmPreTrainedModel):
             nn.Linear(base_dim + esm_dim, base_dim + esm_dim),
             nn.ReLU(),
             nn.Linear(base_dim + esm_dim, base_dim),
-            nn.Tanh(),
+            nn.ReLU(),
             nn.Linear(base_dim, base_dim)
         )
         
         self.esm = esm if esm is not None else MoEsmModel(config, add_pooling_layer=False)
         self.contrastive_loss = clip_loss
-        self.temp = torch.tensor(1.0)
+        self.temp = torch.tensor(math.sqrt(config.base_dim))
         self.aux_loss = LoadBalancingLoss(config)
         self.EX = config.expert_loss
         if self.EX:

@@ -1,0 +1,94 @@
+
+Valid dataset 0
+model_path: facebook/esm2_t6_8M_UR50D
+ESM: True
+model_type: Double
+contact_head: False
+huggingface_username: lhallee
+single_moe: False
+moe_type: topk
+MOE: True
+token_moe: True
+num_experts: 8
+topk: 2
+num_tasks: 4
+expert_loss: False
+MI: False
+BAL: False
+wBAL: 0.1
+wEX: 0.1
+hidden_dropout_prob: 0.05
+attention_probs_dropout_prob: 0.0
+new_special_tokens: False
+domains: ['[EC]', '[BP]', '[CC]', '[MF]', '[IP]', '[3D]']
+data_paths: ['lhallee/ProteinDouble50']
+a_col: a
+b_col: b
+p_col: positives
+n_col: negatives
+label_col: aspects
+max_length: 1024
+num_labels: 2
+valid_size: 10000
+test_size: 100000
+trim: True
+wandb: False
+wandb_project: SSPR
+wandb_name: triplet_test
+log_path: ./results_moesm_double.txt
+weight_path: weights/lhallee-moesm_double_8
+save_path: moesm_double.pt
+patience: 100
+limits: False
+eval_loss: 2.33216
+eval_avg_pair_similarity: 0.90481
+eval_avg_non_pair_similarity: 0.73752
+eval_similarity_ratio: 1.22683
+
+
+Test dataset 0
+model_path: facebook/esm2_t6_8M_UR50D
+ESM: True
+model_type: Double
+contact_head: False
+huggingface_username: lhallee
+single_moe: False
+moe_type: topk
+MOE: True
+token_moe: True
+num_experts: 8
+topk: 2
+num_tasks: 4
+expert_loss: False
+MI: False
+BAL: False
+wBAL: 0.1
+wEX: 0.1
+hidden_dropout_prob: 0.05
+attention_probs_dropout_prob: 0.0
+new_special_tokens: False
+domains: ['[EC]', '[BP]', '[CC]', '[MF]', '[IP]', '[3D]']
+data_paths: ['lhallee/ProteinDouble50']
+a_col: a
+b_col: b
+p_col: positives
+n_col: negatives
+label_col: aspects
+max_length: 1024
+num_labels: 2
+valid_size: 10000
+test_size: 100000
+trim: True
+wandb: False
+wandb_project: SSPR
+wandb_name: triplet_test
+log_path: ./results_moesm_double.txt
+weight_path: weights/lhallee-moesm_double_8
+save_path: moesm_double.pt
+patience: 100
+limits: False
+eval_loss: 1.71416
+eval_avg_pair_similarity: 0.90985
+eval_avg_non_pair_similarity: 0.73721
+eval_similarity_ratio: 1.23417
+

@@ -47,8 +47,8 @@ def embed_double_dataset(args, model, tokenizer, seqs):
                             padding=False,
                             return_token_type_ids=False,
                             return_tensors='pt')
-            ids = toks.input_ids.to(args.device)
-            mask = toks.attention_mask.to(args.device)
+            ids = toks.input_ids[:, 1:].to(args.device) # remove cls token
+            mask = toks.attention_mask[:, 1:].to(args.device)
             base_ids = model.tokenizer_base(sample,
                             add_special_tokens=True,
                             padding=False,

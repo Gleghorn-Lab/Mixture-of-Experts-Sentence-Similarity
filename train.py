@@ -12,7 +12,7 @@ from evaluate import (
     evaluate_model_downstream,
     eval_config
 )
-from utils import log_metrics, data_collator
+from utils import log_metrics, data_collator, create_double_collator
 
 
 
@@ -71,16 +71,21 @@ def train_triplet_model(yargs, model, tokenizer, compute_metrics, token=None):
     evaluate_model_downstream(yargs,
                               eval_config=eval_config,
                               base_model=trainer.model,
-                              tokenizer=tokenizer)
+                              tokenizer=tokenizer,
+                              token=token)
 
 
 def train_double_model(yargs, model, tokenizer, compute_metrics, token=None):
+    from transformers import AutoTokenizer
     training_args = yargs['training_args']
     args = yargs['general_args']
+    max_length = args['max_length']
     train_dataset, valid_dataset = get_datasets_train_sentence_sim(args, tokenizer, token)[:2]
 
+    tokenizer_base = AutoTokenizer.from_pretrained('lhallee/ankh_base_encoder')
+    double_collator = create_double_collator(tokenizer_base, tokenizer, max_length)
     trainer = HF_trainer(model, train_dataset, valid_dataset,
-                         compute_metrics=compute_metrics, data_collator=data_collator,
+                         compute_metrics=compute_metrics, data_collator=double_collator,
                          patience=args['patience'], EX=args['expert_loss'], **training_args)
     trainer.train()
 
@@ -98,3 +103,4 @@ def train_double_model(yargs, model, tokenizer, compute_metrics, token=None):
                                model=trainer.model,
                                compute_metrics=compute_metrics,
                                get_dataset=get_datasets_test_sentence_sim)
+    evaluate_model_downstream(yargs, eval_config, trainer.model, tokenizer, token=token)

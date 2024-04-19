@@ -82,7 +82,7 @@ training_args:
   eval_steps: 1000
   logging_strategy: steps
   logging_steps: !!int 100
-  fp16: true
+  fp16: false
   eval_accumulation_steps: 500
   group_by_length: false
   length_column_name: !!str length

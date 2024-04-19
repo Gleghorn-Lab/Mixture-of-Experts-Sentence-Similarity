@@ -1,7 +1,8 @@
 import argparse
 import torch
 from models.load_model import load_models
-from utils import get_yaml
+from utils import get_yaml, create_double_collator
+from utils import data_collator as standard_data_collator
 from metrics import (
     compute_metrics_sentence_similarity,
     compute_metrics_sentence_similarity_test,
@@ -49,7 +50,7 @@ def main():
         wandb.init()
 
     if args.model_type.lower() == 'proteinvec':
-        evaluate_protein_vec(yargs)
+        evaluate_protein_vec(yargs, token=args.token)
         import sys
         sys.exit()
 
@@ -71,26 +72,34 @@ def main():
     if args.eval:
         if args.model_type.lower() == 'triplet':
             evaluate_contrastive_model(yargs,
-                                       tokenizer,
+                                       tokenizer=tokenizer,
                                        model=model,
                                        compute_metrics=compute_metrics_triplet,
                                        get_dataset=get_datasets_test_triplet,
+                                       data_collator=standard_data_collator,
                                        token=args.token)
             evaluate_model_downstream(yargs, eval_config, model, tokenizer, token=args.token)
         elif args.model_type.lower() == 'sentencesimilarity':
             evaluate_contrastive_model(yargs,
-                                       tokenizer,
+                                       tokenizer=tokenizer,
                                        model=model,
                                        compute_metrics=compute_metrics_sentence_similarity_test,
-                                       get_dataset=get_datasets_test_sentence_sim)
+                                       get_dataset=get_datasets_test_sentence_sim,
+                                       data_collator=standard_data_collator,
+                                       token=args.token)
         else:
+            from transformers import AutoTokenizer
+            max_length = args.max_length
+            tokenizer_base = AutoTokenizer.from_pretrained('lhallee/ankh_base_encoder')
+            double_collator = create_double_collator(tokenizer_base, tokenizer, max_length)
             evaluate_contrastive_model(yargs,
-                                       tokenizer,
+                                       tokenizer=tokenizer,
                                        model=model,
                                        compute_metrics=compute_metrics_double,
                                        get_dataset=get_datasets_test_sentence_sim,
+                                       data_collator=double_collator,
                                        token=args.token)
-
+            evaluate_model_downstream(yargs, eval_config, model, tokenizer, token=args.token)
     else:
         if args.model_type.lower() == 'triplet':
             train_triplet_model(yargs, model, tokenizer,
@@ -102,7 +111,7 @@ def main():
 
         else:
             train_double_model(yargs, model, tokenizer,
-                            compute_metrics=compute_metrics_double, token=args.token)
+                               compute_metrics=compute_metrics_double, token=args.token)
 
 if __name__ == '__main__':
     main()

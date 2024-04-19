@@ -7,7 +7,8 @@ from data.load_data import (
 from data.dataset_classes import FineTuneDatasetEmbedsFromDisk, FineTuneDatasetEmbeds
 from data.embed_datasets import *
 from models.model_zoo import LinearClassifier, TokenClassifier
-from utils import log_metrics, data_collator
+from utils import log_metrics
+from utils import data_collator as standard_data_collator
 from trainer import HF_trainer
 from metrics import *
 
@@ -17,7 +18,7 @@ class eval_config:
     db_path = 'embeddings.db'
 
 
-def evaluate_contrastive_model(yargs, model, tokenizer, compute_metrics, get_dataset, token):
+def evaluate_contrastive_model(yargs, model, tokenizer, compute_metrics, get_dataset, data_collator, token):
     training_args = yargs['training_args']
     args = yargs['general_args']
     trainer = HF_trainer(model, train_dataset=None, valid_dataset=None,
@@ -25,7 +26,7 @@ def evaluate_contrastive_model(yargs, model, tokenizer, compute_metrics, get_dat
                          patience=args['patience'], EX=args['expert_loss'], **training_args)
     
     valid_datasets, test_datasets = get_dataset(args, tokenizer, token) # (aspect, valid_dataset, test_dataset) * aspects * num_dataset
-    for i in tqdm(len(args['data_paths']), desc='Evaluating sim metrics'):
+    for i in tqdm(range(len(args['data_paths'])), desc='Evaluating sim metrics'):
         metrics = trainer.evaluate(eval_dataset=valid_datasets[i])
         log_metrics(args['log_path'], metrics, details=args, header=f'Valid dataset {i}')
         metrics = trainer.evaluate(eval_dataset=test_datasets[i])
@@ -56,7 +57,7 @@ def train_downstream_model(args,
         compute_metrics = compute_metrics_regression
 
     trainer = HF_trainer(model, train_dataset=train_dataset, valid_dataset=valid_dataset,
-                            compute_metrics=compute_metrics, data_collator=data_collator,
+                            compute_metrics=compute_metrics, data_collator=standard_data_collator,
                             patience=args.patience, EX=False, **training_args)
     trainer.train()
 
@@ -157,5 +158,11 @@ def evaluate_protein_vec(yargs, token):
     model.to_eval()
     print(model)
 
-    evaluate_contrastive_model(yargs, model, tokenizer, compute_metrics_triplet, get_datasets_test_triplet, token)
+    evaluate_contrastive_model(yargs,
+                               model,
+                               tokenizer,
+                               compute_metrics_triplet,
+                               get_datasets_test_triplet,
+                               standard_data_collator,
+                               token)
     evaluate_model_downstream(yargs, eval_config, model, tokenizer, token)

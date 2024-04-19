@@ -39,3 +39,40 @@ def log_metrics(log_path, metrics, details=None, header=None):
 def data_collator(features):
     batch = {key: torch.stack([f[key] for f in features]) for key in features[0]}
     return batch
+
+
+def create_double_collator(tokenizer_base, tokenizer, max_length):
+    def data_collator(features):
+        a_texts = [f['plm_a_ids'] for f in features]
+        b_texts = [f['plm_b_ids'] for f in features]
+        r_labels = torch.stack([f['r_labels'] for f in features])
+        c_labels = torch.stack([f['labels'] for f in features])
+
+        tokenized_a_base = tokenizer_base(a_texts, add_special_tokens=True,
+                                          return_tensors='pt', padding='longest', truncation=True, max_length=max_length)
+        tokenized_b_base = tokenizer_base(b_texts, add_special_tokens=True,
+                                          return_tensors='pt', padding='longest', truncation=True, max_length=max_length)
+        tokenized_a = tokenizer(a_texts, add_special_tokens=True,
+                                return_tensors='pt', padding='longest', truncation=True, max_length=max_length)
+        tokenized_b = tokenizer(b_texts, add_special_tokens=True,
+                                return_tensors='pt', padding='longest', truncation=True, max_length=max_length)
+
+        plm_a_ids = tokenized_a['input_ids'][:, 1:] # remove cls
+        plm_b_ids = tokenized_b['input_ids'][:, 1:]
+        a_mask = tokenized_a['attention_mask'][:, 1:]
+        b_mask = tokenized_b['attention_mask'][:, 1:]
+
+        batch = {
+            'base_a_ids': tokenized_a_base['input_ids'],
+            'base_b_ids': tokenized_b_base['input_ids'],
+            'plm_a_ids': plm_a_ids,
+            'plm_b_ids': plm_b_ids,
+            'a_mask': a_mask,
+            'b_mask': b_mask,
+            'r_labels': r_labels,
+            'labels': c_labels
+        }
+
+        return batch
+
+    return data_collator

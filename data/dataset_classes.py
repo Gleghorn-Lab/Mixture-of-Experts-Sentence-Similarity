@@ -3,17 +3,15 @@ import torch
 import numpy as np
 import sqlite3
 from torch.utils.data import Dataset as TorchDataset
-from transformers import AutoTokenizer
 from tqdm.auto import tqdm
 
 
-class DoubleDatast(TorchDataset):
+class DoubleDataset(TorchDataset):
     def __init__(self, a, b, c_labels, r_labels, tokenizer, domains, add_tokens, max_length=512):
         self.a = a
         self.b = b
         self.c_labels = c_labels
         self.r_labels = r_labels
-        self.tokenizer_base = AutoTokenizer.from_pretrained('lhallee/ankh_base_encoder')
         self.tokenizer = tokenizer
         self.domains = domains
         self.max_length = max_length
@@ -22,46 +20,15 @@ class DoubleDatast(TorchDataset):
     def __len__(self):
         return len(self.a)
 
-    def __getitem__(self, idx): # Maybe need a version for non MOE
+    def __getitem__(self, idx):
         r_label = torch.tensor(self.r_labels[idx], dtype=torch.long)
         c_label = torch.tensor(self.c_labels[idx], dtype=torch.float)
 
-        tokenized_a_base = self.tokenizer_base(self.a[idx],
-                                     return_tensors='pt',
-                                     padding='max_length',
-                                     truncation=True,
-                                     max_length=self.max_length)
-        tokenized_b_base = self.tokenizer_base(self.b[idx],
-                                     return_tensors='pt',
-                                     padding='max_length',
-                                     truncation=True,
-                                     max_length=self.max_length)
-
-        tokenized_a = self.tokenizer(self.a[idx],
-                                     return_tensors='pt',
-                                     padding='max_length',
-                                     truncation=True,
-                                     max_length=self.max_length)
-        tokenized_b = self.tokenizer(self.b[idx],
-                                     return_tensors='pt',
-                                     padding='max_length',
-                                     truncation=True,
-                                     max_length=self.max_length)
-
-        if self.add_tokens:
-            domain_token = self.tokenizer(self.domains[int(r_label.item())],
-                                          add_special_tokens=False).input_ids[0]  # get the domain token
-            tokenized_a['input_ids'][0][0] = domain_token  # replace the cls token with the domain token
-            tokenized_b['input_ids'][0][0] = domain_token
         return {
-            'base_a_ids':tokenized_a_base['input_ids'].squeeze(),
-            'base_b_ids':tokenized_b_base['input_ids'].squeeze(),
-            'plm_a_ids':tokenized_a['input_ids'].squeeze(),
-            'plm_b_ids':tokenized_b['input_ids'].squeeze(),
-            'a_mask':tokenized_a['attention_mask'].squeeze(),
-            'b_mask':tokenized_b['attention_mask'].squeeze(),
-            'r_labels':r_label,
-            'labels':c_label
+            'plm_a_ids': self.a[idx], # keys must be in model forward keys
+            'plm_b_ids': self.b[idx],
+            'r_labels': r_label,
+            'labels': c_label
         }
 
 

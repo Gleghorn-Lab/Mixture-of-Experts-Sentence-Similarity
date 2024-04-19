@@ -99,7 +99,7 @@ def get_datasets_train_sentence_sim(args, tokenizer, token):
     if args['model_type'].lower() == 'sentencesimilarity':
         DATASET = SimDataset
     else:
-        DATASET = DoubleDatast
+        DATASET = DoubleDataset
 
     train_a, train_b, train_c_label, train_r_label = [], [], [], []
     valid_a, valid_b, valid_c_label, valid_r_label = [], [], [], []
@@ -162,7 +162,7 @@ def get_datasets_test_sentence_sim(args, tokenizer, token):
     if args['model_type'].lower() == 'sentencesimilarity':
         DATASET = SimDataset
     else:
-        DATASET = DoubleDatast
+        DATASET = DoubleDataset
 
     valid_datasets = []
     test_datasets = []
@@ -174,12 +174,18 @@ def get_datasets_test_sentence_sim(args, tokenizer, token):
         test = dataset['test']
         valid_a.extend(valid[a_col])
         valid_b.extend(valid[b_col])
-        valid_c_label.extend(valid[label_col])
-        valid_r_label.extend([i] * len(valid[label_col]))
+        if label_col in valid.column_names:
+            valid_c_label.extend(valid[label_col])
+        else:
+            valid_c_label.extend([0] * len(valid[a_col]))
+        valid_r_label.extend([i] * len(valid[a_col]))
         test_a.extend(test[a_col])
         test_b.extend(test[b_col])
-        test_c_label.extend(test[label_col])
-        test_r_label.extend([i] * len(test[label_col]))
+        if label_col in test.column_names:
+            test_c_label.extend(test[label_col])
+        else:
+            test_c_label.extend([0] * len(test[a_col]))
+        test_r_label.extend([i] * len(test[a_col]))
         valid_datasets.append(DATASET(valid_a, valid_b, valid_c_label, valid_r_label,
                                           tokenizer, domains, add_tokens, max_length))
         test_datasets.append(DATASET(test_a, test_b, test_c_label, test_r_label,

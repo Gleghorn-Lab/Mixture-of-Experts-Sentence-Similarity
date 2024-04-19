@@ -52,10 +52,10 @@ def create_double_collator(tokenizer_base, tokenizer, max_length):
                                           return_tensors='pt', padding='longest', truncation=True, max_length=max_length)
         tokenized_b_base = tokenizer_base(b_texts, add_special_tokens=True,
                                           return_tensors='pt', padding='longest', truncation=True, max_length=max_length)
-        tokenized_a = tokenizer(a_texts, add_special_tokens=True,
-                                return_tensors='pt', padding='longest', truncation=True, max_length=max_length)
+        tokenized_a = tokenizer(a_texts, add_special_tokens=True, # +1 so that when truncated same size as above
+                                return_tensors='pt', padding='longest', truncation=True, max_length=max_length+1)
         tokenized_b = tokenizer(b_texts, add_special_tokens=True,
-                                return_tensors='pt', padding='longest', truncation=True, max_length=max_length)
+                                return_tensors='pt', padding='longest', truncation=True, max_length=max_length+1) 
 
         plm_a_ids = tokenized_a['input_ids'][:, 1:] # remove cls
         plm_b_ids = tokenized_b['input_ids'][:, 1:]

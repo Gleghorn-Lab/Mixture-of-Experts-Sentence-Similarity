@@ -4,7 +4,7 @@ import torch.nn as nn
 from transformers.modeling_outputs import SequenceClassifierOutput
 from transformers.models.bert.modeling_bert import BertPreTrainedModel
 from .modeling_moebert import MoEBertModel
-from .modeling_moesm import MoEsmPreTrainedModel, MoEsmModel
+from .modeling_moesm import MoEsmPreTrainedModel, MoEsmModel, BaseAdapter, EsmAdapter
 from .losses import clip_loss, LoadBalancingLoss, MI_loss, SpecifiedExpertLoss, get_loss_fct 
 from .outputs import SentenceSimilarityOutput
 
@@ -123,34 +123,6 @@ class MoEsmForSentenceSimilarity(MoEsmPreTrainedModel):
         )
 
 
-class BaseAdapter(nn.Module):
-    def __init__(self, num_layers, base_dim, esm_dim):
-        super().__init__()
-        self.base_conv = nn.Conv2d(num_layers+1, 1, 3, 1, 1)
-        self.base_proj = nn.Linear(base_dim, esm_dim)
-        self.combine_conv = nn.Conv2d(2, 1, 3, 1, 1)
-
-    def forward(self, base_state, esm_state): # (B, num_layers, L, b) (B, L, d)
-        base_state = self.base_conv(base_state) # (B, 1, L, b)
-        base_state = self.base_proj(base_state) # (B, 1, L, d)
-        combined_state = torch.cat([base_state, esm_state.unsqueeze(1)], dim=1) # (B, 2, L, d)
-        combined = self.combine_conv(combined_state).squeeze(1) # (B, L, d)
-        return combined
-
-
-class EsmAdapter(nn.Module):
-    def __init__(self, base_layers, esm_layers, base_dim, esm_dim):
-        super().__init__()
-        self.base_conv = nn.Conv2d(base_layers+1, 1, 3, 1, 1)
-        self.esm_conv = nn.Conv2d(esm_layers+1, 1, 3, 1, 1)
-        self.esm_proj = nn.Linear(esm_dim, base_dim)
-
-    def forward(self, base_state, esm_state): # (B, base_layers, L, b) (B, esm_layers, L, d)
-        base_state = self.base_conv(base_state).squeeze(1) # (B, L, b)
-        esm_state = self.esm_conv(esm_state).squeeze(1) # (B, L, d)
-        combined = torch.cat([base_state, esm_state], dim=-1) # (B, L, d + b)
-        return combined
-
 class MoEsmVec(MoEsmPreTrainedModel):
     def __init__(self, config, esm=None):
         super().__init__(config)
@@ -170,13 +142,13 @@ class MoEsmVec(MoEsmPreTrainedModel):
             nn.Linear(base_dim + esm_dim, base_dim + esm_dim),
             nn.ReLU(),
             nn.Linear(base_dim + esm_dim, base_dim),
-            nn.ReLU(),
+            nn.Tanh(),
             nn.Linear(base_dim, base_dim)
         )
         
         self.esm = esm if esm is not None else MoEsmModel(config, add_pooling_layer=False)
         self.contrastive_loss = clip_loss
-        self.temp = torch.tensor(0.7)
+        self.temp = torch.tensor(1.0)
         self.aux_loss = LoadBalancingLoss(config)
         self.EX = config.expert_loss
         if self.EX:

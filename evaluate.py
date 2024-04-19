@@ -128,10 +128,12 @@ def evaluate_model_downstream(yargs, eval_config, base_model, tokenizer, token):
             seqs = train_sets[i][0] + valid_sets[i][0] + test_sets[i][0]
             if model_type.lower() == 'triplet':
                 expert = domain_dict[eval_domains[i]]  # int for what expert to call based on original train domains
-                emb_dict = dict(zip(seqs, embed_moe_dataset(args, base_model, tokenizer, seqs, expert, eval_domains[i])))
+                emb_dict = dict(zip(seqs, embed_domain_moe_dataset(args, base_model, tokenizer, seqs, expert, eval_domains[i])))
             elif model_type.lower() == 'proteinvec':
                 aspect_token = eval_domains[i]
                 emb_dict = dict(zip(seqs, embed_protein_vec_dataset(base_model, seqs, aspect_token)))
+            elif model_type.lower() == 'double':
+                emb_dict = dict(zip(seqs, embed_double_dataset(args, base_model, tokenizer, seqs)))
             else:
                 emb_dict = dict(zip(seqs, embed_standard_plm(args, base_model, tokenizer, seqs)))
 

@@ -127,8 +127,9 @@ class MoEsmForSentenceSimilarity(MoEsmPreTrainedModel):
 class MoEsmVec(MoEsmPreTrainedModel):
     def __init__(self, config, esm=None):
         super().__init__(config)
-        from transformers import T5EncoderModel
+        from transformers import T5EncoderModel, AutoTokenizer
         self.base = T5EncoderModel.from_pretrained('lhallee/ankh_base_encoder')
+        self.tokenizer_base = AutoTokenizer.from_pretrained('lhallee/ankh_base_encoder')
         for param in self.base.parameters():
             param.data = param.data.to(torch.bfloat16)
             param.requires_grad = False
@@ -176,7 +177,8 @@ class MoEsmVec(MoEsmPreTrainedModel):
         final_state = self.proj(final_state) # (B, L, b)
         attention_mask_expanded = attention_mask.unsqueeze(-1).expand(final_state.size())
         final_state = final_state.masked_fill(attention_mask_expanded == 0, float('-inf'))
-        pooled_output = torch.max(final_state, dim=1)[0]  # (B, b)
+        # we scale the final output for numericla stability during training
+        pooled_output = torch.max(final_state, dim=1)[0] / self.scale_dim  # (B, b) 
         return pooled_output, router_logits
     
     def embed(self, base_input_ids, plm_input_ids, attention_mask):
@@ -198,9 +200,6 @@ class MoEsmVec(MoEsmPreTrainedModel):
         else:
             emb_b, router_logits_b = self.process_batch(base_a_ids, plm_a_ids, a_mask)
             emb_a, router_logits_a = self.process_batch(base_b_ids, plm_b_ids, b_mask)
-
-        emb_a = emb_a / self.scale_dim # for numerical stability
-        emb_b = emb_b / self.scale_dim
 
         c_loss = self.contrastive_loss(emb_a, emb_b, self.temp)
         router_logits = tuple((a + b) / 2 for a, b in zip(router_logits_a, router_logits_b))

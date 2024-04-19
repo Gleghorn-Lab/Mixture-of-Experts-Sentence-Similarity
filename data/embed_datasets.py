@@ -37,7 +37,30 @@ def embed_standard_plm(cfg, model, tokenizer, seqs, full=False, pooling='mean', 
     return input_embeddings
 
 
-def embed_moe_dataset(args, model, tokenizer, seqs, expert, domain):
+def embed_double_dataset(args, model, tokenizer, seqs):
+    model.eval()
+    input_embeddings = []
+    with torch.no_grad():
+        for sample in tqdm(seqs, desc='Embedding'):
+            toks = tokenizer(sample,
+                            add_special_tokens=True,
+                            padding=False,
+                            return_token_type_ids=False,
+                            return_tensors='pt')
+            ids = toks.input_ids.to(args.device)
+            mask = toks.attention_mask.to(args.device)
+            base_ids = model.tokenizer_base(sample,
+                            add_special_tokens=True,
+                            padding=False,
+                            return_token_type_ids=False,
+                            return_tensors='pt').input_ids.to(args.device)
+
+            emb = model.embed(base_ids, ids, mask).float().detach().cpu().numpy()
+            input_embeddings.append(emb)
+    return input_embeddings
+
+
+def embed_domain_moe_dataset(args, model, tokenizer, seqs, expert, domain):
     model.eval()
     input_embeddings = []
     add_token = args.new_special_tokens

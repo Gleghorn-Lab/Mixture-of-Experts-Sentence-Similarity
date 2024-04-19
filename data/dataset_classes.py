@@ -13,7 +13,7 @@ class DoubleDatast(TorchDataset):
         self.b = b
         self.c_labels = c_labels
         self.r_labels = r_labels
-        self.base_tokenizer = AutoTokenizer.from_pretrained('lhallee/ankh_base_encoder')
+        self.tokenizer_base = AutoTokenizer.from_pretrained('lhallee/ankh_base_encoder')
         self.tokenizer = tokenizer
         self.domains = domains
         self.max_length = max_length
@@ -26,12 +26,12 @@ class DoubleDatast(TorchDataset):
         r_label = torch.tensor(self.r_labels[idx], dtype=torch.long)
         c_label = torch.tensor(self.c_labels[idx], dtype=torch.float)
 
-        tokenized_a_base = self.tokenizer(self.a[idx],
+        tokenized_a_base = self.tokenizer_base(self.a[idx],
                                      return_tensors='pt',
                                      padding='max_length',
                                      truncation=True,
                                      max_length=self.max_length)
-        tokenized_b_base = self.tokenizer(self.b[idx],
+        tokenized_b_base = self.tokenizer_base(self.b[idx],
                                      return_tensors='pt',
                                      padding='max_length',
                                      truncation=True,

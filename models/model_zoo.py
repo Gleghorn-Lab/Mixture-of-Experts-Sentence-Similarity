@@ -176,7 +176,7 @@ class MoEsmVec(MoEsmPreTrainedModel):
         
         self.esm = esm if esm is not None else MoEsmModel(config, add_pooling_layer=False)
         self.contrastive_loss = clip_loss
-        self.temp = nn.Parameter(torch.tensor(0.7))
+        self.temp = torch.tensor(0.7)
         self.aux_loss = LoadBalancingLoss(config)
         self.EX = config.expert_loss
         if self.EX:

@@ -25,7 +25,8 @@ from train import train_sim_model, train_triplet_model, train_double_model
 def get_args():
     parser = argparse.ArgumentParser(description='Settings')
     parser.add_argument('--yaml_path', type=str, )
-    parser.add_argument('--eval', action='store_true', help='Run model in evaluation mode.')
+    parser.add_argument('--eval', action='store_true', help='Run model in evaluation mode')
+    parser.add_argument('--extra_eval', action='store_true', help='Also conduct sentence sim on double model')
     parser.add_argument('--token', type=str)
     return parser.parse_args()
 
@@ -100,6 +101,14 @@ def main():
                                        data_collator=double_collator,
                                        token=args.token)
             evaluate_model_downstream(yargs, eval_config, model, tokenizer, token=args.token)
+            if args.extra_eval:
+                evaluate_contrastive_model(yargs,
+                                        tokenizer=tokenizer,
+                                        model=model,
+                                        compute_metrics=compute_metrics_sentence_similarity_test,
+                                        get_dataset=get_datasets_test_sentence_sim,
+                                        data_collator=double_collator,
+                                        token=args.token)
     else:
         if args.model_type.lower() == 'triplet':
             train_triplet_model(yargs, model, tokenizer,

@@ -55,7 +55,7 @@ def prepare_embed_double_model(model, tokenizer, device):
                                 return_token_type_ids=False,
                                 return_tensors='pt').input_ids.to(device)
                 emb = model.embed(base_ids, ids, mask).float().detach().cpu().numpy()
-                embeddings.append(emb.detach().cpu().numpy())
+                embeddings.append(emb)
         return embeddings
     return embed_double_model
 
@@ -130,8 +130,8 @@ def embed_data(cfg,
             with sqlite3.connect(db_file) as conn:
                 c = conn.cursor()
                 c.execute("CREATE TABLE IF NOT EXISTS embeddings (sequence TEXT PRIMARY KEY, embedding BLOB)")
-                emb_data = np.array(emb).tobytes()
                 for seq, emb in zip(batch_seqs, embs):
+                    emb_data = np.array(emb).tobytes()
                     c.execute("INSERT INTO embeddings VALUES (?, ?)", (seq, emb_data))
                 conn.commit()
         else:

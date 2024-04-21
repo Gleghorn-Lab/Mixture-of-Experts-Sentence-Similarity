@@ -5,7 +5,7 @@ from data.load_data import (
     get_seqs,
 )
 from data.dataset_classes import FineTuneDatasetEmbedsFromDisk, FineTuneDatasetEmbeds
-from data.embed_datasets import *
+from data.embed_datasets import embed_data
 from models.model_zoo import LinearClassifier, TokenClassifier
 from utils import log_metrics
 from utils import data_collator as standard_data_collator
@@ -82,12 +82,11 @@ def evaluate_model_downstream(yargs, eval_config, base_model, tokenizer, token):
     args = eval_config
     args.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    model_type = args.model_type
-    domain_dict = {train_domains[i]:i for i in range(len(train_domains))}
+    model_type = args.model_type.lower()
+    expert_dict = {train_domains[i]:i for i in range(len(train_domains))}
     eval_domains = args.domains
 
     all_seqs, train_sets, valid_sets, test_sets, num_labels, task_types = [], [], [], [], [], []
-
     for i, data_path in enumerate(args.data_paths): # Get all datasets
         train_set, valid_set, test_set, num_label, task_type = get_fine_tune_data(args, data_path, token)
         num_labels.append(num_label)
@@ -105,14 +104,14 @@ def evaluate_model_downstream(yargs, eval_config, base_model, tokenizer, token):
         valid_sets.append((valid_seqs, valid_labels))
         test_sets.append((test_seqs, test_labels))
 
-        if args.sql and not args.skip:
+        if args.sql:
             all_seqs.extend(train_seqs + valid_seqs + test_seqs)
 
     if args.sql:
         if not args.skip:
-            all_seqs = list(set(all_seqs)) # set of all sequences from all datasets
+            all_seqs = list(set(all_seqs))
             base_model.to(args.device)
-            embed_dataset_and_save(args, base_model, tokenizer, all_seqs)
+            embed_data(args, all_seqs,  base_model, tokenizer)
             base_model.to('cpu')
             del base_model
 
@@ -127,16 +126,13 @@ def evaluate_model_downstream(yargs, eval_config, base_model, tokenizer, token):
         for i in range(len(train_sets)):
             base_model.to(args.device)
             seqs = train_sets[i][0] + valid_sets[i][0] + test_sets[i][0]
-            if model_type.lower() == 'triplet':
-                expert = domain_dict[eval_domains[i]]  # int for what expert to call based on original train domains
-                emb_dict = dict(zip(seqs, embed_domain_moe_dataset(args, base_model, tokenizer, seqs, expert, eval_domains[i])))
-            elif model_type.lower() == 'proteinvec':
-                aspect_token = eval_domains[i]
-                emb_dict = dict(zip(seqs, embed_protein_vec_dataset(base_model, seqs, aspect_token)))
-            elif model_type.lower() == 'double':
-                emb_dict = dict(zip(seqs, embed_double_dataset(args, base_model, tokenizer, seqs)))
+            if model_type == 'triplet' or model_type == 'proteinvec':
+                domain = eval_domains[i]
+                expert = expert_dict[domain]
+                embs = embed_data(args, seqs, base_model, tokenizer, expert, domain)
+                emb_dict = dict(zip(seqs, embs))
             else:
-                emb_dict = dict(zip(seqs, embed_standard_plm(args, base_model, tokenizer, seqs)))
+                emb_dict = dict(zip(seqs, embed_data(args, seqs, base_model, tokenizer)))
 
             base_model.to('cpu')  # Move base_model off the device
             torch.cuda.empty_cache()  # Clear the VRAM

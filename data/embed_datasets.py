@@ -4,141 +4,137 @@ import sqlite3
 from tqdm.auto import tqdm
 
 
-def embed_standard_plm(cfg, model, tokenizer, seqs, full=False, pooling='mean', max_length=512):
-    model.eval()
-    input_embeddings = []
-    with torch.no_grad():
-        for sample in tqdm(seqs, desc='Embedding'):
-            ids = tokenizer(sample,
-                            add_special_tokens=True,
-                            padding=False,
-                            return_token_type_ids=False,
-                            return_tensors='pt').input_ids.to(cfg.device)
-            output = model(ids)
-            try:
-                emb = output.last_hidden_state.float()
-            except:
-                emb = output.hidden_states[-1].float()
-            if full:
-                if emb.size(1) < max_length:
-                    padding_needed = max_length - emb.size(1)
-                    emb = torch.nn.functional.pad(emb, (0, 0, 0, padding_needed, 0, 0), value=0)
-                else:
-                    emb = emb[:, :max_length, :]
-                input_embeddings.append(emb.detach().cpu().numpy())
-            else:
-                if pooling == 'cls':
-                    emb = emb[:, 0, :]
-                elif pooling == 'mean':
-                    emb = torch.mean(emb, dim=1, keepdim=False)
-                else:
-                    emb = torch.max(emb, dim=1, keepdim=False)[0]
-                input_embeddings.append(emb.detach().cpu().numpy())
-    return input_embeddings
-
-
-def embed_double_dataset(args, model, tokenizer, seqs):
-    model.eval()
-    input_embeddings = []
-    with torch.no_grad():
-        for sample in tqdm(seqs, desc='Embedding'):
-            toks = tokenizer(sample,
-                            add_special_tokens=True,
-                            padding=False,
-                            return_token_type_ids=False,
-                            return_tensors='pt')
-            ids = toks.input_ids[:, 1:].to(args.device) # remove cls token
-            mask = toks.attention_mask[:, 1:].to(args.device)
-            base_ids = model.tokenizer_base(sample,
-                            add_special_tokens=True,
-                            padding=False,
-                            return_token_type_ids=False,
-                            return_tensors='pt').input_ids.to(args.device)
-
-            emb = model.embed(base_ids, ids, mask).float().detach().cpu().numpy()
-            input_embeddings.append(emb)
-    return input_embeddings
-
-
-def embed_domain_moe_dataset(args, model, tokenizer, seqs, expert, domain):
-    model.eval()
-    input_embeddings = []
-    add_token = args.new_special_tokens
-    with torch.no_grad():
-        for sample in tqdm(seqs, desc='Embedding'):
-            ids = tokenizer(sample,
-                            add_special_tokens=True,
-                            padding=False,
-                            return_token_type_ids=False,
-                            return_tensors='pt').input_ids.to(args.device)
-            if add_token:
-                ids[0][0] = tokenizer(domain, add_special_tokens=False).input_ids[0]
-            if args.full:
-                emb = model.embed_matrix(ids, r_labels=expert).float().detach().cpu().numpy()
-                if emb.size(1) < args.max_length:
-                    padding_needed = args.max_length - emb.size(1)
-                    emb = torch.nn.functional.pad(emb, (0, 0, 0, padding_needed, 0, 0), value=0)
-                else:
-                    emb = emb[:, :args.max_length, :]
-            else:
-                emb = model.embed(ids, r_labels=expert).float().detach().cpu().numpy()
-            input_embeddings.append(emb)
-    return input_embeddings
-
-
-def embed_protein_vec_dataset(model, seqs, aspect_token):
-    embeds = model.embed(seqs, aspect_token)
-    return embeds.tolist()
-
-
-def embed_dataset_and_save(cfg, model, tokenizer, seqs):
-    model.eval()
-    db_file = cfg.db_path
-    batch_size = 1000
-    full = cfg.full
-    with sqlite3.connect(db_file) as conn:
-        c = conn.cursor()
-        c.execute("CREATE TABLE IF NOT EXISTS embeddings (sequence TEXT PRIMARY KEY, embedding BLOB)")
+def prepare_embed_standard_model(model, tokenizer, max_length, full, pooling, device):
+    def embed_standard_model(seqs):
+        embeddings = []
         with torch.no_grad():
-            for i in tqdm(range(0, len(seqs), batch_size), desc='Batches'):
-                batch_seqs = seqs[i:i + batch_size]
-                embeddings = []
-                for sample in tqdm(batch_seqs, desc='Embedding'):  # Process embeddings in batches
-                    ids = tokenizer(sample,
-                                    add_special_tokens=True,
-                                    padding=False,
-                                    return_token_type_ids=False,
-                                    return_tensors='pt').input_ids.to(cfg.device)
-                    if full:
-                        embedding = model.embed_matrix(ids).detach().cpu().numpy()
+            for seq in tqdm(seqs, desc='Embedding batch'):
+                ids = tokenizer(seq,
+                        add_special_tokens=True,
+                        padding=False,
+                        return_token_type_ids=False,
+                        return_tensors='pt').input_ids.to(device)
+                output = model(ids)
+                try:
+                    emb = output.last_hidden_state.float()
+                except:
+                    emb = output.hidden_states[-1].float()
+                if full:
+                    if emb.size(1) < max_length:
+                        padding_needed = max_length - emb.size(1)
+                        emb = torch.nn.functional.pad(emb, (0, 0, 0, padding_needed, 0, 0), value=0)
                     else:
-                        embedding = model(ids).detach().cpu().numpy()
-                    embeddings.append(embedding) # add if cfg.full for matrix
+                        emb = emb[:, :max_length, :]
+                else:
+                    if pooling == 'cls':
+                        emb = emb[:, 0, :]
+                    elif pooling == 'mean':
+                        emb = torch.mean(emb, dim=1, keepdim=False)
+                    else:
+                        emb = torch.max(emb, dim=1, keepdim=False)[0]
+                embeddings.append(emb.detach().cpu().numpy())
+        return embeddings
+    return embed_standard_model
 
-                for seq, emb in zip(batch_seqs, embeddings):
-                    emb_data = np.array(emb).tobytes()
+
+def prepare_embed_double_model(model, tokenizer, device):
+    def embed_double_model(seqs):
+        embeddings = []
+        with torch.no_grad():
+            for seq in tqdm(seqs, desc='Embedding batch'):
+                toks = tokenizer(seq,
+                                add_special_tokens=True,
+                                padding=False,
+                                return_token_type_ids=False,
+                                return_tensors='pt')
+                ids = toks.input_ids[:, 1:].to(device) # remove cls token
+                mask = toks.attention_mask[:, 1:].to(device)
+                base_ids = model.tokenizer_base(seq,
+                                add_special_tokens=True,
+                                padding=False,
+                                return_token_type_ids=False,
+                                return_tensors='pt').input_ids.to(device)
+                emb = model.embed(base_ids, ids, mask).float().detach().cpu().numpy()
+                embeddings.append(emb.detach().cpu().numpy())
+        return embeddings
+    return embed_double_model
+
+
+def prepare_embed_moe_model(model, tokenizer, device, domain, expert, full, max_length, add_token=False):
+    def embed_moe_model(seqs):
+        embeddings = []
+        with torch.no_grad():
+            for seq in tqdm(seqs, desc='Embedding batch'):
+                ids = tokenizer(seq,
+                                add_special_tokens=True,
+                                padding=False,
+                                return_token_type_ids=False,
+                                return_tensors='pt').input_ids.to(device)
+                if add_token:
+                    ids[0][0] = tokenizer(domain, add_special_tokens=False).input_ids[0]
+                if full:
+                    emb = model.embed_matrix(ids, r_labels=expert).float().detach().cpu().numpy()
+                    if emb.size(1) < max_length:
+                        padding_needed = max_length - emb.size(1)
+                        emb = torch.nn.functional.pad(emb, (0, 0, 0, padding_needed, 0, 0), value=0)
+                    else:
+                        emb = emb[:, :max_length, :]
+                else:
+                    emb = model.embed(ids, r_labels=expert).float().detach().cpu().numpy()
+                embeddings.append(emb)
+        return emb
+    return embed_moe_model
+
+
+def prepare_embed_protein_vec_dataset(model):
+    def embed_protein_vec_dataset(seqs, aspect_token):
+        with torch.no_grad():
+            embeds = model.embed(seqs, aspect_token)
+        return embeds.tolist()
+    return embed_protein_vec_dataset
+
+
+def embed_data(cfg,
+               seqs,
+               model,
+               tokenizer,
+               expert=None,
+               domain=None):
+    
+    model_type = cfg.model_type.lower()
+    sql = cfg.sql
+    db_file = cfg.db_path
+    full = cfg.full
+    max_length = cfg.max_length
+    device = cfg.device
+    add_token = cfg.new_special_tokens
+    pooling = cfg.pooling
+
+    model.eval()
+    embeddings = []
+    batch_size = 1000
+
+    if model_type == 'triplet':
+        embed_seqs = prepare_embed_moe_model(model, tokenizer, device, domain, expert, full, max_length, add_token)
+    elif model_type == 'proteinvec':
+        embed_seqs = prepare_embed_protein_vec_dataset(model)
+    elif model_type == 'double':
+        embed_seqs = prepare_embed_double_model(model, tokenizer, device)
+    else:
+        embed_seqs = prepare_embed_standard_model(model, tokenizer, max_length, full, pooling, device)
+
+    for i in tqdm(range(0, len(seqs), batch_size), desc='Batches'):
+        batch_seqs = seqs[i:i + batch_size]
+        embs = embed_seqs(batch_seqs)
+        if sql:
+            with sqlite3.connect(db_file) as conn:
+                c = conn.cursor()
+                c.execute("CREATE TABLE IF NOT EXISTS embeddings (sequence TEXT PRIMARY KEY, embedding BLOB)")
+                emb_data = np.array(emb).tobytes()
+                for seq, emb in zip(batch_seqs, embs):
                     c.execute("INSERT INTO embeddings VALUES (?, ?)", (seq, emb_data))
                 conn.commit()
-
-
-def save_embeddings_to_disk(emb_dict, db_file="embeddings.db"):
-    with sqlite3.connect(db_file) as conn:
-        c = conn.cursor()
-        c.execute("CREATE TABLE IF NOT EXISTS embeddings (sequence TEXT PRIMARY KEY, embedding BLOB)")
-
-        for seq, emb in emb_dict.items():
-            emb_data = np.array(emb).tobytes()  # Serialize using NumPy
-            c.execute("INSERT INTO embeddings VALUES (?, ?)", (seq, emb_data))
-        conn.commit()
-
-
-def load_embedding(seq, db_file="embeddings.db"):
-    with sqlite3.connect(db_file) as conn:
-        c = conn.cursor()
-        result = c.execute("SELECT embedding FROM embeddings WHERE sequence=?", (seq,))
-        row = result.fetchone()
-        if row is not None:
-            emb_data = row[0]
-            return np.frombuffer(emb_data, dtype=np.float32).reshape(-1)  # Deserialize
         else:
-            return None
+            embeddings.extend(embs)
+    if embeddings:
+        return embeddings

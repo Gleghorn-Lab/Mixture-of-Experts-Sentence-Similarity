@@ -93,6 +93,7 @@ def main():
             max_length = args.max_length
             tokenizer_base = AutoTokenizer.from_pretrained('lhallee/ankh_base_encoder')
             double_collator = create_double_collator(tokenizer_base, tokenizer, max_length)
+            evaluate_model_downstream(yargs, eval_config, model, tokenizer, token=args.token)
             evaluate_contrastive_model(yargs,
                                        tokenizer=tokenizer,
                                        model=model,
@@ -100,7 +101,6 @@ def main():
                                        get_dataset=get_datasets_test_sentence_sim,
                                        data_collator=double_collator,
                                        token=args.token)
-            evaluate_model_downstream(yargs, eval_config, model, tokenizer, token=args.token)
             if args.extra_eval:
                 evaluate_contrastive_model(yargs,
                                         tokenizer=tokenizer,

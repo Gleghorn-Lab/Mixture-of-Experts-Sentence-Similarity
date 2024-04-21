@@ -54,7 +54,7 @@ general_args:
 
 # Paths
   log_path: './results_moesm_double.txt'  # Path to save the log file
-  weight_path: null  # Path to the model weights to load
+  weight_path: 'weights/lhallee-moesm_double_8_mid'  # Path to the model weights to load
   save_path: 'moesm_double.pt'
 
 # Training settings
@@ -67,8 +67,8 @@ general_args:
 training_args:
   output_dir: !!str ./output
   logging_dir: !!str ./logs
-  per_device_train_batch_size: !!int 12
-  per_device_eval_batch_size: !!int 12
+  per_device_train_batch_size: !!int 2
+  per_device_eval_batch_size: !!int 2
   gradient_accumulation_steps: !!int 1
   learning_rate: !!float 1e-5
   lr_scheduler_type: !!str cosine
@@ -120,7 +120,7 @@ eval_args:
     - 'lhallee/dl_binary_reg'
     - 'lhallee/dl_ten_reg'
     - 'lhallee/MetalIonBinding_reg'
-  weight_path: 'weights/lhallee-moesm_double_8'
+  weight_path: 'weights/lhallee-moesm_double_8_mid'
   log_path: ./results_moesm_double_downstream.txt
   db_path: moesm_double.db
 

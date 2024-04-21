@@ -13,3 +13,4 @@ data_compilation/swiss_prot_duplicates.txt
 *.bash
 /output
 *.db
+*.json

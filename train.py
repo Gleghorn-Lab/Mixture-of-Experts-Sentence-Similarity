@@ -6,7 +6,7 @@ from data.load_data import (
     get_datasets_train_triplet,
     get_datasets_test_triplet,
 )
-from trainer import HF_trainer
+from trainer import HF_trainer, DoubleTrainer
 from evaluate import (
     evaluate_contrastive_model,
     evaluate_model_downstream,
@@ -84,7 +84,7 @@ def train_double_model(yargs, model, tokenizer, compute_metrics, token=None):
 
     tokenizer_base = AutoTokenizer.from_pretrained('lhallee/ankh_base_encoder')
     double_collator = create_double_collator(tokenizer_base, tokenizer, max_length)
-    trainer = HF_trainer(model, train_dataset, valid_dataset,
+    trainer = HF_trainer(model, train_dataset, valid_dataset, double=True,
                          compute_metrics=compute_metrics, data_collator=double_collator,
                          patience=args['patience'], EX=args['expert_loss'], **training_args)
     trainer.train()

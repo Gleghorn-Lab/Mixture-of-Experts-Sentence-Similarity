@@ -645,6 +645,7 @@ class MoEsmLayer(nn.Module):
             elif config.moe_type.lower() == 'enforce': self.moe_block = SentenceEnforcedSwitchMoeBlock(config, expert=EsmExpert)
             elif config.moe_type.lower() == 'topk': self.moe_block = SentenceTopKMoeBlock(config, expert=EsmExpert)
             elif config.moe_type.lower() == 'tokentype': self.moe_block = SentenceTokenTypeMoeBlock(config, expert=EsmExpert)
+            elif config.moe_type.lower() == 'none': self.moe_block = NoMoeBlock(config, expert=EsmExpert)
             else: print(f'Incorrect MOE type {config.moe_type}, try again')
 
     def forward(

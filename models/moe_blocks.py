@@ -3,6 +3,18 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+class NoMoeBlock(nn.Module):
+    def __init__(self, config, expert):
+        """
+        Stand in for no moe, but extended MLP
+        """
+        super().__init__()
+        self.experts = nn.ModuleList([expert(config) for _ in range(1)])
+
+    def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
+        return self.experts[0](hidden_states)
+
+
 class SentenceTokenTypeMoeBlock(nn.Module):
     def __init__(self, config, expert):
         super().__init__()

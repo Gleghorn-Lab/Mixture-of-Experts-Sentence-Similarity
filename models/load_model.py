@@ -30,18 +30,19 @@ from .model_zoo import (
 def load_models(args):
     if args.ESM:
         tokenizer = EsmTokenizer.from_pretrained(args.model_path)
-        base_model = EsmModel.from_pretrained(args.model_path,
-                                               hidden_dropout_prob = args.hidden_dropout_prob,
-                                               attention_probs_dropout_prob = 0.0)
         if args.MOE:
             loader = MoEsmLoadWeights(args)
             model, tokenizer = loader.get_seeded_model(tokenizer=tokenizer)
         elif args.model_type.lower() == 'sentencesimilarity':
+            base_model = EsmModel.from_pretrained(args.model_path,
+                                                hidden_dropout_prob = args.hidden_dropout_prob,
+                                                attention_probs_dropout_prob = 0.0)
             model = EsmForSentenceSimilarity(base_model.config, base_model)
         elif args.model_type.lower() == 'triplet':
+            base_model = EsmModel.from_pretrained(args.model_path,
+                                                hidden_dropout_prob = args.hidden_dropout_prob,
+                                                attention_probs_dropout_prob = 0.0)
             model = EsmForTripletSimilarity(base_model.config, base_model)
-        elif args.model_type.lower() == 'double':
-            model = EsmVec(base_model.config, esm=base_model)
     
     else:
         tokenizer = BertTokenizer.from_pretrained(args.model_path)
@@ -284,7 +285,10 @@ class MoEsmLoadWeights:
             from transformers import EsmModel as EsmModelTransformers
             self.esm_base = EsmModelTransformers.from_pretrained(self.model_path)
             self.config = self.get_config(self.esm_base)
-            model = MoEsmVec(config=self.config)
+            if self.args.moe_type.lower() == 'none':
+                model = EsmVec(config=self.config)
+            else:
+                model = MoEsmVec(config=self.config)
 
         else: print(f'You entered {self.model_type}\nValid options are:\nModel , MaskedLM , SequenceClassification , TokenClassification , Triplet , SentenceSimilarity , Double')
         

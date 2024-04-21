@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from transformers.modeling_outputs import SequenceClassifierOutput
 from transformers.models.bert.modeling_bert import BertPreTrainedModel
-from transformers.models.esm.modeling_esm import EsmPreTrainedModel
+from transformers.models.esm.modeling_esm import EsmPreTrainedModel, EsmModel
 from .modeling_moebert import MoEBertModel
 from .modeling_moesm import MoEsmPreTrainedModel, MoEsmModel, BaseAdapter, EsmAdapter
 from .losses import clip_loss, LoadBalancingLoss, MI_loss, SpecifiedExpertLoss, get_loss_fct 
@@ -215,7 +215,6 @@ class MoEsmVec(MoEsmPreTrainedModel):
             logits=logits,
             loss=loss
         )
-
 
 
 class EsmVec(EsmPreTrainedModel):

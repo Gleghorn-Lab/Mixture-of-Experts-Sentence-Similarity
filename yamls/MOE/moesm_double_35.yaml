@@ -8,7 +8,7 @@ general_args:
 # MOE
   single_moe: false
   moe_type: 'topk'
-  MOE: true
+  MOE: false
   token_moe: true
   num_experts: 8  # Number of experts
   topk: 2  # Number of experts per block

@@ -39,6 +39,8 @@ def load_models(args):
             model = EsmForSentenceSimilarity(base_model.config, base_model)
         elif args.model_type.lower() == 'triplet':
             model = EsmForTripletSimilarity(base_model.config, base_model)
+        elif args.model_type.lower() == 'double':
+            model = MoEsmVec(config, esm=base_model)
     
     else:
         tokenizer = BertTokenizer.from_pretrained(args.model_path)

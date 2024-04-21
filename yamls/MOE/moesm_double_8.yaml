@@ -79,7 +79,7 @@ training_args:
   save_steps: !!int 1000
   save_total_limit: !!int 3
   evaluation_strategy: !!str steps
-  eval_steps: 1000
+  eval_steps: 10
   logging_strategy: steps
   logging_steps: !!int 1
   fp16: false

@@ -141,7 +141,6 @@ class DoubleTrainer(Trainer):
                 emb_a = torch.cat(self.accumulated_a, dim=0)
                 emb_b = torch.cat(self.accumulated_b, dim=0)
                 loss = self.loss(emb_a, emb_b, self.temp)
-                print('Eval loss updated: ', loss)
                 losses = self.gather_function((loss.repeat(batch_size * gradient_accumulation_steps)))
                 all_losses.add(losses)
                 self.accumulated_a = []

@@ -180,7 +180,7 @@ class MoEsmVec(MoEsmPreTrainedModel):
         final_state = self.proj(final_state) # (B, L, b)
         attention_mask_expanded = attention_mask.unsqueeze(-1).expand(final_state.size())
         final_state = final_state.masked_fill(attention_mask_expanded == 0, float('-inf'))
-        # we scale the final output for numericla stability during training
+        # we scale the final output for numerical stability during training
         pooled_output = torch.max(final_state, dim=1)[0] / self.scale_dim  # (B, b) 
         return pooled_output, router_logits
     
@@ -266,7 +266,7 @@ class EsmVec(EsmPreTrainedModel):
         final_state = self.proj(final_state) # (B, L, b)
         attention_mask_expanded = attention_mask.unsqueeze(-1).expand(final_state.size())
         final_state = final_state.masked_fill(attention_mask_expanded == 0, float('-inf'))
-        # we scale the final output for numericla stability during training
+        # we scale the final output for numerical stability during training
         pooled_output = torch.max(final_state, dim=1)[0] / self.scale_dim  # (B, b) 
         return pooled_output
     

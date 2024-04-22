@@ -53,8 +53,8 @@ general_args:
   wandb_name: triplet_test
 
 # Paths
-  log_path: './results_moesm_double_late.txt'  # Path to save the log file
-  weight_path: 'weights/lhallee-moesm_double_8_late'  # Path to the model weights to load
+  log_path: './results_moesm_double_very_very_late.txt'  # Path to save the log file
+  weight_path: 'weights/lhallee-moesm_double_8_very_very_late'  # Path to the model weights to load
   save_path: 'moesm_double.pt'
 
 # Training settings
@@ -120,9 +120,9 @@ eval_args:
     - 'lhallee/dl_binary_reg'
     - 'lhallee/dl_ten_reg'
     - 'lhallee/MetalIonBinding_reg'
-  weight_path: 'weights/lhallee-moesm_double_8_late'
-  log_path: ./results_moesm_double_late_downstream.txt
-  db_path: moesm_double_late.db
+  weight_path: 'weights/lhallee-moesm_double_8_very_very_late'
+  log_path: ./results_moesm_double_very_very_late.txt
+  db_path: moesm_double_very_very_late.db
 
 # New tokens
   domains:
@@ -143,8 +143,8 @@ eval_args:
   num_labels: 4
 
 # Data settings
-  trim: false
-  max_length: 512
+  trim: true
+  max_length: 1024
   skip: false # skip embedding, already embedded
   pooling: 'mean'
   read_scaler: 100

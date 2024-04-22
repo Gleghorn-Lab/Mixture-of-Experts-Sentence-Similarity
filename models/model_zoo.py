@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 from transformers.modeling_outputs import SequenceClassifierOutput
 from transformers.models.bert.modeling_bert import BertPreTrainedModel
+from transformers.models.esm.modeling_esm import EsmPreTrainedModel, EsmModel
 from .modeling_moebert import MoEBertModel
 from .modeling_moesm import MoEsmPreTrainedModel, MoEsmModel, BaseAdapter, EsmAdapter
 from .losses import clip_loss, LoadBalancingLoss, MI_loss, SpecifiedExpertLoss, get_loss_fct 
@@ -138,8 +139,9 @@ class MoEsmVec(MoEsmPreTrainedModel):
         base_dim = base_config.d_model
         esm_dim = config.hidden_size
         self.scale_dim = math.sqrt(base_dim)
-        self.base_adapter = BaseAdapter(num_base_layers, base_dim, esm_dim)
-        self.esm_adapter = EsmAdapter(num_base_layers, config.num_hidden_layers, base_dim, esm_dim)
+        self.gated = config.gated
+        self.base_adapter = BaseAdapter(num_base_layers, base_dim, esm_dim, gated=config.gated)
+        self.esm_adapter = EsmAdapter(num_base_layers, config.num_hidden_layers, base_dim, esm_dim, gated=config.gated)
 
         self.proj = nn.Sequential(
             nn.Linear(base_dim + esm_dim, base_dim + esm_dim),
@@ -165,19 +167,20 @@ class MoEsmVec(MoEsmPreTrainedModel):
                                attention_mask,
                                output_hidden_states=True).hidden_states
         base_state = torch.stack(base_state, dim=1).float()
-        esm_state = self.esm.get_word_embeddings(plm_input_ids)
+        esm_state = self.esm.embeddings.word_embeddings(plm_input_ids)
         input_embeddings = self.base_adapter(base_state, esm_state)
+        if self.gated:
+            input_embeddings = input_embeddings.to(torch.bfloat16)
         esm_output = self.esm(inputs_embeds=input_embeddings,
                              attention_mask=attention_mask,
                              output_hidden_states=True)
         router_logits = esm_output.router_logits
-
-        esm_state = torch.stack(esm_output.hidden_states, dim=1)  # (B, esm_layers, L, d)
+        esm_state = torch.stack(esm_output.hidden_states, dim=1).float()  # (B, esm_layers, L, d)
         final_state = self.esm_adapter(base_state, esm_state) # (B, L, b + d)
         final_state = self.proj(final_state) # (B, L, b)
         attention_mask_expanded = attention_mask.unsqueeze(-1).expand(final_state.size())
         final_state = final_state.masked_fill(attention_mask_expanded == 0, float('-inf'))
-        # we scale the final output for numericla stability during training
+        # we scale the final output for numerical stability during training
         pooled_output = torch.max(final_state, dim=1)[0] / self.scale_dim  # (B, b) 
         return pooled_output, router_logits
     
@@ -210,6 +213,85 @@ class MoEsmVec(MoEsmPreTrainedModel):
         logits = (emb_a, emb_b)
         loss = c_loss + r_loss
         
+        return SentenceSimilarityOutput(
+            logits=logits,
+            loss=loss
+        )
+
+
+class EsmVec(EsmPreTrainedModel):
+    def __init__(self, config, esm=None):
+        super().__init__(config)
+        from transformers import T5EncoderModel, AutoTokenizer
+        self.base = T5EncoderModel.from_pretrained('lhallee/ankh_base_encoder')
+        self.tokenizer_base = AutoTokenizer.from_pretrained('lhallee/ankh_base_encoder')
+        for param in self.base.parameters():
+            param.data = param.data.to(torch.bfloat16)
+            param.requires_grad = False
+        base_config = self.base.config
+        num_base_layers = base_config.num_layers
+        base_dim = base_config.d_model
+        esm_dim = config.hidden_size
+        self.scale_dim = math.sqrt(base_dim)
+        self.gated = config.gated
+        self.base_adapter = BaseAdapter(num_base_layers, base_dim, esm_dim, config.gated)
+        self.esm_adapter = EsmAdapter(num_base_layers, config.num_hidden_layers, base_dim, esm_dim, config.gated)
+
+        self.proj = nn.Sequential(
+            nn.Linear(base_dim + esm_dim, base_dim + esm_dim),
+            nn.ReLU(),
+            nn.Linear(base_dim + esm_dim, base_dim),
+            nn.ReLU(),
+            nn.Linear(base_dim, base_dim)
+        )
+        
+        self.esm = esm if esm is not None else MoEsmModel(config, add_pooling_layer=False)
+        self.contrastive_loss = clip_loss
+        self.temp = torch.tensor(1.0)
+
+    def process_batch(self, base_input_ids, plm_input_ids, attention_mask):
+        base_state = self.base(base_input_ids,
+                               attention_mask,
+                               output_hidden_states=True).hidden_states
+        base_state = torch.stack(base_state, dim=1).float()
+        esm_state = self.esm.embeddings.word_embeddings(plm_input_ids)
+        input_embeddings = self.base_adapter(base_state, esm_state)
+        if self.gated:
+            input_embeddings = input_embeddings.to(torch.bfloat16)
+        esm_output = self.esm(inputs_embeds=input_embeddings,
+                             attention_mask=attention_mask,
+                             output_hidden_states=True)
+        esm_state = torch.stack(esm_output.hidden_states, dim=1).float()  # (B, esm_layers, L, d)
+        final_state = self.esm_adapter(base_state, esm_state) # (B, L, b + d)
+        final_state = self.proj(final_state) # (B, L, b)
+        attention_mask_expanded = attention_mask.unsqueeze(-1).expand(final_state.size())
+        final_state = final_state.masked_fill(attention_mask_expanded == 0, float('-inf'))
+        # we scale the final output for numerical stability during training
+        pooled_output = torch.max(final_state, dim=1)[0] / self.scale_dim  # (B, b) 
+        return pooled_output
+    
+    def embed(self, base_input_ids, plm_input_ids, attention_mask):
+        return self.process_batch(base_input_ids, plm_input_ids, attention_mask)[0]
+
+    def forward(self,
+                base_a_ids,
+                base_b_ids,
+                plm_a_ids,
+                plm_b_ids,
+                a_mask,
+                b_mask,
+                r_labels=None,
+                labels=None):
+        
+        if random.random() < 0.5:
+            emb_a = self.process_batch(base_a_ids, plm_a_ids, a_mask)
+            emb_b = self.process_batch(base_b_ids, plm_b_ids, b_mask)
+        else:
+            emb_b = self.process_batch(base_a_ids, plm_a_ids, a_mask)
+            emb_a = self.process_batch(base_b_ids, plm_b_ids, b_mask)
+
+        loss = self.contrastive_loss(emb_a, emb_b, self.temp)
+        logits = (emb_a, emb_b)
         return SentenceSimilarityOutput(
             logits=logits,
             loss=loss

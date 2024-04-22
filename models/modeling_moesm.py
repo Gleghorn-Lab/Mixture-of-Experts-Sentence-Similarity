@@ -112,14 +112,49 @@ def create_position_ids_from_input_ids(input_ids, padding_idx, past_key_values_l
     return incremental_indices.long() + padding_idx
 
 
-class BaseAdapter(nn.Module):
-    def __init__(self, num_layers, base_dim, esm_dim):
+class LayerNorm(nn.Module):
+    def __init__(self, hidden_size, eps=1e-6):
+        """
+        Equivalent to T5LayerNorm
+        """
         super().__init__()
-        self.base_conv = nn.Conv2d(num_layers+1, 1, 3, 1, 1)
+        self.weight = nn.Parameter(torch.ones(hidden_size))
+        self.variance_epsilon = eps
+
+    def forward(self, hidden_states):
+        variance = hidden_states.to(torch.float32).pow(2).mean(-1, keepdim=True)
+        hidden_states = hidden_states * torch.rsqrt(variance + self.variance_epsilon)
+        if self.weight.dtype in [torch.float16, torch.bfloat16]: # robust to half precision
+            hidden_states = hidden_states.to(self.weight.dtype)
+        return self.weight * hidden_states
+
+
+class BaseAdapter(nn.Module):
+    def __init__(self, num_layers, base_dim, esm_dim, gated=False):
+        super().__init__()
+        self.gated = gated
+        if gated:
+            self.base_gate = nn.Linear(base_dim, num_layers)
+            self.topk = 4 # take 4 layers plus last layer
+        else:
+            self.topk = num_layers
+        self.base_conv = nn.Conv2d(self.topk+1, 1, 3, 1, 1) # topk + last_hidden_state
         self.base_proj = nn.Linear(base_dim, esm_dim)
         self.combine_conv = nn.Conv2d(2, 1, 3, 1, 1)
 
-    def forward(self, base_state, esm_state): # (B, num_layers, L, b) (B, L, d)
+    def preconv_gate(self, gate, state):
+        logits = gate(state[:, -1, :, :]) # (B, L, num_layers)
+        weights = logits.mean(dim=1).softmax(dim=-1) # (B, num_layers)
+        selected_channels = torch.topk(weights, self.topk, dim=-1)[1] # (B, topk)
+        last_layer_index = torch.tensor([state.size(1) - 1], device=selected_channels.device).expand(selected_channels.size(0), 1) # (B, 1)
+        selected_channels = torch.cat([selected_channels, last_layer_index], dim=1) # (B, topk+1)
+        selected_channels = selected_channels.unsqueeze(2).unsqueeze(3).expand(-1, -1, state.size(2), state.size(3)) # (B, topk+1, L, b)
+        state = torch.gather(state, 1, selected_channels) # (B, topk+1, L, b)
+        return state
+
+    def forward(self, base_state, esm_state): # (B, num_layers+1, L, b) (B, L, d)
+        if self.gated:
+            base_state = self.preconv_gate(self.base_gate, base_state)
         base_state = self.base_conv(base_state) # (B, 1, L, b)
         base_state = self.base_proj(base_state) # (B, 1, L, d)
         combined_state = torch.cat([base_state, esm_state.unsqueeze(1)], dim=1) # (B, 2, L, d)
@@ -128,13 +163,33 @@ class BaseAdapter(nn.Module):
 
 
 class EsmAdapter(nn.Module):
-    def __init__(self, base_layers, esm_layers, base_dim, esm_dim):
+    def __init__(self, base_layers, esm_layers, base_dim, esm_dim, gated=False):
         super().__init__()
-        self.base_conv = nn.Conv2d(base_layers+1, 1, 3, 1, 1)
-        self.esm_conv = nn.Conv2d(esm_layers+1, 1, 3, 1, 1)
-        self.esm_proj = nn.Linear(esm_dim, base_dim)
+        self.gated = gated
+        if gated:
+            self.base_gate = nn.Linear(base_dim, base_layers)
+            self.esm_gate = nn.Linear(esm_dim, esm_layers)
+            self.topk = 4
+            self.base_conv = nn.Conv2d(self.topk+1, 1, 3, 1, 1)
+            self.esm_conv = nn.Conv2d(self.topk+1, 1, 3, 1, 1)
+        else:
+            self.base_conv = nn.Conv2d(base_layers+1, 1, 3, 1, 1)
+            self.esm_conv = nn.Conv2d(esm_layers+1, 1, 3, 1, 1)
+
+    def preconv_gate(self, gate, state):
+        logits = gate(state[:, -1, :, :]) # (B, L, num_layers)
+        weights = logits.mean(dim=1).softmax(dim=-1) # (B, num_layers)
+        selected_channels = torch.topk(weights, self.topk, dim=-1)[1] # (B, topk)
+        last_layer_index = torch.tensor([state.size(1) - 1], device=selected_channels.device).expand(selected_channels.size(0), 1) # (B, 1)
+        selected_channels = torch.cat([selected_channels, last_layer_index], dim=1) # (B, topk+1)
+        selected_channels = selected_channels.unsqueeze(2).unsqueeze(3).expand(-1, -1, state.size(2), state.size(3)) # (B, topk+1, L, b)
+        state = torch.gather(state, 1, selected_channels) # (B, topk+1, L, b)
+        return state
 
     def forward(self, base_state, esm_state): # (B, base_layers, L, b) (B, esm_layers, L, d)
+        if self.gated:
+            base_state = self.preconv_gate(self.base_gate, base_state) # (B, topk+1, L, b)
+            esm_state = self.preconv_gate(self.esm_gate, esm_state) # (B, topk+1, L, d)
         base_state = self.base_conv(base_state).squeeze(1) # (B, L, b)
         esm_state = self.esm_conv(esm_state).squeeze(1) # (B, L, d)
         combined = torch.cat([base_state, esm_state], dim=-1) # (B, L, d + b)
@@ -181,6 +236,7 @@ class RotaryEmbedding(nn.Module):
         self._sin_cached = None
 
     def _update_cos_sin_tables(self, x, seq_dimension=2):
+        x_dtype = x.dtype
         seq_len = x.shape[seq_dimension]
 
         # Reset the tables if the sequence length has changed,
@@ -188,7 +244,7 @@ class RotaryEmbedding(nn.Module):
         if seq_len != self._seq_len_cached or self._cos_cached.device != x.device:
             self._seq_len_cached = seq_len
             t = torch.arange(x.shape[seq_dimension], device=x.device).type_as(self.inv_freq)
-            freqs = torch.outer(t, self.inv_freq)
+            freqs = torch.outer(t, self.inv_freq).to(x_dtype)
             emb = torch.cat((freqs, freqs), dim=-1).to(x.device)
 
             self._cos_cached = emb.cos()[None, None, :, :]
@@ -250,7 +306,7 @@ class MoEsmEmbeddings(nn.Module):
         self.word_embeddings = nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id)
 
         if config.emb_layer_norm_before:
-            self.layer_norm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+            self.layer_norm = LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         else:
             self.layer_norm = None
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
@@ -442,7 +498,7 @@ class MoEsmSelfAttention(nn.Module):
 
         if attention_mask is not None:
             # Apply the attention mask is (precomputed for all layers in EsmModel forward() function)
-            attention_scores = attention_scores + attention_mask
+            attention_scores = attention_scores + attention_mask.to(attention_scores.dtype)
 
         # Normalize the attention scores to probabilities.
         attention_probs = nn.functional.softmax(attention_scores, dim=-1)
@@ -487,7 +543,7 @@ class MoEsmAttention(nn.Module):
         self.self = MoEsmSelfAttention(config)
         self.output = MoEsmSelfOutput(config)
         self.pruned_heads = set()
-        self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        self.LayerNorm = LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
 
     def prune_heads(self, heads):
         if len(heads) == 0:
@@ -547,7 +603,7 @@ class EsmLayer(nn.Module):
             self.crossattention = EsmAttention(config)
         self.intermediate = EsmIntermediate(config)
         self.output = EsmOutput(config)
-        self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        self.LayerNorm = LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
 
     def forward(
         self,
@@ -637,7 +693,7 @@ class MoEsmLayer(nn.Module):
                 raise RuntimeError(f"{self} should be used as a decoder model if cross attention is added")
             self.crossattention = MoEsmAttention(config)
 
-        self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        self.LayerNorm = LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         if config.token_moe:
             self.moe_block = TokenTopKMoeBlock(config, expert=EsmExpert)
         else:
@@ -645,6 +701,7 @@ class MoEsmLayer(nn.Module):
             elif config.moe_type.lower() == 'enforce': self.moe_block = SentenceEnforcedSwitchMoeBlock(config, expert=EsmExpert)
             elif config.moe_type.lower() == 'topk': self.moe_block = SentenceTopKMoeBlock(config, expert=EsmExpert)
             elif config.moe_type.lower() == 'tokentype': self.moe_block = SentenceTokenTypeMoeBlock(config, expert=EsmExpert)
+            elif config.moe_type.lower() == 'none': self.moe_block = NoMoeBlock(config, expert=EsmExpert)
             else: print(f'Incorrect MOE type {config.moe_type}, try again')
 
     def forward(
@@ -739,7 +796,7 @@ class MoEsmEncoder(nn.Module):
         else:
             self.layer = nn.ModuleList([MoEsmLayer(config) for _ in range(config.num_hidden_layers)])
         self.single_moe = config.single_moe
-        self.emb_layer_norm_after = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        self.emb_layer_norm_after = LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.gradient_checkpointing = False
 
     def forward(
@@ -878,8 +935,7 @@ class MoEsmPreTrainedModel(PreTrainedModel):
             module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
             if module.padding_idx is not None:
                 module.weight.data[module.padding_idx].zero_()
-        elif isinstance(module, nn.LayerNorm):
-            module.bias.data.zero_()
+        elif isinstance(module, LayerNorm):
             module.weight.data.fill_(1.0)
 
 
@@ -976,9 +1032,6 @@ class MoEsmModel(MoEsmPreTrainedModel):
 
     def set_input_embeddings(self, value):
         self.embeddings.word_embeddings = value
-
-    def get_word_embeddings(self, input_ids):
-        return self.embeddings.word_embeddings(input_ids)
 
     def _prune_heads(self, heads_to_prune):
         """
@@ -1089,7 +1142,8 @@ class MoEsmModel(MoEsmPreTrainedModel):
             attention_mask=attention_mask,
             inputs_embeds=inputs_embeds,
             past_key_values_length=past_key_values_length,
-        )
+        ).to(self.encoder.emb_layer_norm_after.weight.dtype) # to correct dtype
+
         encoder_outputs = self.encoder(
             embedding_output,
             attention_mask=extended_attention_mask,
@@ -1138,7 +1192,7 @@ class MoEsmLMHead(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
-        self.layer_norm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        self.layer_norm = LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
 
         self.decoder = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
         self.bias = nn.Parameter(torch.zeros(config.vocab_size))

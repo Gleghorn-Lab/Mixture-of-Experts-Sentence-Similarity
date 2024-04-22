@@ -44,6 +44,11 @@ def load_models(args):
                                                 attention_probs_dropout_prob = 0.0)
             model = EsmForTripletSimilarity(base_model.config, base_model)
     
+        if args.gated:
+            for name, param in model.esm.named_parameters():
+                if 'word_embeddings' not in name.lower():
+                    param.data = param.data.to(torch.bfloat16)
+
     else:
         tokenizer = BertTokenizer.from_pretrained(args.model_path)
         base_model = BertModel.from_pretrained(args.model_path,
@@ -391,7 +396,8 @@ class MoEsmLoadWeights:
                 wEX=self.args.wEX,
                 expert_loss=self.args.expert_loss,
                 single_moe=self.args.single_moe,
-                MI=self.args.MI
+                MI=self.args.MI,
+                gated=self.args.gated
             )
         return config
 

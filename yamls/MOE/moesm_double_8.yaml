@@ -18,6 +18,7 @@ general_args:
   BAL: false
   wBAL: !!float 0.1
   wEX: !!float 0.1
+  gated: false # for moeconv
 
 # Model settings
   hidden_dropout_prob: 0.05  # Dropout rate for the model

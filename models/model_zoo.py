@@ -139,8 +139,9 @@ class MoEsmVec(MoEsmPreTrainedModel):
         base_dim = base_config.d_model
         esm_dim = config.hidden_size
         self.scale_dim = math.sqrt(base_dim)
-        self.base_adapter = BaseAdapter(num_base_layers, base_dim, esm_dim)
-        self.esm_adapter = EsmAdapter(num_base_layers, config.num_hidden_layers, base_dim, esm_dim)
+        self.gated = config.gated
+        self.base_adapter = BaseAdapter(num_base_layers, base_dim, esm_dim, gated=config.gated)
+        self.esm_adapter = EsmAdapter(num_base_layers, config.num_hidden_layers, base_dim, esm_dim, gated=config.gated)
 
         self.proj = nn.Sequential(
             nn.Linear(base_dim + esm_dim, base_dim + esm_dim),
@@ -165,12 +166,14 @@ class MoEsmVec(MoEsmPreTrainedModel):
         base_state = self.base(base_input_ids,
                                attention_mask,
                                output_hidden_states=True).hidden_states
-        base_state = torch.stack(base_state, dim=1).float()
-        esm_state = self.esm.get_word_embeddings(plm_input_ids)
+        base_state = torch.stack(base_state, dim=1).to(torch.float32)
+        esm_state = self.esm.embeddings.word_embeddings(plm_input_ids)
         input_embeddings = self.base_adapter(base_state, esm_state)
+        if self.gated:
+            input_embeddings = input_embeddings.to(torch.bfloat16)
         esm_output = self.esm(inputs_embeds=input_embeddings,
                              attention_mask=attention_mask,
-                             output_hidden_states=True)
+                             output_hidden_states=True).to(torch.float32)
         router_logits = esm_output.router_logits
 
         esm_state = torch.stack(esm_output.hidden_states, dim=1)  # (B, esm_layers, L, d)
@@ -231,8 +234,9 @@ class EsmVec(EsmPreTrainedModel):
         base_dim = base_config.d_model
         esm_dim = config.hidden_size
         self.scale_dim = math.sqrt(base_dim)
-        self.base_adapter = BaseAdapter(num_base_layers, base_dim, esm_dim)
-        self.esm_adapter = EsmAdapter(num_base_layers, config.num_hidden_layers, base_dim, esm_dim)
+        self.gated = config.gated
+        self.base_adapter = BaseAdapter(num_base_layers, base_dim, esm_dim, config.gated)
+        self.esm_adapter = EsmAdapter(num_base_layers, config.num_hidden_layers, base_dim, esm_dim, config.gated)
 
         self.proj = nn.Sequential(
             nn.Linear(base_dim + esm_dim, base_dim + esm_dim),
@@ -250,12 +254,14 @@ class EsmVec(EsmPreTrainedModel):
         base_state = self.base(base_input_ids,
                                attention_mask,
                                output_hidden_states=True).hidden_states
-        base_state = torch.stack(base_state, dim=1).float()
-        esm_state = self.esm.get_word_embeddings(plm_input_ids)
+        base_state = torch.stack(base_state, dim=1).to(torch.float32)
+        esm_state = self.esm.embeddings.word_embeddings(plm_input_ids)
         input_embeddings = self.base_adapter(base_state, esm_state)
+        if self.gated:
+            input_embeddings = input_embeddings.to(torch.bfloat16)
         esm_output = self.esm(inputs_embeds=input_embeddings,
                              attention_mask=attention_mask,
-                             output_hidden_states=True)
+                             output_hidden_states=True).to(torch.float32)
         esm_state = torch.stack(esm_output.hidden_states, dim=1)  # (B, esm_layers, L, d)
         final_state = self.esm_adapter(base_state, esm_state) # (B, L, b + d)
         final_state = self.proj(final_state) # (B, L, b)

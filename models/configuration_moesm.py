@@ -108,6 +108,7 @@ class MoEsmConfig(PretrainedConfig): #TODO update documentation
         BAL=False,
         expert_loss=False,
         single_moe=True,
+        gated=False,
         **kwargs,
     ):
         super().__init__(pad_token_id=pad_token_id, mask_token_id=mask_token_id, **kwargs)
@@ -140,6 +141,7 @@ class MoEsmConfig(PretrainedConfig): #TODO update documentation
         self.single_moe = single_moe
         self.MI = MI
         self.BAL = BAL
+        self.gated = gated
 
         if is_folding_model:
             if esmfold_config is None:

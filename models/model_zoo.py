@@ -166,17 +166,16 @@ class MoEsmVec(MoEsmPreTrainedModel):
         base_state = self.base(base_input_ids,
                                attention_mask,
                                output_hidden_states=True).hidden_states
-        base_state = torch.stack(base_state, dim=1).to(torch.float32)
+        base_state = torch.stack(base_state, dim=1).float()
         esm_state = self.esm.embeddings.word_embeddings(plm_input_ids)
         input_embeddings = self.base_adapter(base_state, esm_state)
         if self.gated:
             input_embeddings = input_embeddings.to(torch.bfloat16)
         esm_output = self.esm(inputs_embeds=input_embeddings,
                              attention_mask=attention_mask,
-                             output_hidden_states=True).to(torch.float32)
+                             output_hidden_states=True)
         router_logits = esm_output.router_logits
-
-        esm_state = torch.stack(esm_output.hidden_states, dim=1)  # (B, esm_layers, L, d)
+        esm_state = torch.stack(esm_output.hidden_states, dim=1).float()  # (B, esm_layers, L, d)
         final_state = self.esm_adapter(base_state, esm_state) # (B, L, b + d)
         final_state = self.proj(final_state) # (B, L, b)
         attention_mask_expanded = attention_mask.unsqueeze(-1).expand(final_state.size())
@@ -254,15 +253,15 @@ class EsmVec(EsmPreTrainedModel):
         base_state = self.base(base_input_ids,
                                attention_mask,
                                output_hidden_states=True).hidden_states
-        base_state = torch.stack(base_state, dim=1).to(torch.float32)
+        base_state = torch.stack(base_state, dim=1).float()
         esm_state = self.esm.embeddings.word_embeddings(plm_input_ids)
         input_embeddings = self.base_adapter(base_state, esm_state)
         if self.gated:
             input_embeddings = input_embeddings.to(torch.bfloat16)
         esm_output = self.esm(inputs_embeds=input_embeddings,
                              attention_mask=attention_mask,
-                             output_hidden_states=True).to(torch.float32)
-        esm_state = torch.stack(esm_output.hidden_states, dim=1)  # (B, esm_layers, L, d)
+                             output_hidden_states=True)
+        esm_state = torch.stack(esm_output.hidden_states, dim=1).float()  # (B, esm_layers, L, d)
         final_state = self.esm_adapter(base_state, esm_state) # (B, L, b + d)
         final_state = self.proj(final_state) # (B, L, b)
         attention_mask_expanded = attention_mask.unsqueeze(-1).expand(final_state.size())

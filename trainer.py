@@ -38,10 +38,8 @@ class TopkTallyCallback(TrainerCallback):
 
 class DoubleTrainer(Trainer):
     def __init__(self, *args, **kwargs):
-
-
         self.loss = kwargs.pop('loss', None)
-        self.temp = torch.tensor(kwargs.pop("temp", 1.0))
+        self.temp = torch.tensor(kwargs.pop('temp', 1.0))
         super().__init__(*args, **kwargs)
         self.accumulated_a = []
         self.accumulated_b = []
@@ -224,13 +222,14 @@ def HF_trainer(model,
                double=False,
                *args, **kwargs):
     training_args = TrainingArguments(load_best_model_at_end=True, *args, **kwargs)
+    grad_accum = kwargs.pop('gradient_accumulation_steps', 1)
 
     if EX:
         callbacks = [EarlyStoppingCallback(early_stopping_patience=patience), TopkTallyCallback()]
     else:
         callbacks = [EarlyStoppingCallback(early_stopping_patience=patience)]
 
-    if double:
+    if double and grad_accum != 1:
         from models.losses import clip_loss
         trainer = DoubleTrainer(
             model=model,

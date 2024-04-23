@@ -232,7 +232,6 @@ class EsmVec(EsmPreTrainedModel):
         num_base_layers = base_config.num_layers
         base_dim = base_config.d_model
         esm_dim = config.hidden_size
-        self.scale_dim = math.sqrt(base_dim)
         self.gated = config.gated
         self.base_adapter = BaseAdapter(num_base_layers, base_dim, esm_dim, config.gated)
         self.esm_adapter = EsmAdapter(num_base_layers, config.num_hidden_layers, base_dim, esm_dim, config.gated)
@@ -266,8 +265,7 @@ class EsmVec(EsmPreTrainedModel):
         final_state = self.proj(final_state) # (B, L, b)
         attention_mask_expanded = attention_mask.unsqueeze(-1).expand(final_state.size())
         final_state = final_state.masked_fill(attention_mask_expanded == 0, float('-inf'))
-        # we scale the final output for numerical stability during training
-        pooled_output = torch.max(final_state, dim=1)[0] / self.scale_dim  # (B, b) 
+        pooled_output = torch.max(final_state, dim=1)[0]  # (B, b) 
         return pooled_output
     
     def embed(self, base_input_ids, plm_input_ids, attention_mask):
@@ -290,7 +288,7 @@ class EsmVec(EsmPreTrainedModel):
             emb_b = self.process_batch(base_a_ids, plm_a_ids, a_mask)
             emb_a = self.process_batch(base_b_ids, plm_b_ids, b_mask)
 
-        loss = self.contrastive_loss(emb_a, emb_b, self.temp)
+        loss = self.contrastive_loss(emb_a.sigmoid(), emb_b.sigmoid(), self.temp) # sigmoid for stability
         logits = (emb_a, emb_b)
         return SentenceSimilarityOutput(
             logits=logits,

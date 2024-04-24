@@ -74,7 +74,7 @@ training_args:
   learning_rate: !!float 1e-5
   lr_scheduler_type: !!str cosine
   weight_decay: !!float 0.01
-  num_train_epochs: !!int 10
+  num_train_epochs: !!int 5
   warmup_steps: !!int 100
   save_strategy: !!str steps
   save_steps: !!int 1000

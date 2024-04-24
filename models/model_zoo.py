@@ -1,7 +1,7 @@
 import random
-import math
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from transformers.modeling_outputs import SequenceClassifierOutput
 from transformers.models.bert.modeling_bert import BertPreTrainedModel
 from transformers.models.esm.modeling_esm import EsmPreTrainedModel, EsmModel
@@ -200,8 +200,9 @@ class MoEsmVec(MoEsmPreTrainedModel):
         else:
             emb_b, router_logits_b = self.process_batch(base_a_ids, plm_a_ids, a_mask)
             emb_a, router_logits_a = self.process_batch(base_b_ids, plm_b_ids, b_mask)
-
-        c_loss = self.contrastive_loss(emb_a.sigmoid(), emb_b.sigmoid(), self.temp)
+        emb_a = F.normalize(emb_a, dim=-1)
+        emb_b = F.normalize(emb_b, dim=-1)
+        c_loss = self.contrastive_loss(emb_a, emb_b, self.temp)
         router_logits = tuple((a + b) / 2 for a, b in zip(router_logits_a, router_logits_b))
         r_loss = self.aux_loss(router_logits)
         if r_labels != None and self.EX:
@@ -284,8 +285,9 @@ class EsmVec(EsmPreTrainedModel):
         else:
             emb_b = self.process_batch(base_a_ids, plm_a_ids, a_mask)
             emb_a = self.process_batch(base_b_ids, plm_b_ids, b_mask)
-
-        loss = self.contrastive_loss(emb_a.sigmoid(), emb_b.sigmoid(), self.temp) # sigmoid for stability
+        emb_a = F.normalize(emb_a, dim=-1)
+        emb_b = F.normalize(emb_b, dim=-1)
+        loss = self.contrastive_loss(emb_a, emb_b, self.temp) # sigmoid for stability
         logits = (emb_a, emb_b)
         return SentenceSimilarityOutput(
             logits=logits,

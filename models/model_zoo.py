@@ -138,11 +138,9 @@ class MoEsmVec(MoEsmPreTrainedModel):
         num_base_layers = base_config.num_layers
         base_dim = base_config.d_model
         esm_dim = config.hidden_size
-        self.scale_dim = math.sqrt(base_dim)
         self.gated = config.gated
         self.base_adapter = BaseAdapter(num_base_layers, base_dim, esm_dim, gated=config.gated)
         self.esm_adapter = EsmAdapter(num_base_layers, config.num_hidden_layers, base_dim, esm_dim, gated=config.gated)
-
         self.proj = nn.Sequential(
             nn.Linear(base_dim + esm_dim, base_dim + esm_dim),
             nn.ReLU(),
@@ -150,7 +148,6 @@ class MoEsmVec(MoEsmPreTrainedModel):
             nn.ReLU(),
             nn.Linear(base_dim, base_dim)
         )
-        
         self.esm = esm if esm is not None else MoEsmModel(config, add_pooling_layer=False)
         self.contrastive_loss = clip_loss
         self.temp = torch.tensor(1.0)
@@ -181,7 +178,7 @@ class MoEsmVec(MoEsmPreTrainedModel):
         attention_mask_expanded = attention_mask.unsqueeze(-1).expand(final_state.size())
         final_state = final_state.masked_fill(attention_mask_expanded == 0, float('-inf'))
         # we scale the final output for numerical stability during training
-        pooled_output = torch.max(final_state, dim=1)[0] / self.scale_dim  # (B, b) 
+        pooled_output = torch.max(final_state, dim=1)[0] # (B, b) 
         return pooled_output, router_logits
     
     def embed(self, base_input_ids, plm_input_ids, attention_mask):
@@ -204,7 +201,7 @@ class MoEsmVec(MoEsmPreTrainedModel):
             emb_b, router_logits_b = self.process_batch(base_a_ids, plm_a_ids, a_mask)
             emb_a, router_logits_a = self.process_batch(base_b_ids, plm_b_ids, b_mask)
 
-        c_loss = self.contrastive_loss(emb_a, emb_b, self.temp)
+        c_loss = self.contrastive_loss(emb_a.sigmoid(), emb_b.sigmoid(), self.temp)
         router_logits = tuple((a + b) / 2 for a, b in zip(router_logits_a, router_logits_b))
         r_loss = self.aux_loss(router_logits)
         if r_labels != None and self.EX:

@@ -10,7 +10,7 @@ general_args:
   moe_type: 'topk'
   MOE: true
   token_moe: true
-  num_experts: 8  # Number of experts
+  num_experts: 4  # Number of experts
   topk: 2  # Number of experts per block
   num_tasks: 4  # Number of tasks for MulitTask learning
   expert_loss: false
@@ -35,7 +35,7 @@ general_args:
 
 # data_settings:
   data_paths:  # Paths to the datasets
-    - 'lhallee/ProteinDouble50'
+    - 'lhallee/ProteinDouble30'
   a_col: 'a'  # First feature column name in datasets # doubles as anchor
   b_col: 'b'  # Second feature column name in datasets
   p_col: 'positives'
@@ -53,8 +53,8 @@ general_args:
   wandb_name: triplet_test
 
 # Paths
-  log_path: './results_moesm_double_very_very_late.txt'  # Path to save the log file
-  weight_path: 'weights/lhallee-moesm_double_8_very_very_late'  # Path to the model weights to load
+  log_path: './results_moesm_double_8.txt'  # Path to save the log file
+  weight_path: 'weights/lhallee-moesm_double_8'  # Path to the model weights to load
   save_path: 'moesm_double.pt'
 
 # Training settings
@@ -67,8 +67,8 @@ general_args:
 training_args:
   output_dir: !!str ./output
   logging_dir: !!str ./logs
-  per_device_train_batch_size: !!int 2
-  per_device_eval_batch_size: !!int 2
+  per_device_train_batch_size: !!int 16
+  per_device_eval_batch_size: !!int 16
   gradient_accumulation_steps: !!int 1
   learning_rate: !!float 1e-5
   lr_scheduler_type: !!str cosine
@@ -120,9 +120,9 @@ eval_args:
     - 'lhallee/dl_binary_reg'
     - 'lhallee/dl_ten_reg'
     - 'lhallee/MetalIonBinding_reg'
-  weight_path: 'weights/lhallee-moesm_double_8_very_very_late'
-  log_path: ./results_moesm_double_very_very_late.txt
-  db_path: moesm_double_very_very_late.db
+  weight_path: 'weights/lhallee-moesm_double_8'
+  log_path: ./results_moesm_double.txt
+  db_path: moesm_double_8.db
 
 # New tokens
   domains:

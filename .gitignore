@@ -1,16 +1,4 @@
 
 *.csv
-*.pyc
-*.pt
-*.pth
-*.safetensors
-*.bin
-*.tsv
-data_compilation/swiss_prot_duplicates.txt
-*.pkl
-*.png
-*.ckpt
-*.bash
-/output
-*.db
 *.json
+*.pyc

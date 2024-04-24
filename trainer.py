@@ -1,254 +1,259 @@
-import matplotlib.pyplot as plt
 import torch
-import torch.nn as nn
-from torch.nn import functional as F
-from typing import Dict, Union, Any
-from transformers import Trainer, TrainingArguments, EarlyStoppingCallback
-from transformers.trainer_callback import TrainerCallback, TrainerControl, TrainerState
-### For custom trainer
+import torch.nn.functional as F
 import numpy as np
-from typing import Optional, List
-from torch.utils.data import DataLoader
-from transformers.integrations.deepspeed import deepspeed_init
-from transformers.trainer_utils import EvalLoopOutput, EvalPrediction, has_length, denumpify_detensorize
-from transformers.trainer_pt_utils import EvalLoopContainer, IterableDatasetShard, find_batch_size
-from transformers.utils import logging
+from torch.utils.data import Dataset as TorchDataset
+from datasets import load_dataset
+from tqdm.auto import tqdm
 
-logger = logging.get_logger(__name__)
+from metrics import *
 
 
-class TopkTallyCallback(TrainerCallback):
-    def on_save(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
-        model = kwargs['model']
-        try:
-            tally = model.aux_loss.tally.detach().cpu().numpy()
-            model.aux_loss.reset_tally()
-        except:
-            tally = model.expert_loss.tally.detach().cpu().numpy()
-            model.expert_loss.reset_tally()
-        
-        plt.figure(figsize=(10, 5))
-        plt.bar(range(tally.shape[0]), tally)
-        plt.xlabel('Expert Index')
-        plt.ylabel('Tally of Topk Chosen Results')
-        plt.title(f'Topk Tally at Global Step {state.global_step}')
-        plt.savefig(f'topk_tally_{state.global_step}.png')
-        plt.close()
+class TextDataset(TorchDataset):
+    def __init__(self, a, b, c_labels, r_labels, tokenizer, domains):
+        self.a = a
+        self.b = b
+        self.c_labels = c_labels
+        self.r_labels = r_labels
+        self.tokenizer = tokenizer
+        self.domains = domains
+
+    def __len__(self):
+        return len(self.a)
+
+    def __getitem__(self, idx):
+        r_label = torch.tensor(self.r_labels[idx], dtype=torch.long)
+        c_label = torch.tensor(self.c_labels[idx], dtype=torch.float)
+        domain_token = self.tokenizer(self.domains[int(r_label.item())], add_special_tokens=False).input_ids[0]  # get the domain token
+        tokenized_a = self.tokenizer(self.a[idx], return_tensors='pt', padding='max_length', truncation=True, max_length=512)
+        tokenized_b = self.tokenizer(self.b[idx], return_tensors='pt', padding='max_length', truncation=True, max_length=512)
+        tokenized_a['input_ids'][0][0] = domain_token  # replace the cls token with the domain token
+        tokenized_b['input_ids'][0][0] = domain_token  # replace the cls token with the domain token
+        return tokenized_a, tokenized_b, c_label, r_label
 
 
-class DoubleTrainer(Trainer):
-    def __init__(self, *args, **kwargs):
-        self.loss = kwargs.pop('loss', None)
-        self.temp = torch.tensor(kwargs.pop('temp', 1.0))
-        super().__init__(*args, **kwargs)
-        self.accumulated_a = []
-        self.accumulated_b = []
+def get_datasets_train(data_paths, tokenizer, domains):
+    train_a, train_b, train_c_label, train_r_label = [], [], [], []
+    valid_a, valid_b, valid_c_label, valid_r_label = [], [], [], []
+    test_a, test_b, test_c_label, test_r_label = [], [], [], []
+    for i, data_path in enumerate(data_paths):
+        dataset = load_dataset(data_path)
+        train = dataset['train']
+        valid = dataset['valid']
+        test = dataset['test']
+        train_a.extend(train['a'])
+        train_b.extend(train['b'])
+        train_c_label.extend(train['label'])
+        train_r_label.extend([i] * len(train['label']))
+        valid_a.extend(valid['a'])
+        valid_b.extend(valid['b'])
+        valid_c_label.extend(valid['label'])
+        valid_r_label.extend([i] * len(valid['label']))
+        test_a.extend(test['a'])
+        test_b.extend(test['b'])
+        test_c_label.extend(test['label'])
+        test_r_label.extend([i] * len(test['label']))
+    train_dataset = TextDataset(train_a, train_b, train_c_label, train_r_label, tokenizer, domains)
+    valid_dataset = TextDataset(valid_a, valid_b, valid_c_label, valid_r_label, tokenizer, domains)
+    test_dataset = TextDataset(test_a, test_b, test_c_label, test_r_label, tokenizer, domains)
+    return train_dataset, valid_dataset, test_dataset
 
-    def training_step(self, model: nn.Module, inputs: Dict[str, Union[torch.Tensor, Any]]) -> torch.Tensor:
+
+def get_datasets_test(data_paths, tokenizer, domains):
+    valid_datasets = []
+    test_datasets = []
+    for i, data_path in enumerate(data_paths):
+        valid_a, valid_b, valid_c_label, valid_r_label = [], [], [], []
+        test_a, test_b, test_c_label, test_r_label = [], [], [], []
+        dataset = load_dataset(data_path)
+        valid = dataset['valid']
+        test = dataset['test']
+        valid_a.extend(valid['a'])
+        valid_b.extend(valid['b'])
+        valid_c_label.extend(valid['label'])
+        valid_r_label.extend([i] * len(valid['label']))
+        test_a.extend(test['a'])
+        test_b.extend(test['b'])
+        test_c_label.extend(test['label'])
+        test_r_label.extend([i] * len(test['label']))
+        valid_datasets.append(TextDataset(valid_a, valid_b, valid_c_label, valid_r_label, tokenizer, domains))
+        test_datasets.append(TextDataset(test_a, test_b, test_c_label, test_r_label, tokenizer, domains))
+    return valid_datasets, test_datasets
+
+
+def test(config, model, test_loader, domain='dataset'):
+    model.eval()
+    cosine_sims, labels = [], []
+    pbar = tqdm(test_loader, total=len(test_loader), desc=f'Evaluating {domain}')
+    for (batch1, batch2, c_labels, r_labels) in pbar:
+        r_labels = r_labels.to(config.device)
+        batch1 = {k:v.squeeze(1).to(config.device) for k, v in batch1.items()}
+        batch2 = {k:v.squeeze(1).to(config.device) for k, v in batch2.items()}
+        with torch.no_grad():
+            try:
+                emba, embb, router_logits, c_loss, r_loss = model(batch1, batch2, r_labels)
+            except:
+                emba, embb, c_loss = model(batch1, batch2, r_labels)
+        cosine_sims.extend(F.cosine_similarity(emba, embb).tolist())
+        labels.extend(c_labels.tolist())
+    cosine_sims_tensor = torch.tensor(cosine_sims, dtype=torch.float)
+    labels_tensor = torch.tensor(labels, dtype=torch.float)
+    if config.limits:
+        lower = float(input('Input lower bound: '))
+        upper = float(input('Input upper bound: '))
+    else:
+        lower = -1
+        upper = 1
+    threshold, f1max = calc_f1max(cosine_sims_tensor, labels_tensor, limits=[lower, upper])
+    acc = calc_accuracy(cosine_sims_tensor, labels_tensor, cutoff=threshold)
+    dist = calc_distance(cosine_sims_tensor, labels_tensor)
+    return threshold, f1max, acc, dist
+
+
+def validate(config, model, val_loader):
+    model.eval()
+    cosine_sims, labels = [], []
+    pbar = tqdm(val_loader, total=len(val_loader), desc='Validating')
+    for (batch1, batch2, c_labels, r_labels) in pbar:
+        r_labels = r_labels.to(config.device)
+        batch1 = {k:v.squeeze(1).to(config.device) for k, v in batch1.items()}
+        batch2 = {k:v.squeeze(1).to(config.device) for k, v in batch2.items()}
+        with torch.no_grad():
+            try:
+                emba, embb, router_logits, c_loss, r_loss = model(batch1, batch2, r_labels)
+            except:
+                emba, embb, c_loss = model(batch1, batch2, r_labels)
+        cosine_sims.extend(F.cosine_similarity(emba, embb).tolist())
+        labels.extend(c_labels.tolist())
+    cosine_sims_tensor = torch.tensor(cosine_sims, dtype=torch.float)
+    labels_tensor = torch.tensor(labels, dtype=torch.float)
+    threshold, f1max = calc_f1max(cosine_sims_tensor, labels_tensor)
+    return threshold, f1max
+
+
+def train_moebert(config, model, optimizer, train_loader, val_loader, save_path='./best_model.pt'):
+    best_val_f1, patience_counter = 0.0, 0
+    avg = config.average_interval
+    c_losses, r_losses, cos_sims, accuracies = [], [], [], []
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer,
+                                                    max_lr=config.lr,
+                                                    steps_per_epoch=len(train_loader),
+                                                    epochs=config.epochs,
+                                                    pct_start=(config.warmup_steps/len(train_loader))/config.epochs) # warmup steps as percentage
+
+    if config.wandb:
+        import wandb
+        wandb.init(project=config.project_name)
+        wandb.watch(model)
+
+    for epoch in range(config.epochs):
         model.train()
-        inputs = self._prepare_inputs(inputs)
+        pbar = tqdm(enumerate(train_loader), total=len(train_loader))
+        for batch_idx, (batch1, batch2, c_labels, r_labels) in pbar:
+            r_labels = r_labels.to(config.device)
+            batch1 = {k:v.squeeze(1).to(config.device) for k, v in batch1.items()}
+            batch2 = {k:v.squeeze(1).to(config.device) for k, v in batch2.items()}
+            optimizer.zero_grad()
+            emba, embb, router_logits, c_loss, r_loss = model(batch1, batch2, r_labels)
+            loss = c_loss + r_loss
+            loss.backward()
+            optimizer.step()
+            scheduler.step()  # Update learning rate for warmup
 
-        with self.compute_loss_context_manager():
-            outputs = model(**inputs)
-            logits = outputs.logits
-            a, b = logits[0], logits[1]
+            c_losses.append(c_loss.item())
+            r_losses.append(r_loss.item())
+            cos_sims.append(F.cosine_similarity(emba, embb).mean().item())
+            avg_logits = torch.stack(router_logits, dim=2).transpose(1, 2).mean(dim=1) # batch_size, num_experts
+            router_predictions = torch.argmax(avg_logits, dim=1)
+            accuracy = (router_predictions == r_labels).float().mean().item()
+            accuracies.append(accuracy)
+            if len(c_losses) > avg:
+                avg_c_loss = np.mean(c_losses[-avg:])
+                avg_r_loss = np.mean(r_losses[-avg:])
+                avg_cos_sim = np.mean(cos_sims[-avg:])
+                avg_accuracy = np.mean(accuracies[-avg:])
+                pbar.set_description(f'Epoch {epoch} C_Loss: {avg_c_loss:.4f} R_Loss: {avg_r_loss:.4f} Cosine Similarity: {avg_cos_sim:.4f} Accuracy: {avg_accuracy:.4f}')
 
-            self.accumulated_a.append(a)
-            self.accumulated_b.append(b)
+                if config.wandb:
+                    wandb.log({'C_Loss': avg_c_loss, 'R_Loss': avg_r_loss, 'Cosine Similarity': avg_cos_sim, 'Accuracy': avg_accuracy, 'Learning Rate': scheduler.get_last_lr()[0]})
 
-            if len(self.accumulated_a) == self.args.gradient_accumulation_steps:
-                emb_a = torch.cat(self.accumulated_a, dim=0)
-                emb_b = torch.cat(self.accumulated_b, dim=0)
-                loss = self.loss(emb_a, emb_b, self.temp)
-                if self.args.n_gpu > 1:
-                    loss = loss.mean()  # mean() to average on multi-gpu parallel training
-
-                self.accelerator.backward(loss)
-                self.accumulated_a = []
-                self.accumulated_b = []
-                return loss.detach()
-
-        return torch.tensor(float('nan')) # returning this will make the logger only log the real losses
-
-    def evaluation_loop(
-        self,
-        dataloader: DataLoader,
-        description: str,
-        prediction_loss_only: Optional[bool] = None,
-        ignore_keys: Optional[List[str]] = None,
-        metric_key_prefix: str = "eval",
-    ) -> EvalLoopOutput:
-        ### Reset accumulated logits
-        self.accumulated_a = []
-        self.accumulated_b = []
-        args = self.args
-        gradient_accumulation_steps = args.gradient_accumulation_steps
-
-        prediction_loss_only = prediction_loss_only if prediction_loss_only is not None else args.prediction_loss_only
-        if self.is_deepspeed_enabled and self.deepspeed is None:
-            _, _ = deepspeed_init(self, num_training_steps=0, inference=True)
-        model = self._wrap_model(self.model, training=False, dataloader=dataloader)
-        if len(self.accelerator._models) == 0 and model is self.model:
-            model = (
-                self.accelerator.prepare(model)
-                if self.is_deepspeed_enabled
-                else self.accelerator.prepare_model(model, evaluation_mode=True)
-            )
-            if self.is_fsdp_enabled:
-                self.model = model
-            if model is not self.model:
-                self.model_wrapped = model
-            if self.is_deepspeed_enabled:
-                self.deepspeed = self.model_wrapped
-        if not self.is_in_train:
-            if args.fp16_full_eval:
-                model = model.to(dtype=torch.float16, device=args.device)
-            elif args.bf16_full_eval:
-                model = model.to(dtype=torch.bfloat16, device=args.device)
-        batch_size = self.args.eval_batch_size
-        logger.info(f"***** Running {description} *****")
-        if has_length(dataloader):
-            logger.info(f"  Num examples = {self.num_examples(dataloader)}")
-        else:
-            logger.info("  Num examples: Unknown")
-        logger.info(f"  Batch size = {batch_size}")
-        model.eval()
-        self.callback_handler.eval_dataloader = dataloader
-        eval_dataset = getattr(dataloader, "dataset", None)
-        if args.past_index >= 0:
-            self._past = None
-        all_losses = EvalLoopContainer(self.args.eval_do_concat_batches, padding_index=-100)
-        all_preds = EvalLoopContainer(self.args.eval_do_concat_batches, padding_index=-100)
-        all_labels = EvalLoopContainer(self.args.eval_do_concat_batches, padding_index=-100)
-        all_inputs = EvalLoopContainer(self.args.eval_do_concat_batches, padding_index=-100)
-        observed_num_examples = 0
-        for step, inputs in enumerate(dataloader):
-            observed_batch_size = find_batch_size(inputs)
-            if observed_batch_size is not None:
-                observed_num_examples += observed_batch_size
-                if batch_size is None:
-                    batch_size = observed_batch_size
-            ### Primarily updated here
-            loss, logits, labels = self.prediction_step(model, inputs, prediction_loss_only, ignore_keys=ignore_keys)
-            a, b = logits[0], logits[1]
-            main_input_name = getattr(self.model, "main_input_name", "input_ids")
-            inputs_decode = self._prepare_input(inputs[main_input_name]) if args.include_inputs_for_metrics else None
-            self.accumulated_a.append(a)
-            self.accumulated_b.append(b)
-            if len(self.accumulated_a) == self.args.gradient_accumulation_steps:
-                emb_a = torch.cat(self.accumulated_a, dim=0)
-                emb_b = torch.cat(self.accumulated_b, dim=0)
-                loss = self.loss(emb_a, emb_b, self.temp)
-                losses = self.gather_function((loss.repeat(batch_size * gradient_accumulation_steps)))
-                all_losses.add(losses)
-                self.accumulated_a = []
-                self.accumulated_b = []
-            ###
-            if inputs_decode is not None:
-                inputs_decode = self.accelerator.pad_across_processes(inputs_decode, dim=1, pad_index=-100)
-                inputs_decode = self.gather_function((inputs_decode))
-                all_inputs.add(inputs_decode)
-            if logits is not None:
-                logits = self.accelerator.pad_across_processes(logits, dim=1, pad_index=-100)
-                if self.preprocess_logits_for_metrics is not None:
-                    logits = self.preprocess_logits_for_metrics(logits, labels)
-                logits = self.gather_function((logits))
-                all_preds.add(logits)
-            if labels is not None:
-                labels = self.accelerator.pad_across_processes(labels, dim=1, pad_index=-100)
-                labels = self.gather_function((labels))
-                all_labels.add(labels)
-
-            self.control = self.callback_handler.on_prediction_step(args, self.state, self.control)
-
-            if args.eval_accumulation_steps is not None and (step + 1) % args.eval_accumulation_steps == 0:
-                all_losses.to_cpu_and_numpy()
-                all_preds.to_cpu_and_numpy()
-                all_labels.to_cpu_and_numpy()
-                all_inputs.to_cpu_and_numpy()
-
-        self.gather_function = self.accelerator.gather_for_metrics
-        if args.past_index and hasattr(self, "_past"):
-            delattr(self, "_past")
-
-        # Gather all remaining tensors and put them back on the CPU
-        all_losses = all_losses.get_arrays()
-        all_preds = all_preds.get_arrays()
-        all_labels = all_labels.get_arrays()
-        all_inputs = all_inputs.get_arrays()
-
-        if has_length(eval_dataset):
-            num_samples = len(eval_dataset)
-        elif isinstance(eval_dataset, IterableDatasetShard) and getattr(eval_dataset, "num_examples", 0) > 0:
-            num_samples = eval_dataset.num_examples
-        else:
-            if has_length(dataloader):
-                num_samples = self.num_examples(dataloader)
-            else:  # both len(dataloader.dataset) and len(dataloader) fail
-                num_samples = observed_num_examples
-        if num_samples == 0 and observed_num_examples > 0:
-            num_samples = observed_num_examples
-        # Metrics!
-        if self.compute_metrics is not None and all_preds is not None and all_labels is not None:
-            if args.include_inputs_for_metrics:
-                metrics = self.compute_metrics(
-                    EvalPrediction(predictions=all_preds, label_ids=all_labels, inputs=all_inputs)
-                )
-            else:
-                metrics = self.compute_metrics(EvalPrediction(predictions=all_preds, label_ids=all_labels))
-        else:
-            metrics = {}
-        metrics = denumpify_detensorize(metrics)
-
-        if isinstance(all_losses, list) and all_losses:
-            metrics[f"{metric_key_prefix}_loss"] = np.concatenate(all_losses).mean().item()
-        elif isinstance(all_losses, np.ndarray):
-            metrics[f"{metric_key_prefix}_loss"] = all_losses.mean().item()
-        if hasattr(self, "jit_compilation_time"):
-            metrics[f"{metric_key_prefix}_jit_compilation_time"] = self.jit_compilation_time
-        for key in list(metrics.keys()):
-            if not key.startswith(f"{metric_key_prefix}_"):
-                metrics[f"{metric_key_prefix}_{key}"] = metrics.pop(key)
-        return EvalLoopOutput(predictions=all_preds, label_ids=all_labels, metrics=metrics, num_samples=num_samples)
+            if batch_idx % config.validate_interval == 0 and batch_idx > 0:
+                threshold, val_f1 = validate(config, model, val_loader)
+                model.train()
+                print(f'Epoch {epoch} Step {batch_idx} Threshold {threshold} Val F1 ', val_f1)
+                if config.wandb:
+                    wandb.log({'Threshold': threshold, 'Val F1max': val_f1})
+                    if not config.MNR:
+                        wandb.log({'Temperature': model.temp.detach().item()})
+                if val_f1 > best_val_f1:
+                    best_val_f1 = val_f1
+                    patience_counter = 0
+                    torch.save(model.state_dict(), save_path)
+                else:
+                    patience_counter += 1
+                    if patience_counter > config.patience:
+                        print('Early stopping due to evaluation not improving')
+                        model.load_state_dict(torch.load(save_path))
+                        return model
+    model.load_state_dict(torch.load(save_path))
+    return model
 
 
-def HF_trainer(model,
-               train_dataset,
-               valid_dataset,
-               compute_metrics=None,
-               data_collator=None,
-               patience=1,
-               EX=False,
-               double=False,
-               *args, **kwargs):
-    training_args = TrainingArguments(load_best_model_at_end=True, *args, **kwargs)
-    grad_accum = kwargs.pop('gradient_accumulation_steps', 1)
+def train_bert(config, model, optimizer, train_loader, val_loader, save_path='./best_model.pt'):
+    best_val_f1, patience_counter = 0.0, 0
+    avg = config.average_interval
+    c_losses, cos_sims = [], []
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer,
+                                                    max_lr=config.lr,
+                                                    steps_per_epoch=len(train_loader),
+                                                    epochs=config.epochs,
+                                                    pct_start=(config.warmup_steps/len(train_loader))/config.epochs) # warmup steps as percentage
 
-    if EX:
-        callbacks = [EarlyStoppingCallback(early_stopping_patience=patience), TopkTallyCallback()]
-    else:
-        callbacks = [EarlyStoppingCallback(early_stopping_patience=patience)]
+    if config.wandb:
+        import wandb
+        wandb.init(project=config.project_name)
+        wandb.watch(model)
 
-    if double and grad_accum != 1:
-        from models.losses import clip_loss
-        trainer = DoubleTrainer(
-            model=model,
-            args=training_args,
-            train_dataset=train_dataset,
-            eval_dataset=valid_dataset,
-            compute_metrics=compute_metrics,
-            data_collator=data_collator,
-            callbacks=callbacks,
-            loss=clip_loss
-        )
-    else:
-        trainer = Trainer(
-            model=model,
-            args=training_args,
-            train_dataset=train_dataset,
-            eval_dataset=valid_dataset,
-            compute_metrics=compute_metrics,
-            data_collator=data_collator,
-            callbacks=callbacks
-        )
-    return trainer
+    for epoch in range(config.epochs):
+        model.train()
+        pbar = tqdm(enumerate(train_loader), total=len(train_loader))
+        for batch_idx, (batch1, batch2, c_labels, r_labels) in pbar:
+            r_labels = r_labels.to(config.device)
+            batch1 = {k:v.squeeze(1).to(config.device) for k, v in batch1.items()}
+            batch2 = {k:v.squeeze(1).to(config.device) for k, v in batch2.items()}
+            optimizer.zero_grad()
+            emba, embb, c_loss = model(batch1, batch2, r_labels)
+            c_loss.backward()
+            optimizer.step()
+            scheduler.step()  # Update learning rate for warmup
+
+            c_losses.append(c_loss.item())
+            cos_sims.append(F.cosine_similarity(emba, embb).mean().item())
+            if len(c_losses) > avg:
+                avg_c_loss = np.mean(c_losses[-avg:])
+                avg_cos_sim = np.mean(cos_sims[-avg:])
+                pbar.set_description(f'Epoch {epoch} C_Loss: {avg_c_loss:.4f} Cosine Similarity: {avg_cos_sim:.4f}')
+
+                if config.wandb:
+                    wandb.log({'C_Loss': avg_c_loss, 'Cosine Similarity': avg_cos_sim, 'Learning Rate': scheduler.get_last_lr()[0]})
+
+            if batch_idx % config.validate_interval == 0 and batch_idx > 0:
+                threshold, val_f1 = validate(config, model, val_loader)
+                model.train()
+                print(f'Epoch {epoch} Step {batch_idx} Threshold {threshold} Val F1 ', val_f1)
+                if config.wandb:
+                    wandb.log({'Threshold': threshold, 'Val F1max': val_f1})
+                    if not config.MNR:
+                        wandb.log({'Temperature': model.temp.detach().item()})
+                if val_f1 > best_val_f1:
+                    best_val_f1 = val_f1
+                    patience_counter = 0
+                    torch.save(model.state_dict(), save_path)
+                else:
+                    patience_counter += 1
+                    if patience_counter > config.patience:
+                        print('Early stopping due to evaluation not improving')
+                        model.load_state_dict(torch.load(save_path))
+                        return model
+    model.load_state_dict(torch.load(save_path))
+    print('Early stopping not reached. Training concluded.')
+    return model

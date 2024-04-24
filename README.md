@@ -32,8 +32,6 @@ COPD - [Huggingface](https://huggingface.co/datasets/lhallee/abstract_domain_cop
 * Vocabulary extension of BERT models with N experts for N vocabularies.
 
 ## Code Details
-### The code is undergoing extensive manipulation as we conduct further experiments and prepare for peer review. The documentation will be updated upon submission. Please reach out with any questions to lhallee@udel.edu
-
 * data_compilation
 
 **citation_extraction.R**

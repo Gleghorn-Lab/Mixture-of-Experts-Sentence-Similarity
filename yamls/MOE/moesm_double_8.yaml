@@ -18,6 +18,7 @@ general_args:
   BAL: false
   wBAL: !!float 0.1
   wEX: !!float 0.1
+  gated: false
 
 # Model settings
   hidden_dropout_prob: 0.05  # Dropout rate for the model
@@ -145,7 +146,7 @@ eval_args:
 # Data settings
   trim: true
   max_length: 1024
-  skip: false # skip embedding, already embedded
+  skip: true # skip embedding, already embedded
   pooling: 'mean'
   read_scaler: 100
   full: false

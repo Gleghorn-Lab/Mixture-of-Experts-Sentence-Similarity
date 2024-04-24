@@ -54,8 +54,8 @@ general_args:
   wandb_name: triplet_test
 
 # Paths
-  log_path: './results_moesm_double_35.txt'  # Path to save the log file
-  weight_path: null  # Path to the model weights to load
+  log_path: './results_moesm_double_35_late.txt'  # Path to save the log file
+  weight_path: 'weights/lhallee-moesm_double_35_late'  # Path to the model weights to load
   save_path: 'moesm_double.pt'
 
 # Training settings
@@ -68,9 +68,9 @@ general_args:
 training_args:
   output_dir: !!str ./output
   logging_dir: !!str ./logs
-  per_device_train_batch_size: !!int 4
-  per_device_eval_batch_size: !!int 4
-  gradient_accumulation_steps: !!int 5
+  per_device_train_batch_size: !!int 2
+  per_device_eval_batch_size: !!int 2
+  gradient_accumulation_steps: !!int 1
   learning_rate: !!float 1e-5
   lr_scheduler_type: !!str cosine
   weight_decay: !!float 0.01
@@ -121,9 +121,9 @@ eval_args:
     - 'lhallee/dl_binary_reg'
     - 'lhallee/dl_ten_reg'
     - 'lhallee/MetalIonBinding_reg'
-  weight_path: 'lhallee/moesm_double'
-  log_path: ./results_moesm_double_downstream.txt
-  db_path: moesm_double.db
+  weight_path: 'weights/lhallee-moesm_double_35_late'
+  log_path: './results_moesm_double_35_late.txt'
+  db_path: moesm_double_35_late.db
 
 # New tokens
   domains:
@@ -151,6 +151,7 @@ eval_args:
   full: false
   new_special_tokens: false
   sql: true
+  pooling: mean
 
 # Trainging settings
   patience: 10

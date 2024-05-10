@@ -10,13 +10,8 @@ Preprint: [Contrastive Learning and Mixture of Experts Enables Precise Vector Em
 
 Peer review: _preparing submission_
 
-## Coming soon
-* Model checkpoints
-* Extended documentation / examples
-
-## Dataset availability
-CVD  - [Huggingface](https://huggingface.co/datasets/lhallee/abstract_domain_cvd)
-COPD - [Huggingface](https://huggingface.co/datasets/lhallee/abstract_domain_copd)
+## Data and models
+[Huggingface](https://huggingface.co/collections/lhallee/sentence-similarity-65fb9545a1731c75dc5dd6a7)
 
 ## Main findings
 * Extending BERT models with N experts copied from their MLP section is highly effective for fine-tuning on downstream tasks, including multitask or multidomain data.

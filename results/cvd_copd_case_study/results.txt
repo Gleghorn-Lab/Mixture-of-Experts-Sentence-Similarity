@@ -1,0 +1,109 @@
+# Results
+
+## SciBert-MOE
+
+-----Validation Metrics [CVD]-----
+Threshold: 0.9819999933242798
+F1 Max: 0.9678671360015869
+Accuracy: 0.9674956202507019
+Distance: 0.48442378640174866
+
+-----Validation Metrics [COPD]-----
+Threshold: 0.984000027179718
+F1 Max: 0.8016701936721802
+Accuracy: 0.786995530128479
+Distance: 0.4948957562446594
+
+-----Testing Metrics [CVD]-----
+Threshold: -1.0
+F1 Max: 1.0
+Accuracy: 1.0
+Distance: 0.006539714056998491
+
+-----Testing Metrics [COPD]-----
+Threshold: -1.0
+F1 Max: 1.0
+Accuracy: 1.0
+Distance: 0.012203939259052277
+
+## Mini-MOE
+
+-----Validation Metrics [CVD]-----
+Threshold: 0.9990000128746033
+F1 Max: 0.669701874256134
+Accuracy: 0.5093804597854614
+Distance: 0.4999561607837677
+
+-----Validation Metrics [COPD]-----
+Threshold: -1.0
+F1 Max: 0.6666666865348816
+Accuracy: 0.5
+Distance: 0.4999845325946808
+
+-----Testing Metrics [CVD]-----
+Threshold: -1.0
+F1 Max: 1.0
+Accuracy: 1.0
+Distance: 0.00022534173331223428
+
+-----Testing Metrics [COPD]-----
+Threshold: -1.0
+F1 Max: 1.0
+Accuracy: 1.0
+Distance: 0.00015631018322892487
+
+## Mini-MOE CVD
+
+-----Validation Metrics [CVD]-----
+Threshold: 0.5110000371932983
+F1 Max: 0.9350041747093201
+Accuracy: 0.9332460761070251
+Distance: 0.23293736577033997
+
+-----Testing Metrics [CVD]-----
+Threshold: -1.0
+F1 Max: 1.0
+Accuracy: 1.0
+Distance: 0.18577149510383606
+
+## Mini-MOE COPD
+
+-----Validation Metrics [COPD]-----
+Threshold: 0.36000001430511475
+F1 Max: 0.8291316032409668
+Accuracy: 0.8176382780075073
+Distance: 0.33046823740005493
+
+-----Testing Metrics [COPD]-----
+Threshold: -1.0
+F1 Max: 1.0
+Accuracy: 1.0
+Distance: 0.47276097536087036
+
+## SciBert CVD
+
+-----Validation Metrics [CVD]-----
+Threshold: 0.9800000190734863
+F1 Max: 0.9702109098434448
+Accuracy: 0.9701134562492371
+Distance: 0.4828985333442688
+
+-----Testing Metrics [CVD]-----
+Threshold: -1.0
+F1 Max: 1.0
+Accuracy: 1.0
+Distance: 0.008035332895815372
+
+## SciBert COPD
+
+-----Validation Metrics [COPD]-----
+Threshold: 0.9939999580383301
+F1 Max: 0.8057928085327148
+Accuracy: 0.804559051990509
+Distance: 0.4980338215827942
+
+-----Testing Metrics [COPD]-----
+Threshold: -1.0
+F1 Max: 1.0
+Accuracy: 1.0
+Distance: 0.005718860775232315

@@ -1,40 +1,86 @@
 import torch
+import torch.nn.functional as F
+from transformers import EvalPrediction
+from sklearn.metrics import accuracy_score
 
 
-def calc_precision(ss, labels, cutoff):
-    tp = torch.sum((ss >= cutoff) & (labels == 1))
-    fp = torch.sum((ss >= cutoff) & (labels == 0))
-    denominator = tp + fp
-    return torch.where(denominator != 0, tp / denominator, torch.tensor(0.0))
+def calculate_max_metrics(ss, labels, cutoff):
+    ss, labels = ss.float(), labels.float()
+    tp = torch.sum((ss >= cutoff) & (labels == 1.0))
+    fp = torch.sum((ss >= cutoff) & (labels == 0.0))
+    fn = torch.sum((ss < cutoff) & (labels == 1.0))
+    precision_denominator = tp + fp
+    precision = torch.where(precision_denominator != 0, tp / precision_denominator, torch.tensor(0.0))
+    recall_denominator = tp + fn
+    recall = torch.where(recall_denominator != 0, tp / recall_denominator, torch.tensor(0.0))
+    f1 = torch.where((precision + recall) != 0, (2 * precision * recall) / (precision + recall), torch.tensor(0.0))
+    return f1, precision, recall
 
 
-def calc_recall(ss, labels, cutoff):
-    tp = torch.sum((ss >= cutoff) & (labels == 1))
-    fn = torch.sum((ss < cutoff) & (labels == 1))
-    denominator = tp + fn
-    return torch.where(denominator != 0, tp / denominator, torch.tensor(0.0))
+def max_metrics(ss, labels, increment=0.01):
+    ss = torch.clamp(ss, -1.0, 1.0)
+    min_val = ss.min().item()
+    max_val = 1
+    if min_val >= max_val:
+        min_val = 0
+    cutoffs = torch.arange(min_val, max_val, increment)
+    metrics = [calculate_max_metrics(ss, labels, cutoff.item()) for cutoff in cutoffs]
+    f1s = torch.tensor([metric[0] for metric in metrics])
+    precs = torch.tensor([metric[1] for metric in metrics])
+    recalls = torch.tensor([metric[2] for metric in metrics])
+    valid_f1s = torch.where(torch.isnan(f1s), torch.tensor(-1.0), f1s)  # Replace NaN with -1 to ignore them in argmax
+    max_index = torch.argmax(valid_f1s)
+    return f1s[max_index].item(), precs[max_index].item(), recalls[max_index].item(), cutoffs[max_index].item()
 
 
-def calc_f1(ss, labels, cutoff):
-    recall = calc_recall(ss, labels, cutoff)
-    precision = calc_precision(ss, labels, cutoff)
-    return torch.where((precision + recall) != 0, (2 * precision * recall)/(precision + recall), torch.tensor(0.0))
+def compute_metrics_sentence_similarity(p: EvalPrediction):
+    preds = p.predictions
+    labels = p.label_ids[-1]
+    emb_a, emb_b = preds[0], preds[1]
+    # Convert embeddings to tensors
+    emb_a_tensor = torch.tensor(emb_a)
+    emb_b_tensor = torch.tensor(emb_b)
+    labels_tensor = torch.tensor(labels)
+
+    # Compute cosine similarity between the embeddings
+    cosine_sim = F.cosine_similarity(emb_a_tensor, emb_b_tensor)
+    # Compute max metrics
+    f1, prec, recall, thres = max_metrics(cosine_sim, labels_tensor)
+    # Compute accuracy based on the threshold found
+    predictions = (cosine_sim > thres).float()
+    acc = accuracy_score(predictions.flatten().numpy(), labels.flatten())
+    # Compute the mean absolute difference between cosine similarities and labels
+    dist = torch.mean(torch.abs(cosine_sim - labels_tensor)).item()
+    # Return a dictionary of the computed metrics
+    return {
+        'accuracy': acc,
+        'f1_max': f1,
+        'precision_max': prec,
+        'recall_max': recall,
+        'threshold': thres,
+        'distance': dist,
+    }
 
 
-def calc_f1max(ss, labels, limits=[-1, 1], increment=0.001):
-    if ss.nelement() == 0 or labels.nelement() == 0:
-        return None, None
-    cutoffs = torch.arange(limits[0], limits[1], increment)
-    f1_scores = torch.tensor([calc_f1(ss, labels, cutoff.item()) for cutoff in cutoffs])
-    max_index = torch.argmax(f1_scores)
-    return cutoffs[max_index].item(), f1_scores[max_index].item()
+def compute_metrics_sentence_similarity_test(p: EvalPrediction):
+    preds = p.predictions
+    emb_a, emb_b = preds[0], preds[1]
+    # Convert embeddings to tensors
+    emb_a_tensor = torch.tensor(emb_a)
+    emb_b_tensor = torch.tensor(emb_b)
 
+    # Compute cosine similarity between the embeddings
+    cosine_sim = F.cosine_similarity(emb_a_tensor, emb_b_tensor)
+    # Compute average cosine similarity
+    avg_cosine_sim = torch.mean(cosine_sim).item()
 
-def calc_accuracy(ss, labels, cutoff):
-    tp = torch.sum((ss >= cutoff) & (labels == 1))
-    tn = torch.sum((ss < cutoff) & (labels == 0))
-    return (tp + tn) / len(labels)
+    # Compute Euclidean distance between the embeddings
+    euclidean_dist = torch.norm(emb_a_tensor - emb_b_tensor, p=2, dim=1)
+    # Compute average Euclidean distance
+    avg_euclidean_dist = torch.mean(euclidean_dist).item()
 
-
-def calc_distance(ss, labels):
-    return torch.mean(torch.abs(ss - labels))
+    # Return a dictionary of the computed metrics
+    return {
+        'avg_cosine_similarity': avg_cosine_sim,
+        'avg_euclidean_distance': avg_euclidean_dist,
+    }

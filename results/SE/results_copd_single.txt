@@ -1,0 +1,23 @@
+Validation lhallee/abstract_domain_copd
+model_path: allenai/scibert_scivocab_uncased
+MOE: False
+test_loss: 3.09893
+test_accuracy: 0.78176
+test_f1_max: 0.80041
+test_precision_max: 0.73741
+test_recall_max: 0.87519
+test_threshold: 0.99348
+test_distance: 0.49817
+
+
+Test lhallee/abstract_domain_copd
+model_path: allenai/scibert_scivocab_uncased
+MOE: False
+test_loss: 2.44011
+test_accuracy: 0.99923
+test_f1_max: 1.0
+test_precision_max: 1.0
+test_recall_max: 1.0
+test_threshold: 0.98492
+test_distance: 0.00547
+

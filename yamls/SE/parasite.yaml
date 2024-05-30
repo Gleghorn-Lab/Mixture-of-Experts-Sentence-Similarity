@@ -14,7 +14,6 @@ general_args:
   contrastive_loss: clip
   expert_loss: false
 
-  add_during_eval: false # add tokens during eval
   new_special_tokens: false  # Add new special tokens for each domain token seeded with CLS
   domains:  # List of domain tags
     - '[PAR]'

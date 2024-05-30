@@ -37,8 +37,6 @@ general_args:
     - 'lhallee/abstract_domain_parasitic'
   a_col: 'a'  # First feature column name in datasets # doubles as anchor
   b_col: 'b'  # Second feature column name in datasets
-  p_col: 'positives'
-  n_col: 'negatives'
   label_col: 'label'
   max_length: 512  # Maximum length of the sequences
   num_labels: 2
@@ -48,7 +46,7 @@ general_args:
 # wandb settings
   wandb: false
   wandb_project: SSPR
-  wandb_name: triplet_test
+  wandb_name: null
 
 # Paths
   log_path: './single_moe_no_mi_results.txt'  # Path to save the log file

@@ -1,6 +1,6 @@
 # Mixture-of-Experts-Sentence-Similarity
  
-This repository serves as the code base for the paper _Contrastive Learning and Mixture of Experts Enables Precise Vector Embeddings_
+This repository serves as the official code base for the paper _Contrastive Learning and Mixture of Experts Enables Precise Vector Embeddings_
 
 Logan Hallee, Rohan Kapur, Arjun Patel, Jason P. Gleghorn, and Bohdan Khomtchouk
 

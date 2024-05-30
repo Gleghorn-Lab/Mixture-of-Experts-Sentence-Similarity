@@ -25,34 +25,7 @@ Peer review: _preparing submission_
 * Extending any sufficiently large BERT model with N experts for N tasks.
 * Vocabulary extension of BERT models with N experts for N vocabularies.
 
-## Code Details
-* data_compilation
-
-**citation_extraction.R**
-Pulls all papers from PubMedCentral with abstracts that match inputted MeSH terms and timeframe.
-
-**clean_datasets.py**
-Takes datasets from citation_extraction.R and converts them into format used for cocitation analysis, including paper abstract, year, papers it cites, and papers cited by.
-
-* **main.py**
-
-Argparse to train or evaluate the models mentioned in the paper. run ```main.py -h``` in commmand line or ```%run main.py -h``` in jupyter for details.
-
-* **model.py**
-
-Contains Huggingface-inspired and adaptable versions of BERT with MOE capabilities, and new BertForSentenceSimilarity. Any Huggingface BERT model can be extended with N experts needed from the MLP sections of the models.
-
-* **metrics.py**
-
-All metrics used for training and evaluation.
-
-* **losses.py**
-
-All losses used in training, including various contrastive and router losses.
-
-* **trainer.py**
-
-Functions for PyTorch dataset compilation and training / evaluation of models, with versions for BERT or MOE-BERT.
+## [Docs](https://github.com/Gleghorn-Lab/Mixture-of-Experts-Sentence-Similarity/tree/main/documentation)
 
 ## Please cite
 ```

@@ -33,7 +33,7 @@ Peer review: _preparing submission_
 ```
 @article{hallee2024contrastive,
       title={Contrastive Learning and Mixture of Experts Enables Precise Vector Embeddings}, 
-      author={Logan Halle and Rohan Kapur and Arjun Patel and Jason P. Gleghorn and Bohdan Khomtchouk},
+      author={Logan Hallee and Rohan Kapur and Arjun Patel and Jason P. Gleghorn and Bohdan Khomtchouk},
       year={2024},
       eprint={2401.15713},
       archivePrefix={arXiv},

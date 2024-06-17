@@ -9,7 +9,7 @@ Preprint: [Contrastive Learning and Mixture of Experts Enables Precise Vector Em
 Peer review: _preparing submission_
 
 ## Data and models
-[Huggingface](https://huggingface.co/collections/lhallee/sentence-similarity-65fb9545a1731c75dc5dd6a7)
+[Huggingface](https://huggingface.co/collections/GleghornLab/sentence-similarity-663d8679468f3aaf46619c35)
 
 ## Main findings
 * Extending BERT models with N experts copied from their MLP section is highly effective for fine-tuning on downstream tasks, including multitask or multidomain data.
@@ -28,6 +28,7 @@ Peer review: _preparing submission_
 * Vocabulary extension of BERT models with N experts for N vocabularies.
 
 ## [Docs](https://github.com/Gleghorn-Lab/Mixture-of-Experts-Sentence-Similarity/tree/main/documentation)
+Coming soon
 
 ## Please cite
 ```

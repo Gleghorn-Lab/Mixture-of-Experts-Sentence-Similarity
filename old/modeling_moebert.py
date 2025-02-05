@@ -35,14 +35,18 @@ class BertExpert(nn.Module):
 class BertPooler(nn.Module):
     def __init__(self, config):
         super().__init__()
-        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
+        self.w1 = nn.Linear(config.hidden_size, config.hidden_size)
+        self.w2 = nn.Linear(config.hidden_size, config.hidden_size)
+        self.layernorm = nn.LayerNorm(config.hidden_size)
         self.activation = nn.Tanh()
 
     def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
-        first_token_tensor = hidden_states[:, 0]
-        pooled_output = self.dense(first_token_tensor)
-        pooled_output = self.activation(pooled_output)
-        return pooled_output
+        cls = hidden_states[:, 0]
+        cls = self.layernorm(cls)
+        cls = self.w1(cls)
+        cls = self.activation(cls)
+        cls = self.w2(cls)
+        return cls
 
 
 class BertLayer(nn.Module):

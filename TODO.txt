@@ -1,0 +1,26 @@
+Add ModernBERT code
+
+ModernBERT to MOE bert
+
+CV scheme for datasets
+
+Updated trainer
+
+Updated YAMLs
+
+Add embedding models for
+Our MOE bert
+ModernBERT
+BERT
+Mini
+Mpnet
+RoBERTa
+DeBERTa
+llama
+
+Eval scheme on test sets
+
+
+Type hinting everywhere
+
+Documentation

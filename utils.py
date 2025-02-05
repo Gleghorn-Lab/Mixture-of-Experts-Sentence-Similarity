@@ -25,26 +25,7 @@ def load_from_weight_path(args, model):
     return model
 
 
-def add_new_tokens(args, model, tokenizer):
-    """
-    Adds args.domains as new tokens, seeds with CLS
-    """
-    domains = args.domains
-    with torch.no_grad():
-        model.resize_token_embeddings(len(tokenizer) + len(domains))
-        # Add new tokens to the tokenizer
-        added_tokens = {'additional_special_tokens' : domains}
-        tokenizer.add_special_tokens(added_tokens)
-        # Seed the embedding with the [CLS] token embedding
-        try:  
-            cls_token_embedding = model.embeddings.word_embeddings.weight[tokenizer.cls_token_id, :].clone()
-            for token in domains:
-                model.embeddings.word_embeddings.weight[tokenizer._convert_token_to_id(token), :] = cls_token_embedding.clone()
-        except AttributeError:
-            cls_token_embedding = model.esm.embeddings.word_embeddings.weight[tokenizer.cls_token_id, :].clone()
-            for token in domains:
-                model.esm.embeddings.word_embeddings.weight[tokenizer._convert_token_to_id(token), :] = cls_token_embedding.clone()
-    return model, tokenizer
+
 
 
 def log_metrics(log_path, metrics, details=None, header=None):

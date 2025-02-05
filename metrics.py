@@ -5,6 +5,7 @@ from sklearn.metrics import accuracy_score
 
 
 def calculate_max_metrics(ss, labels, cutoff):
+
     ss, labels = ss.float(), labels.float()
     tp = torch.sum((ss >= cutoff) & (labels == 1.0))
     fp = torch.sum((ss >= cutoff) & (labels == 0.0))
@@ -83,4 +84,23 @@ def compute_metrics_sentence_similarity_test(p: EvalPrediction):
     return {
         'avg_cosine_similarity': avg_cosine_sim,
         'avg_euclidean_distance': avg_euclidean_dist,
+    }
+
+
+def compute_metrics_benchmark(preds, labels):
+    preds = torch.tensor(preds)
+    labels = torch.tensor(labels)
+    f1, prec, recall, thres = max_metrics(preds, labels)
+    avg_pos_sim = torch.mean(preds[labels == 1.0])
+    avg_neg_sim = torch.mean(preds[labels == 0.0])
+    ratio = torch.abs(avg_pos_sim / (avg_neg_sim + 1e-8))
+    return {
+        'f1': f1,
+        'precision': prec,
+        'recall': recall,
+        'threshold': thres,
+        'ratio': ratio,
+        'avg_pos_sim': avg_pos_sim.item(),
+        'avg_neg_sim': avg_neg_sim.item(),
+
     }

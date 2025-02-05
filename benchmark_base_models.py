@@ -81,7 +81,7 @@ def main(result_dir, test_mode=False):
                 texts,
                 embedder.tokenizer,
                 batch_size=2,
-                max_len=1024,
+                max_len=512,
                 cls_pooling=False
             )
 

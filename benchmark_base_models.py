@@ -3,13 +3,11 @@ import pandas as pd
 import torch
 import torch.nn.functional as F
 from collections import defaultdict
-
+from typing import Optional
 from metrics import compute_metrics_benchmark
 from data.get_data import get_all_eval_documents
 
-from models.embedding_models import (
-    model_to_class_dict
-)
+from models.embedding_models import model_to_class_dict
 
 DATA_DICT = {
     '[COPD]': 'GleghornLab/abstract_domain_copd',
@@ -20,25 +18,25 @@ DATA_DICT = {
 }
 
 MODEL_DICT = {
-    #'ModernBERT-base': 'answerdotai/ModernBERT-base',
-    #'ModernBERT-large': 'answerdotai/ModernBERT-large',
+    'ModernBERT-base': 'answerdotai/ModernBERT-base',
+    'ModernBERT-large': 'answerdotai/ModernBERT-large',
     'BERT-base': 'google-bert/bert-base-uncased',
-    #'BERT-large': 'google-bert/bert-large-uncased',
+    'BERT-large': 'google-bert/bert-large-uncased',
     'Mini': 'sentence-transformers/all-MiniLM-L6-v2',
-    #'MPNet': 'sentence-transformers/all-mpnet-base-v2',
-    #'RoBERTa-base': 'FacebookAI/roberta-base',
-    #'RoBERTa-large': 'FacebookAI/roberta-large',
-    #'DeBERTa-v3-base': 'microsoft/deberta-v3-base',
-    #'Llama-3.2-1B': 'meta-llama/Llama-3.2-1B',
-    #'SciBERT': 'allenai/scibert_scivocab_uncased',
-    #'PubmedBERT': 'microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext',
-    #'BioBERT': 'dmis-lab/biobert-v1.1',
+    'MPNet': 'sentence-transformers/all-mpnet-base-v2',
+    'RoBERTa-base': 'FacebookAI/roberta-base',
+    'RoBERTa-large': 'FacebookAI/roberta-large',
+    'DeBERTa-v3-base': 'microsoft/deberta-v3-base',
+    'Llama-3.2-1B': 'meta-llama/Llama-3.2-1B',
+    'SciBERT': 'allenai/scibert_scivocab_uncased',
+    'PubmedBERT': 'microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext',
+    'BioBERT': 'dmis-lab/biobert-v1.1',
 }
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-def main(result_dir, test_mode=False, max_length=512):
+def main(args):
     """
     Evaluate multiple embedding models on several datasets, compute cosine-similarity-based predictions,
     and output both per-example predictions and computed metrics to CSV files.
@@ -56,6 +54,11 @@ def main(result_dir, test_mode=False, max_length=512):
         test_mode: If True, uses random embeddings instead of actual model embeddings
         max_length: Maximum length of text to embed
     """
+    result_dir = args.result_dir
+    test_mode = args.test
+    max_length = args.max_length
+    cls_pooling = args.cls_pooling
+
     # Load evaluation documents. Each list must be aligned such that the i-th example in each list corresponds.
     all_a_documents, all_b_documents, all_domain_tokens, all_labels = get_all_eval_documents(DATA_DICT)
     all_a_documents = [doc[:max_length].strip() for doc in all_a_documents]
@@ -84,8 +87,7 @@ def main(result_dir, test_mode=False, max_length=512):
                 texts,
                 embedder.tokenizer,
                 batch_size=2,
-                max_len=512,
-                cls_pooling=False
+                cls_pooling=cls_pooling
             )
 
         # Prepare dictionaries to hold results per domain and overall.
@@ -98,7 +100,6 @@ def main(result_dir, test_mode=False, max_length=512):
         for a, b, domain_token, label in zip(all_a_documents, all_b_documents, all_domain_tokens, all_labels):
             a_emb = embeddings_dict[a]
             b_emb = embeddings_dict[b]
-            # Compute cosine similarity. (Make sure the dimension is set appropriately.)
             cosine_sim = F.cosine_similarity(a_emb, b_emb, dim=1)
             sim_value = cosine_sim.item()
 
@@ -127,12 +128,12 @@ def main(result_dir, test_mode=False, max_length=512):
                 "prediction": results['preds'],
                 "label": results['labels']
             })
-            preds_file = os.path.join(model_dir, f"{model_name}_{domain_clean}_predictions.csv")
+            preds_file = os.path.join(model_dir, f"{model_name}_{domain_clean}_{cls_pooling}_predictions.csv")
             df_preds.to_csv(preds_file, index=False)
 
             # Save the computed metrics.
             df_metrics = pd.DataFrame([metrics])
-            metrics_file = os.path.join(model_dir, f"{model_name}_{domain_clean}_metrics.csv")
+            metrics_file = os.path.join(model_dir, f"{model_name}_{domain_clean}_{cls_pooling}_metrics.csv")
             df_metrics.to_csv(metrics_file, index=False)
 
             # Record summary for the current domain.
@@ -145,44 +146,34 @@ def main(result_dir, test_mode=False, max_length=512):
         
         # Save aggregated per-example predictions (with domain info).
         df_agg_preds = pd.DataFrame(aggregated_rows)
-        agg_preds_file = os.path.join(model_dir, f"{model_name}_all_predictions.csv")
+        agg_preds_file = os.path.join(model_dir, f"{model_name}_all_{cls_pooling}_predictions.csv")
         df_agg_preds.to_csv(agg_preds_file, index=False)
         
         # Save aggregated metrics.
         df_agg_metrics = pd.DataFrame([aggregated_metrics])
-        agg_metrics_file = os.path.join(model_dir, f"{model_name}_all_metrics.csv")
+        agg_metrics_file = os.path.join(model_dir, f"{model_name}_all_{cls_pooling}_metrics.csv")
         df_agg_metrics.to_csv(agg_metrics_file, index=False)
 
         # Record aggregated summary metrics.
-        summary_record = {"Model": model_name, "Dataset": "All"}
+        summary_record = {"Model": model_name, "Dataset": "All", "cls_pooling": cls_pooling}
         summary_record.update(aggregated_metrics)
         summary_records.append(summary_record)
 
     # Save the overall summary CSV.
     summary_df = pd.DataFrame(summary_records)
-    summary_csv_file = os.path.join(result_dir, "summary.csv")
+    summary_csv_file = os.path.join(result_dir, f"summary_{cls_pooling}.csv")
     summary_df.to_csv(summary_csv_file, index=False)
     print(f"Summary saved to {summary_csv_file}")
 
 
 if __name__ == "__main__":
     import argparse
-
-    parser = argparse.ArgumentParser(
-        description="Evaluate embedding models and output predictions and metrics to CSV files."
-    )
-    parser.add_argument(
-        "--result_dir",
-        type=str,
-        default="results",
-        help="Directory to save the CSV output files."
-    )
-    parser.add_argument(
-        "--test",
-        action="store_true",
-        help="Run in test mode with random embeddings"
-    )
+    parser = argparse.ArgumentParser(description="Evaluate embedding models and output predictions and metrics to CSV files.")
+    parser.add_argument("--result_dir", type=str, default="results", help="Directory to save the CSV output files.")
+    parser.add_argument("--max_length", type=int, default=512, help="Maximum length of text to embed")
+    parser.add_argument("--test", action="store_true", help="Run in test mode with random embeddings")
+    parser.add_argument("--cls_pooling", action="store_true", help="Use cls pooling instead of mean pooling")
     args = parser.parse_args()
 
     os.makedirs(args.result_dir, exist_ok=True)
-    main(args.result_dir, args.test)
+    main(args)

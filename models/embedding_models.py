@@ -3,10 +3,12 @@ import os
 from torch import nn
 from torch.nn import functional as F
 from transformers import AutoTokenizer, AutoModel
-from typing import Optional, List, Callable
+from typing import Optional, List, Callable, Union
 from transformers import PreTrainedTokenizerBase
 from torch.utils.data import Dataset, DataLoader
 from tqdm.auto import tqdm
+from sklearn.feature_extraction.text import TfidfVectorizer
+import numpy as np
 
 
 def mean_pooling(x: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
@@ -60,7 +62,6 @@ class EmbeddingMixin:
         texts: List[str],
         tokenizer: PreTrainedTokenizerBase,
         batch_size: int = 2,
-        max_len: int = 1024,
         embed_dtype: torch.dtype = torch.float32,
         cls_pooling: bool = False,
         num_workers: int = 0,
@@ -171,6 +172,7 @@ class LlamaEmbedder(nn.Module, EmbeddingMixin):
     def __init__(self, model_path: str):
         super().__init__()
         self.tokenizer = AutoTokenizer.from_pretrained(model_path)
+        self.tokenizer.pad_token = self.tokenizer.eos_token
         self.model = AutoModel.from_pretrained(model_path)
 
     def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, cls_pooling: bool = False) -> torch.Tensor:
@@ -189,6 +191,38 @@ class LlamaEmbedder(nn.Module, EmbeddingMixin):
             return mean_pooling(last_hidden_state, attention_mask)
 
 
+class TfidfEmbedder(nn.Module, EmbeddingMixin):
+    def __init__(self, max_features: int = 50000):
+        super().__init__()
+        self.vectorizer = TfidfVectorizer(max_features=max_features)
+        self.is_fitted = False
+        # Dummy parameters to make device property work
+        self.model = nn.Parameter(torch.zeros(1))
+        
+    def fit(self, texts: List[str]):
+        """Fit the TF-IDF vectorizer on a corpus of texts"""
+        self.vectorizer.fit(texts)
+        self.is_fitted = True
+        
+    def forward(self, texts: List[str], *args, **kwargs) -> torch.Tensor:
+        return self.embed(texts)
+
+    def embed(self, texts: Union[List[str], torch.Tensor], attention_mask: Optional[torch.Tensor] = None, 
+             cls_pooling: bool = False) -> torch.Tensor:
+        """
+        Embed texts using TF-IDF. Note: This embedder takes raw texts instead of input_ids
+        """
+        if not self.is_fitted:
+            raise RuntimeError("TfidfEmbedder must be fitted before embedding")
+            
+        if isinstance(texts, torch.Tensor):
+            raise ValueError("TfidfEmbedder expects raw texts, not input_ids")
+            
+        # Convert sparse matrix to dense tensor
+        embeddings = self.vectorizer.transform(texts).toarray()
+        return torch.from_numpy(embeddings).float()
+
+
 relevant_paths = {
     'ModernBERT-base': 'answerdotai/ModernBERT-base',
     'ModernBERT-large': 'answerdotai/ModernBERT-large',
@@ -203,6 +237,7 @@ relevant_paths = {
     'SciBERT': 'allenai/scibert_scivocab_uncased',
     'PubmedBERT': 'microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext',
     'BioBERT': 'dmis-lab/biobert-v1.1',
+    #'TF-IDF': None,
 }
 
 
@@ -220,4 +255,5 @@ model_to_class_dict = {
     'PubmedBERT': BaseEmbedder,
     'BioBERT': BaseEmbedder,
     'Llama-3.2-1B': LlamaEmbedder,
+    #'TF-IDF': TfidfEmbedder,
 }

@@ -5,7 +5,6 @@ from sklearn.metrics import accuracy_score
 
 
 def calculate_max_metrics(ss, labels, cutoff):
-
     ss, labels = ss.float(), labels.float()
     tp = torch.sum((ss >= cutoff) & (labels == 1.0))
     fp = torch.sum((ss >= cutoff) & (labels == 0.0))

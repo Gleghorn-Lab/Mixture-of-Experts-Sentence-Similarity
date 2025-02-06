@@ -17,6 +17,7 @@ Mpnet
 RoBERTa
 DeBERTa
 llama
+TF-IDF
 
 Eval scheme on test sets
 
@@ -24,3 +25,11 @@ Eval scheme on test sets
 Type hinting everywhere
 
 Documentation
+- clean up comments
+
+Train ModernBERT on each domain
+- no MOE
+
+Train ModernBERT on all domains
+- no MOE
+- with MOE

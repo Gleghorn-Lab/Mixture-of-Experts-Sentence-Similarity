@@ -8,7 +8,6 @@ from .moe_blocks import SentenceEnforcedSwitchMoeBlock
 from .modeling_moe_bert import MoEBertForSentenceSimilarity
 
 
-
 def convert_to_moe_bert(config: ModernBertConfig, model: ModernBertModel) -> ModernBertModel:
     """
     Seeds all experts with the original weights from the pretrained model.

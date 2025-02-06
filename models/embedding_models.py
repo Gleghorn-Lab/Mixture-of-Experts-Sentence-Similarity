@@ -192,9 +192,9 @@ class LlamaEmbedder(nn.Module, EmbeddingMixin):
 
 
 class TfidfEmbedder(nn.Module, EmbeddingMixin):
-    def __init__(self, max_features: int = 50000):
+    def __init__(self):
         super().__init__()
-        self.vectorizer = TfidfVectorizer(max_features=max_features)
+        self.vectorizer = TfidfVectorizer(max_features=4096)
         self.is_fitted = False
         # Dummy parameters to make device property work
         self.model = nn.Parameter(torch.zeros(1))
@@ -207,8 +207,7 @@ class TfidfEmbedder(nn.Module, EmbeddingMixin):
     def forward(self, texts: List[str], *args, **kwargs) -> torch.Tensor:
         return self.embed(texts)
 
-    def embed(self, texts: Union[List[str], torch.Tensor], attention_mask: Optional[torch.Tensor] = None, 
-             cls_pooling: bool = False) -> torch.Tensor:
+    def embed_dataset(self, texts: List[str]) -> torch.Tensor:
         """
         Embed texts using TF-IDF. Note: This embedder takes raw texts instead of input_ids
         """
@@ -217,10 +216,14 @@ class TfidfEmbedder(nn.Module, EmbeddingMixin):
             
         if isinstance(texts, torch.Tensor):
             raise ValueError("TfidfEmbedder expects raw texts, not input_ids")
-            
+
+        embeddings_dict = {}
         # Convert sparse matrix to dense tensor
         embeddings = self.vectorizer.transform(texts).toarray()
-        return torch.from_numpy(embeddings).float()
+        print(embeddings.shape)
+        for text, embedding in zip(texts, embeddings):
+            embeddings_dict[text] = torch.from_numpy(embedding).float().view(1, -1)
+        return embeddings_dict
 
 
 relevant_paths = {
@@ -230,20 +233,23 @@ relevant_paths = {
     'BERT-large': 'google-bert/bert-large-uncased',
     'Mini': 'sentence-transformers/all-MiniLM-L6-v2',
     'MPNet': 'sentence-transformers/all-mpnet-base-v2',
+    'E5-base': 'intfloat/e5-base-v2',
+    'E5-large': 'intfloat/e5-large-v2',
     'RoBERTa-base': 'FacebookAI/roberta-base',
     'RoBERTa-large': 'FacebookAI/roberta-large',
-    'DeBERTa-v3-base': 'microsoft/deberta-v3-base',
     'Llama-3.2-1B': 'meta-llama/Llama-3.2-1B',
     'SciBERT': 'allenai/scibert_scivocab_uncased',
     'PubmedBERT': 'microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext',
     'BioBERT': 'dmis-lab/biobert-v1.1',
-    #'TF-IDF': None,
+    'TF-IDF': None,
 }
 
 
 model_to_class_dict = {
     'Mini': SentenceTransformerEmbedder,
     'MPNet': SentenceTransformerEmbedder,
+    'E5-base': SentenceTransformerEmbedder,
+    'E5-large': SentenceTransformerEmbedder,
     'ModernBERT-base': BaseEmbedder,
     'ModernBERT-large': BaseEmbedder,
     'BERT-base': BaseEmbedder,
@@ -255,5 +261,5 @@ model_to_class_dict = {
     'PubmedBERT': BaseEmbedder,
     'BioBERT': BaseEmbedder,
     'Llama-3.2-1B': LlamaEmbedder,
-    #'TF-IDF': TfidfEmbedder,
+    'TF-IDF': TfidfEmbedder,
 }

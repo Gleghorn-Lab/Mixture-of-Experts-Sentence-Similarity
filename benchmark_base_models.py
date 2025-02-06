@@ -3,7 +3,6 @@ import pandas as pd
 import torch
 import torch.nn.functional as F
 from collections import defaultdict
-from typing import Optional
 from metrics import compute_metrics_benchmark
 from data.get_data import get_all_eval_documents
 
@@ -18,20 +17,23 @@ DATA_DICT = {
 }
 
 MODEL_DICT = {
+    #'E5-base': 'intfloat/e5-base-v2',
+    #'E5-large': 'intfloat/e5-large-v2',
     'ModernBERT-base': 'answerdotai/ModernBERT-base',
     'ModernBERT-large': 'answerdotai/ModernBERT-large',
     'BERT-base': 'google-bert/bert-base-uncased',
     'BERT-large': 'google-bert/bert-large-uncased',
-    'Mini': 'sentence-transformers/all-MiniLM-L6-v2',
-    'MPNet': 'sentence-transformers/all-mpnet-base-v2',
-    'RoBERTa-base': 'FacebookAI/roberta-base',
-    'RoBERTa-large': 'FacebookAI/roberta-large',
-    'DeBERTa-v3-base': 'microsoft/deberta-v3-base',
-    'Llama-3.2-1B': 'meta-llama/Llama-3.2-1B',
+    #'Mini': 'sentence-transformers/all-MiniLM-L6-v2',
+    #'MPNet': 'sentence-transformers/all-mpnet-base-v2',
+    #'RoBERTa-base': 'FacebookAI/roberta-base',
+    #'RoBERTa-large': 'FacebookAI/roberta-large',
     'SciBERT': 'allenai/scibert_scivocab_uncased',
     'PubmedBERT': 'microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext',
     'BioBERT': 'dmis-lab/biobert-v1.1',
+    #'TF-IDF': None,
+    'Llama-3.2-1B': 'meta-llama/Llama-3.2-1B',
 }
+
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -76,9 +78,21 @@ def main(args):
         model_dir = os.path.join(result_dir, model_name)
         os.makedirs(model_dir, exist_ok=True)
 
+        # Check if the aggregated results already exist.
+        agg_preds_file = os.path.join(model_dir, f"{model_name}_all_{cls_pooling}_predictions.csv")
+        agg_metrics_file = os.path.join(model_dir, f"{model_name}_all_{cls_pooling}_metrics.csv")
+        if os.path.exists(agg_preds_file) and os.path.exists(agg_metrics_file):
+            print(f"Results for model {model_name} already exist. Skipping recalculation.")
+            continue
+
         if test_mode:
             # Generate random embeddings dictionary
             embeddings_dict = {text: torch.randn(1, 128, dtype=torch.float32) for text in texts}
+
+        elif model_name == 'TF-IDF':
+            embedder = model_to_class_dict[model_name]()
+            embedder.fit(texts)
+            embeddings_dict = embedder.embed_dataset(texts)
         else:
             # Instantiate the embedder.
             model_class = model_to_class_dict[model_name]
@@ -141,17 +155,19 @@ def main(args):
             summary_record.update(metrics)
             summary_records.append(summary_record)
 
+        embedder.cpu()
+        del embedder
+        torch.cuda.empty_cache()
+
         # Compute and save aggregated metrics (i.e. across all domains).
         aggregated_metrics = compute_metrics_benchmark(aggregated_preds, aggregated_labels)
-        
+
         # Save aggregated per-example predictions (with domain info).
         df_agg_preds = pd.DataFrame(aggregated_rows)
-        agg_preds_file = os.path.join(model_dir, f"{model_name}_all_{cls_pooling}_predictions.csv")
         df_agg_preds.to_csv(agg_preds_file, index=False)
-        
+
         # Save aggregated metrics.
         df_agg_metrics = pd.DataFrame([aggregated_metrics])
-        agg_metrics_file = os.path.join(model_dir, f"{model_name}_all_{cls_pooling}_metrics.csv")
         df_agg_metrics.to_csv(agg_metrics_file, index=False)
 
         # Record aggregated summary metrics.
@@ -160,10 +176,11 @@ def main(args):
         summary_records.append(summary_record)
 
     # Save the overall summary CSV.
-    summary_df = pd.DataFrame(summary_records)
     summary_csv_file = os.path.join(result_dir, f"summary_{cls_pooling}.csv")
+    summary_df = pd.DataFrame(summary_records)
     summary_df.to_csv(summary_csv_file, index=False)
     print(f"Summary saved to {summary_csv_file}")
+
 
 
 if __name__ == "__main__":

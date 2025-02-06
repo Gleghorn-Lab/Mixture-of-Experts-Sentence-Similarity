@@ -26,8 +26,6 @@ def load_from_weight_path(args, model):
 
 
 
-
-
 def log_metrics(log_path, metrics, details=None, header=None):
     def log_nested_dict(d, parent_key=''):
         filtered_results = {}

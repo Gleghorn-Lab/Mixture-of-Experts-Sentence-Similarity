@@ -13,7 +13,12 @@ from .modeling_modern_bert import (
 )
 
 
-class CLSPooler(nn.Module):
+def mean_pooling(x: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
+    input_mask_expanded = attention_mask.unsqueeze(-1).expand(x.size()).float()
+    return torch.sum(x * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
+
+
+class Pooler(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.w1 = nn.Linear(config.hidden_size, config.hidden_size)
@@ -21,20 +26,20 @@ class CLSPooler(nn.Module):
         self.layernorm = nn.LayerNorm(config.hidden_size)
         self.activation = nn.Tanh()
 
-    def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
-        cls = hidden_states[:, 0]
-        cls = self.layernorm(cls)
-        cls = self.w1(cls)
-        cls = self.activation(cls)
-        cls = self.w2(cls)
-        return cls
+    def forward(self, hidden_states: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
+        x = mean_pooling(hidden_states, attention_mask)
+        x = self.layernorm(x)
+        x = self.w1(x)
+        x = self.activation(x)
+        x = self.w2(x)
+        return x
 
 
 class MoEBertForSentenceSimilarity(PreTrainedModel):
     def __init__(self, config: ModernBertConfig, base_model: ModernBertModel):
         super().__init__(config)
         self.bert = base_model
-        self.pooler = CLSPooler(config)
+        self.pooler = Pooler(config)
         self.loss_fct = clip_loss if config.loss_type == "clip" else MNR_loss
 
     def get_input_embeddings(self):
@@ -60,7 +65,7 @@ class MoEBertForSentenceSimilarity(PreTrainedModel):
 
         return global_attention_mask, sliding_window_mask
 
-    def forward(
+    def base_forward(
         self,
         input_ids: Optional[torch.LongTensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
@@ -125,10 +130,29 @@ class MoEBertForSentenceSimilarity(PreTrainedModel):
         hidden_states = self.final_norm(hidden_states)
 
         if not return_dict:
-            return tuple(v for v in [hidden_states, all_hidden_states, all_self_attentions] if v is not None)
-        
+            return tuple(v for v in [hidden_states, all_hidden_states, all_self_attentions] if v is not None)        
+
         return BaseModelOutput(
             last_hidden_state=hidden_states,
             hidden_states=all_hidden_states,
             attentions=all_self_attentions,
+        )
+    
+    def forward(self, a_docs: torch.LongTensor, b_docs: torch.LongTensor, labels: torch.LongTensor) -> SentenceSimilarityOutput:
+        input_ids_a, attention_mask_a = a_docs['input_ids'], a_docs['attention_mask']
+        input_ids_b, attention_mask_b = b_docs['input_ids'], b_docs['attention_mask']
+
+        state_a = self.base_forward(input_ids_a, attention_mask_a, labels=labels)
+        state_b = self.base_forward(input_ids_b, attention_mask_b, labels=labels)
+
+        emb_a = self.pooler(state_a.last_hidden_state, attention_mask_a)
+        emb_b = self.pooler(state_b.last_hidden_state, attention_mask_b)
+
+        loss = self.loss_fct(emb_a, emb_b)
+        
+        return SentenceSimilarityOutput(
+            loss=loss,
+            logits=(emb_a, emb_b),
+            hidden_states=(state_a.hidden_states, state_b.hidden_states),
+            attentions=(state_a.attentions, state_b.attentions),
         )

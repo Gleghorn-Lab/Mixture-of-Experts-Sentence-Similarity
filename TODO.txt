@@ -21,11 +21,13 @@ TF-IDF
 
 Eval scheme on test sets
 
-
 Type hinting everywhere
 
 Documentation
 - clean up comments
+
+Ablation study
+With cross validation
 
 Train ModernBERT on each domain
 - no MOE
@@ -33,3 +35,9 @@ Train ModernBERT on each domain
 Train ModernBERT on all domains
 - no MOE
 - with MOE
+- with domain tokens
+- without domain tokens
+
+Then train best model
+
+Compare vs. the rest

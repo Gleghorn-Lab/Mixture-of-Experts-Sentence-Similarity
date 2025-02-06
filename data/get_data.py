@@ -24,7 +24,6 @@ class SimDataset(TorchDataset):
             tokenizer: Any,
             add_tokens: bool = True,
             max_length: int = 1024
-
     ):
         self.a_documents = a_documents
         self.b_documents = b_documents
@@ -35,7 +34,7 @@ class SimDataset(TorchDataset):
         self.add_tokens = add_tokens
 
     def __len__(self):
-        return len(self.a)
+        return len(self.a_documents)
 
     def __getitem__(self, idx):
         domain_label = torch.tensor(self.domain_labels[idx], dtype=torch.long)
@@ -86,13 +85,12 @@ def get_single_eval_data(
 def get_all_eval_documents(data_dict: Dict[str, str]):
     all_a_documents, all_b_documents, all_domain_tokens, all_labels = [], [], [], []
     for domain, data_path in data_dict.items():
-        data = load_dataset(data_path, split='test')
+        data = load_dataset(data_path, split='valid')
         all_a_documents.extend(data['a'])
         all_b_documents.extend(data['b'])
         all_domain_tokens.extend([domain] * len(data['a']))
         all_labels.extend(data['label'])
     return all_a_documents, all_b_documents, all_domain_tokens, all_labels
-
 
 
 def get_single_train_data(
@@ -129,4 +127,3 @@ def get_all_train_data(
         all_domain_labels.extend([domain_label] * len(data['a']))
         all_domains.extend([domain_token] * len(data['a']))
     return SimDataset(all_a_documents, all_b_documents, all_domain_labels, all_domains, tokenizer, max_length, add_tokens)
-

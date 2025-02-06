@@ -93,14 +93,13 @@ def compute_metrics_benchmark(preds, labels):
     f1, prec, recall, thres = max_metrics(preds, labels)
     avg_pos_sim = torch.mean(preds[labels == 1.0])
     avg_neg_sim = torch.mean(preds[labels == 0.0])
-    ratio = torch.abs(avg_pos_sim / (avg_neg_sim + 1e-8))
+    ratio = torch.abs(avg_pos_sim / (avg_neg_sim + 1e-8)).item()
     return {
-        'f1': f1,
-        'precision': prec,
-        'recall': recall,
-        'threshold': thres,
-        'ratio': ratio,
-        'avg_pos_sim': avg_pos_sim.item(),
-        'avg_neg_sim': avg_neg_sim.item(),
-
+        'f1': round(f1, 4),
+        'precision': round(prec, 4),
+        'recall': round(recall, 4),
+        'threshold': round(thres, 4),
+        'ratio': round(ratio, 4),
+        'avg_pos_sim': round(avg_pos_sim.item(), 4),
+        'avg_neg_sim': round(avg_neg_sim.item(), 4),
     }

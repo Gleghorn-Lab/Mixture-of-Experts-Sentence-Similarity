@@ -38,7 +38,7 @@ MODEL_DICT = {
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-def main(result_dir, test_mode=False):
+def main(result_dir, test_mode=False, max_length=512):
     """
     Evaluate multiple embedding models on several datasets, compute cosine-similarity-based predictions,
     and output both per-example predictions and computed metrics to CSV files.
@@ -54,10 +54,13 @@ def main(result_dir, test_mode=False):
     Args:
         result_dir: Directory to save results
         test_mode: If True, uses random embeddings instead of actual model embeddings
+        max_length: Maximum length of text to embed
     """
     # Load evaluation documents. Each list must be aligned such that the i-th example in each list corresponds.
     all_a_documents, all_b_documents, all_domain_tokens, all_labels = get_all_eval_documents(DATA_DICT)
-    texts = set(all_a_documents + all_b_documents)
+    all_a_documents = [doc[:max_length].strip() for doc in all_a_documents]
+    all_b_documents = [doc[:max_length].strip() for doc in all_b_documents]
+    texts = list(set(all_a_documents + all_b_documents))
 
     # This list will collect summary metric records for all model/dataset combinations.
     summary_records = []

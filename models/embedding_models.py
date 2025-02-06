@@ -69,7 +69,7 @@ class EmbeddingMixin:
         sql_db_path: str = 'embeddings.db',
         save_path: str = 'embeddings.pth',
     ) -> Optional[dict[str, torch.Tensor]]:
-        texts = list(set([text[:max_len] for text in texts]))
+        #texts = list(set([text[:max_len] for text in texts])) # trim beforehand
         texts = sorted(texts, key=len, reverse=True)
         collate_fn = build_collator(tokenizer)
         device = self.device
@@ -122,7 +122,7 @@ class EmbeddingMixin:
                     input_ids, attention_mask = batch['input_ids'].to(device), batch['attention_mask'].to(device)
                     embeddings = self.embed(input_ids, attention_mask, cls_pooling).to(embed_dtype).cpu()
                     for seq, emb in zip(seqs, embeddings):
-                        embeddings_dict[seq] = emb
+                        embeddings_dict[seq] = emb.view(1, -1)
 
         if save:
             torch.save(embeddings_dict, save_path)

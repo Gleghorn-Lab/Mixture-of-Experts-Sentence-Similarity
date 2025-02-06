@@ -1,2 +1,2 @@
-f1,precision,recall,threshold,ratio,avg_pos_sim,avg_neg_sim
-0.6893,0.5783,0.853,0.8805,1.0292,0.9138,0.8879
+f1,precision,recall,threshold,sim_ratio,pos_sim,neg_sim
+0.6914,0.5833,0.8486,0.8816,1.0292,0.9138,0.8879

@@ -17,20 +17,20 @@ DATA_DICT = {
 }
 
 MODEL_DICT = {
-    #'E5-base': 'intfloat/e5-base-v2',
-    #'E5-large': 'intfloat/e5-large-v2',
+    'E5-base': 'intfloat/e5-base-v2',
+    'E5-large': 'intfloat/e5-large-v2',
     'ModernBERT-base': 'answerdotai/ModernBERT-base',
     'ModernBERT-large': 'answerdotai/ModernBERT-large',
     'BERT-base': 'google-bert/bert-base-uncased',
     'BERT-large': 'google-bert/bert-large-uncased',
-    #'Mini': 'sentence-transformers/all-MiniLM-L6-v2',
-    #'MPNet': 'sentence-transformers/all-mpnet-base-v2',
-    #'RoBERTa-base': 'FacebookAI/roberta-base',
-    #'RoBERTa-large': 'FacebookAI/roberta-large',
+    'Mini': 'sentence-transformers/all-MiniLM-L6-v2',
+    'MPNet': 'sentence-transformers/all-mpnet-base-v2',
+    'RoBERTa-base': 'FacebookAI/roberta-base',
+    'RoBERTa-large': 'FacebookAI/roberta-large',
     'SciBERT': 'allenai/scibert_scivocab_uncased',
     'PubmedBERT': 'microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext',
     'BioBERT': 'dmis-lab/biobert-v1.1',
-    #'TF-IDF': None,
+    'TF-IDF': None,
     'Llama-3.2-1B': 'meta-llama/Llama-3.2-1B',
 }
 

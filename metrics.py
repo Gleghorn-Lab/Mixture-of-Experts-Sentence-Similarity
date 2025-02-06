@@ -61,19 +61,22 @@ def compute_metrics_sentence_similarity(p: EvalPrediction):
 
     # Compute cosine similarity between the embeddings
     cosine_sim = F.cosine_similarity(emb_a_tensor, emb_b_tensor)
-    pairwise_cosine_sim = pairwise_cosine_similarity(emb_a_tensor, emb_b_tensor)
-    # Compute max metrics
     f1, prec, recall, thres = max_metrics(cosine_sim, labels_tensor)
-
-
+    
+    pairwise_cosine_sim = pairwise_cosine_similarity(emb_a_tensor, emb_b_tensor)
+    diag = pairwise_cosine_sim.diagonal().diag_embed()
+    sim_pos = pairwise_cosine_sim[diag != 0].mean().item()
+    sim_neg = pairwise_cosine_sim[diag == 0].mean().item()
+    sim_ratio = abs(sim_pos / (sim_neg + 1e-8))
 
     return {
-        'f1': f1,
-        'precision': prec,
-        'recall': recall,
-        'threshold': thres,
-
-
+        'f1': round(f1, 4),
+        'precision': round(prec, 4),
+        'recall': round(recall, 4),
+        'threshold': round(thres, 4),
+        'sim_ratio': round(sim_ratio, 4),
+        'pos_sim': round(sim_pos, 4),
+        'neg_sim': round(sim_neg, 4),
     }
 
 
@@ -89,7 +92,7 @@ def compute_metrics_benchmark(preds, labels):
         'precision': round(prec, 4),
         'recall': round(recall, 4),
         'threshold': round(thres, 4),
-        'ratio': round(ratio, 4),
-        'avg_pos_sim': round(avg_pos_sim.item(), 4),
-        'avg_neg_sim': round(avg_neg_sim.item(), 4),
+        'sim_ratio': round(ratio, 4),
+        'pos_sim': round(avg_pos_sim.item(), 4),
+        'neg_sim': round(avg_neg_sim.item(), 4),
     }

@@ -135,7 +135,7 @@ def main(args):
                 save_strategy="steps",
                 eval_strategy="steps",
                 save_steps=args.save_every,
-                eval_steps=args.save_every // 2,
+                eval_steps=args.save_ever,
                 logging_dir=os.path.join(unique_output_dir, "logs"),
                 learning_rate=args.lr,
                 fp16=args.fp16,

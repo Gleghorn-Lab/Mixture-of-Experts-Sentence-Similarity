@@ -1,12 +1,10 @@
 import torch
 import torch.nn as nn
 from typing import Optional, Tuple, Union
-from transformers.modeling_attn_mask_utils import _prepare_4d_attention_mask
 from transformers.modeling_outputs import BaseModelOutput
 from transformers.modeling_utils import PreTrainedModel
 from models.losses import clip_loss, MNR_loss
 from models.outputs import SentenceSimilarityOutput
-
 from .modeling_modern_bert import (
     ModernBertModel,
     ModernBertConfig,

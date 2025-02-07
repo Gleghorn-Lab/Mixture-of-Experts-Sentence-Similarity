@@ -158,7 +158,6 @@ def get_all_train_data(
                 b_documents=fold_b_documents,
                 expert_assignments=fold_expert_assignments,
             )
-            print(len(ds))
             datasets.append(ds)
         return datasets
     else:

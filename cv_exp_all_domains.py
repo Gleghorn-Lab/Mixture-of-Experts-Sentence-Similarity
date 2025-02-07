@@ -60,7 +60,7 @@ def parse_args():
     parser.add_argument("--batch_size", type=int, default=16, help="Batch size")
     parser.add_argument("--wandb_project", type=str, default="MOE_sentence_similarity", help="Wandb project name")
     parser.add_argument("--max_length", type=int, default=512, help="Maximum sequence length")
-    parser.add_argument("--save_every", type=int, default=1000, help="Save the model every n steps and evaluate every n/2 steps")
+    parser.add_argument("--save_every", type=int, default=5000, help="Save the model every n steps and evaluate every n steps")
     parser.add_argument("--bugfix", action="store_true", help="Use small batch size and max length for debugging")
     parser.add_argument("--fp16", action="store_true", help="Use fp16 training")
     args = parser.parse_args()
@@ -74,19 +74,20 @@ def main(args):
     lora = True
     CV = 5
 
-    # Define your experiments: each tuple is (moe_setting, add_tokens_setting)
-    moe_settings = [False, True, True]
-    add_tokens_settings = [True, True, False]
-    experiments = list(zip(moe_settings, add_tokens_settings))
+    # Define your experiments: each tuple is (moe_setting, add_tokens_setting, clip_loss)
+    moe_settings = [False, True, True, True]
+    add_tokens_settings = [True, True, False, False]
+    clip_losses = [True, True, True, False]
+    experiments = list(zip(moe_settings, add_tokens_settings, clip_losses))
     
     # To collect all final evaluation metrics across runs
-    all_run_metrics = []  # Each element will be a dict with keys: 'moe', 'add_tokens', 'cv_split', 'f1', 'sim_ratio'
+    all_run_metrics = []  # Each element will be a dict with keys: 'moe', 'add_tokens', 'clip_loss', 'cv_split', 'loss', 'sim_ratio'
     
-    # For each experiment (combination of MOE and add_tokens settings)
-    for moe_setting, add_tokens_setting in experiments:
-        print(f"\n--- Running experiment: MOE = {moe_setting}, add_tokens = {add_tokens_setting} ---")
+    # For each experiment (combination of MOE, add_tokens, and clip_loss settings)
+    for moe_setting, add_tokens_setting, clip_loss in experiments:
+        print(f"\n--- Running experiment: MOE = {moe_setting}, add_tokens = {add_tokens_setting}, clip_loss = {clip_loss} ---")
         
-        # of CV splits (each a torch Dataset)
+        # Get cross-validation splits (each a torch Dataset)
         cv_datasets = get_all_train_data(
             data_paths=list(DATA_DICT.values()),
             path_token_dict=path_token_dict,
@@ -99,20 +100,21 @@ def main(args):
         for cv_index in range(len(cv_datasets)):
             print(f"\n--- CV split {cv_index+1}/{CV} ---")
             
-            # Reinitialize a fresh model (and tokenizer) for each CV run
-            model, tokenizer = prepare_model(model_path, domains, lora, moe_setting)
+            # Reinitialize a fresh model (and tokenizer) for each CV run, including the clip_loss setting
+            model, tokenizer = prepare_model(model_path, domains, lora, moe_setting, clip_loss)
             summary(model)  # Print model summary
 
             data_collator = get_data_collator(tokenizer, domain_tokens=domains, max_length=args.max_length, add_tokens=add_tokens_setting)
 
             # Set up train and eval datasets
             eval_dataset = cv_datasets[cv_index]
+            # Optionally restrict eval size for speed (remove or adjust Subset if needed)
             eval_dataset = Subset(eval_dataset, range(10000))
             train_datasets = [cv_datasets[j] for j in range(len(cv_datasets)) if j != cv_index]
             train_dataset = ConcatDataset(train_datasets)
 
             # Create a unique run name and output directory (for wandb and hub)
-            run_name = f"moe_{moe_setting}_addTokens_{add_tokens_setting}_cv_{cv_index}"
+            run_name = f"moe_{moe_setting}_addTokens_{add_tokens_setting}_clipLoss_{clip_loss}_cv_{cv_index}"
             unique_output_dir = os.path.join(args.save_path, run_name)
             os.makedirs(unique_output_dir, exist_ok=True)
             
@@ -162,10 +164,11 @@ def main(args):
             final_metrics = trainer.evaluate(eval_dataset=eval_dataset)
             print("Final Metrics:\n", final_metrics)
             
-            # Save metrics (we care about loss and sim_ratio now instead of f1)
+            # Save metrics (we care about loss and sim_ratio)
             run_metrics = {
                 'moe': moe_setting,
                 'add_tokens': add_tokens_setting,
+                'clip_loss': clip_loss,
                 'cv_split': cv_index,
                 'loss': final_metrics.get('eval_loss', None),
                 'sim_ratio': final_metrics.get('sim_ratio', None)
@@ -183,15 +186,15 @@ def main(args):
             torch.cuda.empty_cache()
     
     # --- After all experiments & CV splits: Aggregate and report final results ---
-    # Group metrics by experiment setting (moe and add_tokens)
+    # Group metrics by experiment setting (moe, add_tokens, clip_loss)
     grouped_results = defaultdict(list)
     for entry in all_run_metrics:
-        key = (entry['moe'], entry['add_tokens'])
+        key = (entry['moe'], entry['add_tokens'], entry['clip_loss'])
         grouped_results[key].append(entry)
     
-    # After collecting all_run_metrics:
+    # Prepare table rows for each experiment setting
     table_rows = []
-    for (moe_setting, add_tokens_setting), entries in grouped_results.items():
+    for (moe_setting, add_tokens_setting, clip_loss), entries in grouped_results.items():
         loss_values = [e['loss'] for e in entries if e['loss'] is not None]
         sim_values = [e['sim_ratio'] for e in entries if e['sim_ratio'] is not None]
         loss_mean = np.mean(loss_values) if loss_values else float('nan')
@@ -202,6 +205,7 @@ def main(args):
         table_rows.append({
             'MOE': str(moe_setting),
             'Add_Tokens': str(add_tokens_setting),
+            'Clip_Loss': str(clip_loss),
             'Loss_mean': f"{loss_mean:.4f}",
             'Loss_std': f"{loss_std:.4f}",
             'Sim_Ratio_mean': f"{sim_mean:.4f}",

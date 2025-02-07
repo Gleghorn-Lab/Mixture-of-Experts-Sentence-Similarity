@@ -3,16 +3,37 @@ import torch.nn as nn
 import copy
 from typing import Optional
 from transformers.activations import ACT2FN
+from .lora import LoRALinear
 
 
 class Expert(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self.Wi = nn.Linear(config.hidden_size, int(config.intermediate_size) * 2, bias=config.mlp_bias)
+        if getattr(config, "lora", False):
+            self.Wi = LoRALinear(
+                config.hidden_size,
+                int(config.intermediate_size) * 2,
+                bias=config.mlp_bias,
+                r=config.lora_r,
+                lora_alpha=config.lora_alpha,
+                lora_dropout=config.lora_dropout,
+            )
+        else:
+            self.Wi = nn.Linear(config.hidden_size, int(config.intermediate_size) * 2, bias=config.mlp_bias)
         self.act = ACT2FN[config.hidden_activation]
         self.drop = nn.Dropout(config.mlp_dropout)
-        self.Wo = nn.Linear(config.intermediate_size, config.hidden_size, bias=config.mlp_bias)
+        if getattr(config, "lora", False):
+            self.Wo = LoRALinear(
+                config.intermediate_size,
+                config.hidden_size,
+                bias=config.mlp_bias,
+                r=config.lora_r,
+                lora_alpha=config.lora_alpha,
+                lora_dropout=config.lora_dropout,
+            )
+        else:
+            self.Wo = nn.Linear(config.intermediate_size, config.hidden_size, bias=config.mlp_bias)
 
     def forward(self, hidden_states: torch.Tensor, assignment: Optional[torch.Tensor] = None) -> torch.Tensor:
         input, gate = self.Wi(hidden_states).chunk(2, dim=-1)

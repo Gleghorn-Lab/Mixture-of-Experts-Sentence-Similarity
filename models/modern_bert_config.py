@@ -43,6 +43,7 @@ class ModernBertConfig(PretrainedConfig):
         sparse_pred_ignore_index=-100,
         reference_compile=None,
         repad_logits_with_grad=False,
+        lora=False,
         lora_r=8,
         lora_alpha=32,
         lora_dropout=0.01,
@@ -89,6 +90,7 @@ class ModernBertConfig(PretrainedConfig):
         self.sparse_pred_ignore_index = sparse_pred_ignore_index
         self.reference_compile = reference_compile
         self.repad_logits_with_grad = repad_logits_with_grad
+        self.lora = lora
         self.lora_r = lora_r
         self.lora_alpha = lora_alpha
         self.lora_dropout = lora_dropout

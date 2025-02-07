@@ -1,5 +1,6 @@
 import copy
 import torch
+from torchinfo import summary
 from typing import Any, List, Tuple
 from transformers import AutoTokenizer
 from .modern_bert_config import ModernBertConfig
@@ -48,17 +49,19 @@ def prepare_model(
         domains: List[str],
         lora: bool = False,
         moe: bool = True,
+        clip_loss: bool = True,
     ) -> Tuple[MoEBertForSentenceSimilarity, Any]:
     """
     Loads a pretrained model and adds new tokens
     """
     config = ModernBertConfig.from_pretrained(pretrained_path)
     config.lora = lora
+    config.loss_type = 'clip' if clip_loss else 'mnr_loss'
     if moe:
         config.num_experts = len(domains)
     else:
         config.num_experts = 1
-    model = ModernBertModel(config).from_pretrained(pretrained_path)
+    model = ModernBertModel.from_pretrained(pretrained_path, config=config)
     print('Pre MOE number of parameters:', sum(p.numel() for p in model.parameters()))
     tokenizer = AutoTokenizer.from_pretrained(pretrained_path)
     model, tokenizer = add_new_tokens(model, tokenizer, domains)
@@ -71,8 +74,6 @@ def prepare_model(
 
 if __name__ == "__main__":
     # py -m models.utils
-    from torchinfo import summary
-
     model_path = 'answerdotai/ModernBERT-base'
     domains = ['[COPD]', '[CVD]', '[CANCER]']
     lora = False

@@ -149,7 +149,6 @@ class ModernBertAttention(nn.Module):
         self.head_dim = config.hidden_size // config.num_attention_heads
         self.all_head_size = self.head_dim * self.num_heads
 
-        # Use LoRA layers if enabled; otherwise, use standard nn.Linear layers.
         if getattr(config, "lora", False):
             self.Wqkv = LoRALinear(
                 config.hidden_size,

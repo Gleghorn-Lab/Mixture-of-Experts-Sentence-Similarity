@@ -59,10 +59,12 @@ def prepare_model(
     else:
         config.num_experts = 1
     model = ModernBertModel(config).from_pretrained(pretrained_path)
+    print('Pre MOE number of parameters:', sum(p.numel() for p in model.parameters()))
     tokenizer = AutoTokenizer.from_pretrained(pretrained_path)
     model, tokenizer = add_new_tokens(model, tokenizer, domains)
     model = convert_to_moe_bert(config, model) if moe else model
     model = MoEBertForSentenceSimilarity(config, model)
+    print('Post MOE number of parameters:', sum(p.numel() for p in model.parameters()))
     return model, tokenizer
 
 

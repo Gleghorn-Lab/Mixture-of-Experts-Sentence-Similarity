@@ -52,19 +52,22 @@ def max_metrics(ss, labels):
 
 def compute_metrics_sentence_similarity(p: EvalPrediction):
     preds = p.predictions
-    labels = p.label_ids[-1]
-    emb_a, emb_b = preds[0], preds[1]
-    # Convert embeddings to tensors
-    emb_a_tensor = torch.tensor(emb_a)
-    emb_b_tensor = torch.tensor(emb_b)
-    labels_tensor = torch.tensor(labels)
-
-    # Compute cosine similarity between the embeddings
-    cosine_sim = F.cosine_similarity(emb_a_tensor, emb_b_tensor)
-    f1, prec, recall, thres = max_metrics(cosine_sim, labels_tensor)
+    emb_a, emb_b = torch.chunk(torch.tensor(preds), 2, dim=1)
+    # Compute pairwise cosine similarity
+    pairwise_cosine_sim = pairwise_cosine_similarity(emb_a, emb_b)
     
-    pairwise_cosine_sim = pairwise_cosine_similarity(emb_a_tensor, emb_b_tensor)
+    # Create labels from diagonal (1) and off-diagonal (0) elements
     diag = pairwise_cosine_sim.diagonal().diag_embed()
+    labels = (diag != 0).float()  # 1 for diagonal, 0 for off-diagonal
+    
+    # Flatten the similarity matrix and labels for metric computation
+    cosine_sim_flat = pairwise_cosine_sim.flatten()
+    labels_flat = labels.flatten()
+    
+    # Compute metrics
+    f1, prec, recall, thres = max_metrics(cosine_sim_flat, labels_flat)
+    
+    # Calculate average similarities for positive and negative pairs
     sim_pos = pairwise_cosine_sim[diag != 0].mean().item()
     sim_neg = pairwise_cosine_sim[diag == 0].mean().item()
     sim_ratio = abs(sim_pos / (sim_neg + 1e-8))

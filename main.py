@@ -1,6 +1,6 @@
 import argparse
 import torch
-from load_model import load_models
+from old.load_model import load_models
 from utils import get_yaml
 from metrics import compute_metrics_sentence_similarity, compute_metrics_sentence_similarity_test
 from evaluate import evaluate_contrastive_model

@@ -48,26 +48,9 @@ class MoEBertForSentenceSimilarity(PreTrainedModel):
     def set_input_embeddings(self, value):
         self.embeddings.tok_embeddings = value
 
-    def _update_attention_mask(self, attention_mask: torch.Tensor, output_attentions: bool) -> torch.Tensor:
-        global_attention_mask = _prepare_4d_attention_mask(attention_mask, self.dtype)
-
-        # Create position indices
-        rows = torch.arange(global_attention_mask.shape[2]).unsqueeze(0)
-        # Calculate distance between positions
-        distance = torch.abs(rows - rows.T)
-
-        # Create sliding window mask (1 for positions within window, 0 outside)
-        window_mask = (
-            (distance <= self.config.local_attention // 2).unsqueeze(0).unsqueeze(0).to(attention_mask.device)
-        )
-        # Combine with existing mask
-        sliding_window_mask = global_attention_mask.masked_fill(window_mask.logical_not(), torch.finfo(self.dtype).min)
-
-        return global_attention_mask, sliding_window_mask
-
     def base_forward(
         self,
-        input_ids: Optional[torch.LongTensor] = None,
+        input_ids: Optional[torch.Tensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
         inputs_embeds: Optional[torch.Tensor] = None,
         output_attentions: Optional[bool] = None,
@@ -99,7 +82,7 @@ class MoEBertForSentenceSimilarity(PreTrainedModel):
 
         position_ids = torch.arange(seq_len, device=device).unsqueeze(0)
 
-        attention_mask, sliding_window_mask = self._update_attention_mask(
+        attention_mask, sliding_window_mask = self.bert._update_attention_mask(
             attention_mask, output_attentions=output_attentions
         )
 
@@ -127,7 +110,7 @@ class MoEBertForSentenceSimilarity(PreTrainedModel):
         if output_hidden_states:
             all_hidden_states = all_hidden_states + (hidden_states,)
 
-        hidden_states = self.final_norm(hidden_states)
+        hidden_states = self.bert.final_norm(hidden_states)
 
         if not return_dict:
             return tuple(v for v in [hidden_states, all_hidden_states, all_self_attentions] if v is not None)        
@@ -138,7 +121,7 @@ class MoEBertForSentenceSimilarity(PreTrainedModel):
             attentions=all_self_attentions,
         )
     
-    def forward(self, a_docs: torch.LongTensor, b_docs: torch.LongTensor, labels: torch.LongTensor) -> SentenceSimilarityOutput:
+    def forward(self, a_docs, b_docs, labels: torch.Tensor) -> SentenceSimilarityOutput:
         input_ids_a, attention_mask_a = a_docs['input_ids'], a_docs['attention_mask']
         input_ids_b, attention_mask_b = b_docs['input_ids'], b_docs['attention_mask']
 
@@ -147,12 +130,10 @@ class MoEBertForSentenceSimilarity(PreTrainedModel):
 
         emb_a = self.pooler(state_a.last_hidden_state, attention_mask_a)
         emb_b = self.pooler(state_b.last_hidden_state, attention_mask_b)
-
         loss = self.loss_fct(emb_a, emb_b)
         
         return SentenceSimilarityOutput(
             loss=loss,
-            logits=(emb_a, emb_b),
-            hidden_states=(state_a.hidden_states, state_b.hidden_states),
-            attentions=(state_a.attentions, state_b.attentions),
+            logits=torch.cat([emb_a, emb_b], dim=1),
         )
+

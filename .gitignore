@@ -1,2 +1,5 @@
 *.json
 *.pyc
+*.bin
+*.safetensors
+/lhallee

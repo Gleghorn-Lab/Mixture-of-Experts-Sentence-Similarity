@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import copy
 from typing import Optional
 from transformers.activations import ACT2FN
 
@@ -30,7 +31,7 @@ class SentenceEnforcedSwitchMoeBlock(nn.Module):
         if not pretrained:
             self.experts = nn.ModuleList([expert(config) for _ in range(self.num_experts)])
         else:
-            self.experts = nn.ModuleList([expert for _ in range(self.num_experts)])
+            self.experts = nn.ModuleList([copy.deepcopy(expert) for _ in range(self.num_experts)])
 
     def forward(self, hidden_states: torch.Tensor, assignment: torch.Tensor) -> torch.Tensor:
         """

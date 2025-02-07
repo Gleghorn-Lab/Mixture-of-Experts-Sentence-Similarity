@@ -2,7 +2,7 @@ import argparse
 import os
 import torch
 import numpy as np
-from torch.utils.data import ConcatDataset
+from torch.utils.data import ConcatDataset, Subset
 from torchinfo import summary
 from transformers import Trainer, TrainingArguments
 from huggingface_hub import login
@@ -107,6 +107,7 @@ def main(args):
 
             # Set up train and eval datasets
             eval_dataset = cv_datasets[cv_index]
+            eval_dataset = Subset(eval_dataset, range(10000))
             train_datasets = [cv_datasets[j] for j in range(len(cv_datasets)) if j != cv_index]
             train_dataset = ConcatDataset(train_datasets)
 

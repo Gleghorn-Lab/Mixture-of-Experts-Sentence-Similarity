@@ -55,19 +55,14 @@ token_expert_dict = {
 def parse_args():
     parser = argparse.ArgumentParser(description="Synthyra Trainer")
     parser.add_argument("--token", type=str, default=None, help="Huggingface token")
-    parser.add_argument("--save_path", type=str, default="lhallee/moe_sim_test", 
-                        help="Base path to save the model and report to wandb")
+    parser.add_argument("--save_path", type=str, default="lhallee/moe_sim_test", help="Base path to save the model and report to wandb")
     parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
     parser.add_argument("--batch_size", type=int, default=16, help="Batch size")
-    parser.add_argument("--wandb_project", type=str, default="MOE_sentence_similarity", 
-                        help="Wandb project name")
+    parser.add_argument("--wandb_project", type=str, default="MOE_sentence_similarity", help="Wandb project name")
     parser.add_argument("--max_length", type=int, default=512, help="Maximum sequence length")
-    parser.add_argument("--save_every", type=int, default=1000, 
-                        help="Save the model every n steps and evaluate every n/2 steps")
-    parser.add_argument("--bugfix", action="store_true", 
-                        help="Use small batch size and max length for debugging")
-    parser.add_argument("--fp16", action="store_true", 
-                        help="Use fp16 training")
+    parser.add_argument("--save_every", type=int, default=1000, help="Save the model every n steps and evaluate every n/2 steps")
+    parser.add_argument("--bugfix", action="store_true", help="Use small batch size and max length for debugging")
+    parser.add_argument("--fp16", action="store_true", help="Use fp16 training")
     args = parser.parse_args()
     return args
 
@@ -135,7 +130,7 @@ def main(args):
                 save_strategy="steps",
                 eval_strategy="steps",
                 save_steps=args.save_every,
-                eval_steps=args.save_ever,
+                eval_steps=args.save_every,
                 logging_dir=os.path.join(unique_output_dir, "logs"),
                 learning_rate=args.lr,
                 fp16=args.fp16,

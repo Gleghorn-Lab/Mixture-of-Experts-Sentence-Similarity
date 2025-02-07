@@ -112,6 +112,7 @@ def main(args):
             eval_dataset = Subset(eval_dataset, range(10000))
             train_datasets = [cv_datasets[j] for j in range(len(cv_datasets)) if j != cv_index]
             train_dataset = ConcatDataset(train_datasets)
+            train_dataset = Subset(train_dataset, range(100000))
 
             # Create a unique run name and output directory (for wandb and hub)
             run_name = f"moe_{moe_setting}_addTokens_{add_tokens_setting}_clipLoss_{clip_loss}_cv_{cv_index}"

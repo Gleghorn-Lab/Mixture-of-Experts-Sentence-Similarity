@@ -2,7 +2,7 @@ import torch
 from data.get_data import get_datasets_train_sentence_sim, get_datasets_test_sentence_sim
 from data.data_collators import data_collator
 from trainer import HF_trainer
-from evaluate import evaluate_contrastive_model
+from old.evaluate import evaluate_contrastive_model
 
 
 def train_sim_model(yargs, model, tokenizer, compute_metrics, token=None):

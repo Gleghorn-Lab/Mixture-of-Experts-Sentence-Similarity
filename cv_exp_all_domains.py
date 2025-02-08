@@ -71,8 +71,7 @@ def main(args):
     # Experiment and CV settings
     model_path = 'answerdotai/ModernBERT-base'
     domains = list(DATA_DICT.keys())
-    lora = False
-    CV = 3
+    lora, CV = False, 3
 
     # Define your experiments: each tuple is (moe_setting, add_tokens_setting, clip_loss)
     moe_settings = [False, True, True, True]

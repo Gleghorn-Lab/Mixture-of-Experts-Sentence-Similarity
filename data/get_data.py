@@ -60,6 +60,18 @@ def get_single_eval_data(data_path: str, path_token_dict: Dict[str, str], token_
     return SimDataset(data['a'], data['b'], expert_assignments)
 
 
+def get_all_eval_data(data_paths: List[str], path_token_dict: Dict[str, str], token_expert_dict: Dict[str, int]) -> SimDataset:
+    all_a_documents, all_b_documents, all_expert_assignments = [], [], []
+    for path in data_paths:
+        domain_token = path_token_dict[path]
+        expert_assignment = token_expert_dict[domain_token]
+        data = load_dataset(path, split='test')
+        all_a_documents.extend(data['a'])
+        all_b_documents.extend(data['b'])
+        all_expert_assignments.extend([expert_assignment] * len(data['a']))
+    return SimDataset(all_a_documents, all_b_documents, all_expert_assignments)
+
+
 def get_all_eval_documents(data_dict: Dict[str, str]):
     all_a_documents, all_b_documents, all_domain_tokens, all_labels = [], [], [], []
     for domain, data_path in data_dict.items():

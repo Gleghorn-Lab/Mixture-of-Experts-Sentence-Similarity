@@ -65,7 +65,6 @@ class SentenceEnforcedSwitchMoeBlock(nn.Module):
         """
         # Prepare an output tensor (will have the same ordering as the input)
         outputs = hidden_states.new_empty(hidden_states.size())
-
         # Loop over each expert and process the examples assigned to it.
         for expert_idx in range(self.num_experts):
             # Create a mask for examples assigned to the current expert.

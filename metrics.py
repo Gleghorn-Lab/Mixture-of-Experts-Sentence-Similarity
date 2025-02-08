@@ -50,7 +50,7 @@ def max_metrics(ss, labels):
     return best_f1, best_precision, best_recall, best_threshold
 
 
-def compute_metrics_sentence_similarity(p: EvalPrediction):
+def compute_metrics_sentence_similarity_positives(p: EvalPrediction):
     preds = p.predictions
     emb_a, emb_b = torch.chunk(torch.tensor(preds), 2, dim=1)
     # Compute pairwise cosine similarity
@@ -81,6 +81,27 @@ def compute_metrics_sentence_similarity(p: EvalPrediction):
         'pos_sim': round(sim_pos, 4),
         'neg_sim': round(sim_neg, 4),
     }
+
+
+def compute_metrics_sentence_similarity_with_negatives(p: EvalPrediction):
+    preds = p.predictions
+    labels = torch.tensor(p.label_ids)
+    emb_a, emb_b = torch.chunk(torch.tensor(preds), 2, dim=1)
+    preds = F.cosine_similarity(emb_a, emb_b, dim=1)
+    f1, prec, recall, thres = max_metrics(preds, labels)
+    avg_pos_sim = torch.mean(preds[labels == 1.0])
+    avg_neg_sim = torch.mean(preds[labels == 0.0])
+    ratio = torch.abs(avg_pos_sim / (avg_neg_sim + 1e-8)).item()
+    return {
+        'f1': round(f1, 4),
+        'precision': round(prec, 4),
+        'recall': round(recall, 4),
+        'threshold': round(thres, 4),
+        'sim_ratio': round(ratio, 4),
+        'pos_sim': round(avg_pos_sim.item(), 4),
+        'neg_sim': round(avg_neg_sim.item(), 4),
+    }
+
 
 
 def compute_metrics_benchmark(preds, labels):

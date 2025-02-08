@@ -54,7 +54,7 @@ class MoEBertForSentenceSimilarity(PreTrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-        labels: Optional[torch.Tensor] = None,
+        assignment: Optional[torch.Tensor] = None,
     ) -> Union[Tuple[torch.Tensor, ...], BaseModelOutput]:
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
@@ -85,8 +85,6 @@ class MoEBertForSentenceSimilarity(PreTrainedModel):
         )
 
         hidden_states = self.bert.embeddings(input_ids=input_ids, inputs_embeds=inputs_embeds)
-
-        assignment = labels
 
         for encoder_layer in self.bert.layers:
             if output_hidden_states:
@@ -119,12 +117,12 @@ class MoEBertForSentenceSimilarity(PreTrainedModel):
             attentions=all_self_attentions,
         )
     
-    def forward(self, a_docs, b_docs, labels: torch.Tensor) -> SentenceSimilarityOutput:
+    def forward(self, a_docs, b_docs, assignment: Optional[torch.Tensor] = None, labels: Optional[torch.Tensor] = None) -> SentenceSimilarityOutput:
         input_ids_a, attention_mask_a = a_docs['input_ids'], a_docs['attention_mask']
         input_ids_b, attention_mask_b = b_docs['input_ids'], b_docs['attention_mask']
 
-        state_a = self.base_forward(input_ids_a, attention_mask_a, labels=labels)
-        state_b = self.base_forward(input_ids_b, attention_mask_b, labels=labels)
+        state_a = self.base_forward(input_ids_a, attention_mask_a, assignment=assignment)
+        state_b = self.base_forward(input_ids_b, attention_mask_b, assignment=assignment)
 
         emb_a = self.pooler(state_a.last_hidden_state, attention_mask_a)
         emb_b = self.pooler(state_b.last_hidden_state, attention_mask_b)

@@ -8,7 +8,7 @@ from huggingface_hub import login
 from data.data_collators import get_data_collator
 from data.get_data import get_single_train_data, get_single_eval_data
 from models.utils import prepare_model
-from metrics import compute_metrics_sentence_similarity as compute_metrics
+from metrics import compute_metrics_sentence_similarity_with_negatives as compute_metrics
 
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)

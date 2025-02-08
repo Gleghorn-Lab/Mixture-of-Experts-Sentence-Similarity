@@ -11,7 +11,7 @@ import pandas as pd
 from data.data_collators import get_data_collator
 from data.get_data import get_all_train_data
 from models.utils import prepare_model
-from metrics import compute_metrics_sentence_similarity as compute_metrics
+from metrics import compute_metrics_sentence_similarity_positives as compute_metrics
 
 from collections import defaultdict
 

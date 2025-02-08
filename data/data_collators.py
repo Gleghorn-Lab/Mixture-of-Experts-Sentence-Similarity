@@ -7,6 +7,7 @@ def get_data_collator(tokenizer, domain_tokens: List[str], max_length: int=512, 
         a_docs = [item[0] for item in batch]
         b_docs = [item[1] for item in batch]
         expert_assignments = torch.tensor([item[2] for item in batch])
+        labels = torch.tensor([item[3] for item in batch])
 
         tokenized_a = tokenizer(
             a_docs,
@@ -34,5 +35,5 @@ def get_data_collator(tokenizer, domain_tokens: List[str], max_length: int=512, 
                 input_ids_b[i][0] = domain_token
             tokenized_a['input_ids'], tokenized_b['input_ids'] = input_ids_a, input_ids_b
 
-        return {'a_docs': tokenized_a, 'b_docs': tokenized_b, 'labels': expert_assignments}
+        return {'a_docs': tokenized_a, 'b_docs': tokenized_b, 'assignment': expert_assignments, 'labels': labels}
     return _data_collator

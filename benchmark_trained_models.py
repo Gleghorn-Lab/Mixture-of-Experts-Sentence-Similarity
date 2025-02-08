@@ -4,9 +4,10 @@ import torch
 import torch.nn.functional as F
 from collections import defaultdict
 from metrics import compute_metrics_benchmark
-from data.get_data import get_all_eval_documents
+from data.get_data import get_all_eval_documents, token_expert_dict
 
-from models.embedding_models import model_to_class_dict
+from models.embedding_models import MoeModernBertEmbedder
+
 
 DATA_DICT = {
     '[COPD]': 'GleghornLab/abstract_domain_copd',
@@ -17,21 +18,20 @@ DATA_DICT = {
 }
 
 MODEL_DICT = {
-    'E5-base': 'intfloat/e5-base-v2',
-    'E5-large': 'intfloat/e5-large-v2',
-    'ModernBERT-base': 'answerdotai/ModernBERT-base',
-    'ModernBERT-large': 'answerdotai/ModernBERT-large',
-    'BERT-base': 'google-bert/bert-base-uncased',
-    'BERT-large': 'google-bert/bert-large-uncased',
-    'Mini': 'sentence-transformers/all-MiniLM-L6-v2',
-    'MPNet': 'sentence-transformers/all-mpnet-base-v2',
-    'RoBERTa-base': 'FacebookAI/roberta-base',
-    'RoBERTa-large': 'FacebookAI/roberta-large',
-    'SciBERT': 'allenai/scibert_scivocab_uncased',
-    'PubmedBERT': 'microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext',
-    'BioBERT': 'dmis-lab/biobert-v1.1',
-    'TF-IDF': None,
-    'Llama-3.2-1B': 'meta-llama/Llama-3.2-1B',
+    'MOE': 'lhallee/moe_train_run',
+    'SE-Autoimmune': 'lhallee/se_train_run_AUTOIMMUNE',
+    'SE-Cancer': 'lhallee/se_train_run_CANCER',
+    'SE-CVD': 'lhallee/se_train_run_CVD',
+    'SE-Parasitic': 'lhallee/se_train_run_PARASITIC',
+    'SE-COPD': 'lhallee/se_train_run_COPD',
+}
+
+MODEL_DOMAIN_DICT = {
+    'SE-Autoimmune': '[AUTOIMMUNE]',
+    'SE-Cancer': '[CANCER]',
+    'SE-CVD': '[CVD]',
+    'SE-Parasitic': '[PARASITIC]',
+    'SE-COPD': '[COPD]',
 }
 
 
@@ -59,17 +59,15 @@ def main(args):
     result_dir = args.result_dir
     test_mode = args.test
     max_length = args.max_length
-    cls_pooling = args.cls_pooling
 
     # Load evaluation documents. Each list must be aligned such that the i-th example in each list corresponds.
-    all_a_documents, all_b_documents, all_domain_tokens, all_labels, all_expert_assignments = get_all_eval_documents(DATA_DICT)
+    all_a_documents, all_b_documents, all_domain_tokens, all_labels, all_expert_assignments = get_all_eval_documents(DATA_DICT, token_expert_dict)
     all_a_documents = [doc[:max_length].strip() for doc in all_a_documents]
     all_b_documents = [doc[:max_length].strip() for doc in all_b_documents]
     texts = list(set(all_a_documents + all_b_documents))
 
     # This list will collect summary metric records for all model/dataset combinations.
     summary_records = []
-
     # Loop over each model you want to evaluate.
     for model_name, model_path in MODEL_DICT.items():
         print(f"Processing model: {model_name}")
@@ -79,30 +77,34 @@ def main(args):
         os.makedirs(model_dir, exist_ok=True)
 
         # Check if the aggregated results already exist.
-        agg_preds_file = os.path.join(model_dir, f"{model_name}_all_{cls_pooling}_predictions.csv")
-        agg_metrics_file = os.path.join(model_dir, f"{model_name}_all_{cls_pooling}_metrics.csv")
+        agg_preds_file = os.path.join(model_dir, f"{model_name}_all_predictions.csv")
+        agg_metrics_file = os.path.join(model_dir, f"{model_name}_all_metrics.csv")
         if os.path.exists(agg_preds_file) and os.path.exists(agg_metrics_file):
             print(f"Results for model {model_name} already exist. Skipping recalculation.")
             continue
+
+        if 'se' in model_name.lower():
+            domain = MODEL_DOMAIN_DICT[model_name]
+            current_domain_tokens = [domain] * len(all_a_documents)
+            current_expert_assignments = [0] * len(all_a_documents)
+        else:
+            current_domain_tokens = all_domain_tokens
+            current_expert_assignments = all_expert_assignments
+
 
         if test_mode:
             # Generate random embeddings dictionary
             embeddings_dict = {text: torch.randn(1, 128, dtype=torch.float32) for text in texts}
 
-        elif model_name == 'TF-IDF':
-            embedder = model_to_class_dict[model_name]()
-            embedder.fit(texts)
-            embeddings_dict = embedder.embed_dataset(texts)
         else:
-            # Instantiate the embedder.
-            model_class = model_to_class_dict[model_name]
-            embedder = model_class(model_path).to(DEVICE)
+            domains = list(DATA_DICT.keys())
+            embedder = MoeModernBertEmbedder(model_path, domains).to(DEVICE)
             embeddings_dict = embedder.embed_dataset(
                 texts,
-                assignments=all_expert_assignments, # not used
+                assignments=current_expert_assignments,
                 tokenizer=embedder.tokenizer,
                 batch_size=2,
-                cls_pooling=cls_pooling
+                cls_pooling=False,
             )
 
         # Prepare dictionaries to hold results per domain and overall.
@@ -112,11 +114,12 @@ def main(args):
         aggregated_rows = []  # To record domain info with each prediction for later aggregation.
 
         # Iterate through each evaluation example.
-        for a, b, domain_token, label in zip(all_a_documents, all_b_documents, all_domain_tokens, all_labels):
+        for a, b, domain_token, label in zip(all_a_documents, all_b_documents, current_domain_tokens, all_labels):
             a_emb = embeddings_dict[a]
             b_emb = embeddings_dict[b]
             cosine_sim = F.cosine_similarity(a_emb, b_emb, dim=1)
             sim_value = cosine_sim.item()
+
 
             # Append per-domain results.
             result_dict[domain_token]['preds'].append(sim_value)
@@ -143,12 +146,12 @@ def main(args):
                 "prediction": results['preds'],
                 "label": results['labels']
             })
-            preds_file = os.path.join(model_dir, f"{model_name}_{domain_clean}_{cls_pooling}_predictions.csv")
+            preds_file = os.path.join(model_dir, f"{model_name}_{domain_clean}_predictions.csv")
             df_preds.to_csv(preds_file, index=False)
 
             # Save the computed metrics.
             df_metrics = pd.DataFrame([metrics])
-            metrics_file = os.path.join(model_dir, f"{model_name}_{domain_clean}_{cls_pooling}_metrics.csv")
+            metrics_file = os.path.join(model_dir, f"{model_name}_{domain_clean}_metrics.csv")
             df_metrics.to_csv(metrics_file, index=False)
 
             # Record summary for the current domain.
@@ -172,12 +175,12 @@ def main(args):
         df_agg_metrics.to_csv(agg_metrics_file, index=False)
 
         # Record aggregated summary metrics.
-        summary_record = {"Model": model_name, "Dataset": "All", "cls_pooling": cls_pooling}
+        summary_record = {"Model": model_name, "Dataset": "All"}
         summary_record.update(aggregated_metrics)
         summary_records.append(summary_record)
 
     # Save the overall summary CSV.
-    summary_csv_file = os.path.join(result_dir, f"summary_{cls_pooling}.csv")
+    summary_csv_file = os.path.join(result_dir, "trained_summary.csv")
     summary_df = pd.DataFrame(summary_records)
     summary_df.to_csv(summary_csv_file, index=False)
     print(f"Summary saved to {summary_csv_file}")
@@ -190,7 +193,6 @@ if __name__ == "__main__":
     parser.add_argument("--result_dir", type=str, default="results", help="Directory to save the CSV output files.")
     parser.add_argument("--max_length", type=int, default=512, help="Maximum length of text to embed")
     parser.add_argument("--test", action="store_true", help="Run in test mode with random embeddings")
-    parser.add_argument("--cls_pooling", action="store_true", help="Use cls pooling instead of mean pooling")
     args = parser.parse_args()
 
     os.makedirs(args.result_dir, exist_ok=True)

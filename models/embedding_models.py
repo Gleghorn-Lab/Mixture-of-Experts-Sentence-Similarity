@@ -3,12 +3,14 @@ import os
 from torch import nn
 from torch.nn import functional as F
 from transformers import AutoTokenizer, AutoModel
-from typing import Optional, List, Callable, Union
+from typing import Optional, List, Callable, Tuple
 from transformers import PreTrainedTokenizerBase
 from torch.utils.data import Dataset, DataLoader
 from tqdm.auto import tqdm
 from sklearn.feature_extraction.text import TfidfVectorizer
-import numpy as np
+from .modeling_modern_bert import ModernBertModel, ModernBertConfig
+from .modeling_moe_bert import MoEBertForSentenceSimilarity
+from .utils import add_new_tokens, convert_to_moe_bert
 
 
 def mean_pooling(x: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
@@ -17,20 +19,22 @@ def mean_pooling(x: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
 
 
 class SimpleTextDataset(Dataset):
-    def __init__(self, texts: list[str]):
+    def __init__(self, texts: List[str], assignments: List[int]):
         self.texts = texts
+        self.assignments = assignments
 
     def __len__(self) -> int:
         return len(self.texts)
 
     def __getitem__(self, idx: int) -> str:
-        return self.texts[idx]
+        return self.texts[idx], self.assignments[idx]
 
 
 def build_collator(tokenizer) -> Callable[[list[str]], tuple[torch.Tensor, torch.Tensor]]:
-    def _collate_fn(texts: list[str]) -> tuple[torch.Tensor, torch.Tensor]:
+    def _collate_fn(batch: List[Tuple[str, int]]) -> tuple[torch.Tensor, torch.Tensor]:
         """Collate function for batching texts."""
-        return tokenizer(texts, return_tensors="pt", padding='longest', pad_to_multiple_of=8)
+        texts, assignments = zip(*batch)
+        return tokenizer(texts, return_tensors="pt", padding='longest', pad_to_multiple_of=8), torch.tensor(assignments, dtype=torch.long)
     return _collate_fn
 
 
@@ -60,6 +64,7 @@ class EmbeddingMixin:
     def embed_dataset(
         self,
         texts: List[str],
+        assignments: List[int],
         tokenizer: PreTrainedTokenizerBase,
         batch_size: int = 2,
         embed_dtype: torch.dtype = torch.float32,
@@ -86,13 +91,14 @@ class EmbeddingMixin:
             print(f"Found {len(already_embedded)} already embedded texts in {sql_db_path}")
             print(f"Embedding {len(to_embed)} new texts")
             if len(to_embed) > 0:
-                dataset = SimpleTextDataset(to_embed)
+                dataset = SimpleTextDataset(to_embed, assignments)
                 dataloader = DataLoader(dataset, batch_size=batch_size, num_workers=num_workers, collate_fn=collate_fn, shuffle=False)
                 with torch.no_grad():
                     for i, batch in tqdm(enumerate(dataloader), total=len(dataloader), desc='Embedding batches'):
                         seqs = to_embed[i * batch_size:(i + 1) * batch_size]
-                        input_ids, attention_mask = batch['input_ids'].to(device), batch['attention_mask'].to(device)
-                        embeddings = self.embed(input_ids, attention_mask, cls_pooling).float().cpu() # sql requires float32
+                        tokenized, assignments = batch
+                        input_ids, attention_mask, assignments = tokenized['input_ids'].to(device), tokenized['attention_mask'].to(device), assignments.to(device)
+                        embeddings = self.embed(input_ids, attention_mask, assignments, cls_pooling).float().cpu() # sql requires float32
                         for seq, emb in zip(seqs, embeddings):
                             c.execute("INSERT OR REPLACE INTO embeddings VALUES (?, ?)", 
                                     (seq, emb.cpu().numpy().tobytes()))
@@ -115,15 +121,17 @@ class EmbeddingMixin:
             print(f"Embedding {len(to_embed)} new texts")
 
         if len(to_embed) > 0:
-            dataset = SimpleTextDataset(to_embed)
+            dataset = SimpleTextDataset(to_embed, assignments)
             dataloader = DataLoader(dataset, batch_size=batch_size, num_workers=num_workers, collate_fn=collate_fn, shuffle=False)
             with torch.no_grad():
                 for i, batch in tqdm(enumerate(dataloader), total=len(dataloader), desc='Embedding batches'):
                     seqs = to_embed[i * batch_size:(i + 1) * batch_size]
-                    input_ids, attention_mask = batch['input_ids'].to(device), batch['attention_mask'].to(device)
-                    embeddings = self.embed(input_ids, attention_mask, cls_pooling).to(embed_dtype).cpu()
+                    tokenized, assignments = batch
+                    input_ids, attention_mask, assignments = tokenized['input_ids'].to(device), tokenized['attention_mask'].to(device), assignments.to(device)
+                    embeddings = self.embed(input_ids, attention_mask, assignments, cls_pooling).to(embed_dtype).cpu()
                     for seq, emb in zip(seqs, embeddings):
                         embeddings_dict[seq] = emb.view(1, -1)
+
 
         if save:
             torch.save(embeddings_dict, save_path)
@@ -137,10 +145,10 @@ class BaseEmbedder(nn.Module, EmbeddingMixin):
         self.tokenizer = AutoTokenizer.from_pretrained(model_path)
         self.model = AutoModel.from_pretrained(model_path)
 
-    def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, cls_pooling: bool = False) -> torch.Tensor:
-        return self.embed(input_ids, attention_mask, cls_pooling)
+    def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, assignments: Optional[torch.Tensor] = None, cls_pooling: Optional[bool] = False) -> torch.Tensor:
+        return self.embed(input_ids, attention_mask, assignments, cls_pooling)
 
-    def embed(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, cls_pooling: bool = False) -> torch.Tensor:
+    def embed(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, assignments: Optional[torch.Tensor] = None, cls_pooling: Optional[bool] = False) -> torch.Tensor:
         if cls_pooling:
             return self.model(input_ids, attention_mask=attention_mask).last_hidden_state[:, 0, :]
         else:
@@ -156,12 +164,11 @@ class SentenceTransformerEmbedder(nn.Module, EmbeddingMixin):
         self.tokenizer = AutoTokenizer.from_pretrained(model_path)
         self.model = AutoModel.from_pretrained(model_path)
 
-    def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, cls_pooling: bool = False) -> torch.Tensor:
-        return self.embed(input_ids, attention_mask, cls_pooling)
+    def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, assignments: Optional[torch.Tensor] = None, cls_pooling: Optional[bool] = False) -> torch.Tensor:
+        return self.embed(input_ids, attention_mask, assignments, cls_pooling)
 
-    def embed(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, cls_pooling: bool = False) -> torch.Tensor:
+    def embed(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, assignments: Optional[torch.Tensor] = None, cls_pooling: Optional[bool] = False) -> torch.Tensor:
         assert not cls_pooling, "MiniEmbedder does not support cls_pooling"
-
         last_hidden_state = self.model(input_ids, attention_mask=attention_mask)[0]
         sentence_embeddings = mean_pooling(last_hidden_state, attention_mask)
         sentence_embeddings = F.normalize(sentence_embeddings, p=2, dim=1)
@@ -175,10 +182,10 @@ class LlamaEmbedder(nn.Module, EmbeddingMixin):
         self.tokenizer.pad_token = self.tokenizer.eos_token
         self.model = AutoModel.from_pretrained(model_path)
 
-    def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, cls_pooling: bool = False) -> torch.Tensor:
-        return self.embed(input_ids, attention_mask, cls_pooling)
+    def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, assignments: Optional[torch.Tensor] = None, cls_pooling: Optional[bool] = False) -> torch.Tensor:
+        return self.embed(input_ids, attention_mask, assignments, cls_pooling)
 
-    def embed(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, cls_pooling: bool = False) -> torch.Tensor:
+    def embed(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, assignments: Optional[torch.Tensor] = None, cls_pooling: Optional[bool] = False) -> torch.Tensor:
         # cls is eos for llama
         if cls_pooling:
             eos_tokens = (input_ids == self.tokenizer.eos_token_id)
@@ -224,6 +231,25 @@ class TfidfEmbedder(nn.Module, EmbeddingMixin):
         for text, embedding in zip(texts, embeddings):
             embeddings_dict[text] = torch.from_numpy(embedding).float().view(1, -1)
         return embeddings_dict
+
+
+class MoeModernBertEmbedder(nn.Module, EmbeddingMixin):
+    def __init__(self, model_path: str, domains: List[str]):
+        super().__init__()
+        base_path = 'answerdotai/ModernBERT-base'
+        tokenizer = AutoTokenizer.from_pretrained(base_path)
+        config = ModernBertConfig.from_pretrained(model_path)
+        model = ModernBertModel(config)
+        model, self.tokenizer = add_new_tokens(model, tokenizer, domains)
+        model = convert_to_moe_bert(config, model) if config.num_experts > 1 else model
+        self.model = MoEBertForSentenceSimilarity(config, model).from_pretrained(model_path, config=config, base_model=model)
+
+    def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, assignments: Optional[torch.Tensor] = None, cls_pooling: Optional[bool] = False) -> torch.Tensor:
+        return self.embed(input_ids, attention_mask, assignments, cls_pooling)
+
+    def embed(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, assignments: Optional[torch.Tensor] = None, cls_pooling: Optional[bool] = False) -> torch.Tensor:
+        last_hidden_state = self.model.base_forward(input_ids, attention_mask=attention_mask, assignment=assignments).last_hidden_state
+        return self.model.pooler(last_hidden_state, attention_mask)
 
 
 relevant_paths = {

@@ -78,15 +78,18 @@ def get_all_eval_data(data_paths: List[str], path_token_dict: Dict[str, str], to
 
 
 
-def get_all_eval_documents(data_dict: Dict[str, str]):
-    all_a_documents, all_b_documents, all_domain_tokens, all_labels = [], [], [], []
+def get_all_eval_documents(data_dict: Dict[str, str], token_expert_dict: Dict[str, int]):
+    all_a_documents, all_b_documents, all_domain_tokens, all_labels, all_expert_assignments = [], [], [], [], []
     for domain, data_path in data_dict.items():
         data = load_dataset(data_path, split='test')
         all_a_documents.extend(data['a'])
         all_b_documents.extend(data['b'])
         all_domain_tokens.extend([domain] * len(data['a']))
         all_labels.extend(data['label'])
-    return all_a_documents, all_b_documents, all_domain_tokens, all_labels
+        expert_assignment = token_expert_dict[domain]
+        all_expert_assignments.extend([expert_assignment] * len(data['a']))
+    return all_a_documents, all_b_documents, all_domain_tokens, all_labels, all_expert_assignments
+
 
 
 def get_single_train_data(

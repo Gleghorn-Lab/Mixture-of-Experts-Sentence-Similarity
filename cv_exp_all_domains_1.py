@@ -9,7 +9,7 @@ from huggingface_hub import login
 import pandas as pd
 
 from data.data_collators import get_data_collator
-from data.get_data import get_all_train_data
+from data.get_data import get_all_train_data, get_all_eval_data
 from models.utils import prepare_model
 from metrics import compute_metrics_sentence_similarity_positives as compute_metrics
 
@@ -74,13 +74,13 @@ def main(args):
     lora, CV = False, 3
 
     # Define your experiments: each tuple is (moe_setting, add_tokens_setting, clip_loss)
-    moe_settings = [False, True, True, True]
-    add_tokens_settings = [True, True, False, False]
-    clip_losses = [True, True, True, False]
+    moe_settings = [False, True]
+    add_tokens_settings = [True, True]
+    clip_losses = [True, True]
     experiments = list(zip(moe_settings, add_tokens_settings, clip_losses))
     
     # To collect all final evaluation metrics across runs
-    all_run_metrics = []  # Each element will be a dict with keys: 'moe', 'add_tokens', 'clip_loss', 'cv_split', 'loss', 'sim_ratio'
+    all_run_metrics = []  # Each element will be a dict with keys: 'moe', 'add_tokens', 'clip_loss', 'cv_split', 'loss', 'sim_ratio', 'f1'
     
     # For each experiment (combination of MOE, add_tokens, and clip_loss settings)
     for moe_setting, add_tokens_setting, clip_loss in experiments:
@@ -94,6 +94,13 @@ def main(args):
             cross_validation=True,
             cv=CV,
         )
+
+        test_dataset = get_all_eval_data(
+            data_paths=list(DATA_DICT.values()),
+            path_token_dict=path_token_dict,
+            token_expert_dict=token_expert_dict,
+        )
+        test_dataset = Subset(test_dataset, range(10))
     
         # Loop over each CV split: use one fold as eval and the rest as training
         for cv_index in range(len(cv_datasets)):
@@ -108,10 +115,10 @@ def main(args):
             # Set up train and eval datasets
             eval_dataset = cv_datasets[cv_index]
             # Optionally restrict eval size for speed (remove or adjust Subset if needed)
-            eval_dataset = Subset(eval_dataset, range(10000))
+            eval_dataset = Subset(eval_dataset, range(10))
             train_datasets = [cv_datasets[j] for j in range(len(cv_datasets)) if j != cv_index]
             train_dataset = ConcatDataset(train_datasets)
-            train_dataset = Subset(train_dataset, range(100000))
+            train_dataset = Subset(train_dataset, range(100))
 
             # Create a unique run name and output directory (for wandb and hub)
             run_name = f"moe_{moe_setting}_addTokens_{add_tokens_setting}_clipLoss_{clip_loss}_cv_{cv_index}"
@@ -154,29 +161,38 @@ def main(args):
             )
             
             # (Optional) Evaluate before training to get initial metrics
-            init_metrics = trainer.evaluate(eval_dataset=eval_dataset)
-            print("Initial Metrics:\n", init_metrics)
-            
+            init_cv_metrics = trainer.evaluate(eval_dataset=eval_dataset)
+            print("Initial CV Metrics:\n", init_cv_metrics)
+            init_test_metrics = trainer.evaluate(eval_dataset=test_dataset)
+            print("Initial Test Metrics:\n", init_test_metrics)
+
             # --- Train for one epoch ---
             trainer.train()
             
             # Evaluate after training
-            final_metrics = trainer.evaluate(eval_dataset=eval_dataset)
-            print("Final Metrics:\n", final_metrics)
+            final_cv_metrics = trainer.evaluate(eval_dataset=eval_dataset)
+            print("Final CV Metrics:\n", final_cv_metrics)
+            final_test_metrics = trainer.evaluate(eval_dataset=test_dataset)
+            print("Final Test Metrics:\n", final_test_metrics)
             
-            # Save metrics (we care about loss and sim_ratio)
+            # Save metrics from the test dataset (tracking loss, sim_ratio, and F1 score)
             run_metrics = {
                 'moe': moe_setting,
                 'add_tokens': add_tokens_setting,
                 'clip_loss': clip_loss,
                 'cv_split': cv_index,
-                'loss': final_metrics.get('eval_loss', None),
-                'sim_ratio': final_metrics.get('sim_ratio', None)
+                'cv_loss': final_cv_metrics.get('eval_loss', None),
+                'cv_sim_ratio': final_cv_metrics.get('eval_sim_ratio', None),
+                'cv_f1': final_cv_metrics.get('eval_f1', None),
+                'test_loss': final_test_metrics.get('eval_loss', None),
+                'test_sim_ratio': final_test_metrics.get('eval_sim_ratio', None),
+                'test_f1': final_test_metrics.get('eval_f1', None)
+
             }
             all_run_metrics.append(run_metrics)
             
             # Push model to Hugging Face Hub (each run gets its own repo thanks to unique output_dir)
-            trainer.push_to_hub()
+            #trainer.push_to_hub()
             
             if WANDB_AVAILABLE:
                 wandb.finish()
@@ -195,22 +211,45 @@ def main(args):
     # Prepare table rows for each experiment setting
     table_rows = []
     for (moe_setting, add_tokens_setting, clip_loss), entries in grouped_results.items():
-        loss_values = [e['loss'] for e in entries if e['loss'] is not None]
-        sim_values = [e['sim_ratio'] for e in entries if e['sim_ratio'] is not None]
-        loss_mean = np.mean(loss_values) if loss_values else float('nan')
-        loss_std = np.std(loss_values) if loss_values else float('nan')
-        sim_mean = np.mean(sim_values) if sim_values else float('nan')
-        sim_std = np.std(sim_values) if sim_values else float('nan')
+        cv_loss_values = [e['cv_loss'] for e in entries if e['cv_loss'] is not None]
+        cv_sim_values = [e['cv_sim_ratio'] for e in entries if e['cv_sim_ratio'] is not None]
+        cv_f1_values = [e['cv_f1'] for e in entries if e['cv_f1'] is not None]
+        test_loss_values = [e['test_loss'] for e in entries if e['test_loss'] is not None]
+        test_sim_values = [e['test_sim_ratio'] for e in entries if e['test_sim_ratio'] is not None]
+        test_f1_values = [e['test_f1'] for e in entries if e['test_f1'] is not None]
+
+        cv_loss_mean = np.mean(cv_loss_values) if cv_loss_values else float('nan')
+        cv_loss_std = np.std(cv_loss_values) if cv_loss_values else float('nan')
+        cv_sim_mean = np.mean(cv_sim_values) if cv_sim_values else float('nan')
+        cv_sim_std = np.std(cv_sim_values) if cv_sim_values else float('nan')
+        cv_f1_mean = np.mean(cv_f1_values) if cv_f1_values else float('nan')
+        cv_f1_std = np.std(cv_f1_values) if cv_f1_values else float('nan')
+        test_loss_mean = np.mean(test_loss_values) if test_loss_values else float('nan')
+        test_loss_std = np.std(test_loss_values) if test_loss_values else float('nan')
+        test_sim_mean = np.mean(test_sim_values) if test_sim_values else float('nan')
+        test_sim_std = np.std(test_sim_values) if test_sim_values else float('nan')
+        test_f1_mean = np.mean(test_f1_values) if test_f1_values else float('nan')
+        test_f1_std = np.std(test_f1_values) if test_f1_values else float('nan')
         
+
         table_rows.append({
             'MOE': str(moe_setting),
             'Add_Tokens': str(add_tokens_setting),
             'Clip_Loss': str(clip_loss),
-            'Loss_mean': f"{loss_mean:.4f}",
-            'Loss_std': f"{loss_std:.4f}",
-            'Sim_Ratio_mean': f"{sim_mean:.4f}",
-            'Sim_Ratio_std': f"{sim_std:.4f}"
+            'CV_Loss_mean': f"{cv_loss_mean:.4f}",
+            'CV_Loss_std': f"{cv_loss_std:.4f}",
+            'CV_Sim_Ratio_mean': f"{cv_sim_mean:.4f}",
+            'CV_Sim_Ratio_std': f"{cv_sim_std:.4f}",
+            'CV_F1_mean': f"{cv_f1_mean:.4f}",
+            'CV_F1_std': f"{cv_f1_std:.4f}",
+            'Test_Loss_mean': f"{test_loss_mean:.4f}",
+            'Test_Loss_std': f"{test_loss_std:.4f}",
+            'Test_Sim_Ratio_mean': f"{test_sim_mean:.4f}",
+            'Test_Sim_Ratio_std': f"{test_sim_std:.4f}",
+            'Test_F1_mean': f"{test_f1_mean:.4f}",
+            'Test_F1_std': f"{test_f1_std:.4f}"
         })
+    
     
     # Create DataFrame and save to CSV
     df = pd.DataFrame(table_rows)

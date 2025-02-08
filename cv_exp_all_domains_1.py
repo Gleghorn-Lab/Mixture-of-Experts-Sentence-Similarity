@@ -100,7 +100,6 @@ def main(args):
             path_token_dict=path_token_dict,
             token_expert_dict=token_expert_dict,
         )
-        test_dataset = Subset(test_dataset, range(10))
     
         # Loop over each CV split: use one fold as eval and the rest as training
         for cv_index in range(len(cv_datasets)):
@@ -113,12 +112,11 @@ def main(args):
             data_collator = get_data_collator(tokenizer, domain_tokens=domains, max_length=args.max_length, add_tokens=add_tokens_setting)
 
             # Set up train and eval datasets
-            eval_dataset = cv_datasets[cv_index]
-            # Optionally restrict eval size for speed (remove or adjust Subset if needed)
-            eval_dataset = Subset(eval_dataset, range(10))
+            full_eval_dataset = cv_datasets[cv_index]
+            eval_dataset = Subset(full_eval_dataset, range(10000))
+            full_eval_dataset = Subset(full_eval_dataset, range(100000))
             train_datasets = [cv_datasets[j] for j in range(len(cv_datasets)) if j != cv_index]
             train_dataset = ConcatDataset(train_datasets)
-            train_dataset = Subset(train_dataset, range(100))
 
             # Create a unique run name and output directory (for wandb and hub)
             run_name = f"moe_{moe_setting}_addTokens_{add_tokens_setting}_clipLoss_{clip_loss}_cv_{cv_index}"
@@ -170,7 +168,7 @@ def main(args):
             trainer.train()
             
             # Evaluate after training
-            final_cv_metrics = trainer.evaluate(eval_dataset=eval_dataset)
+            final_cv_metrics = trainer.evaluate(eval_dataset=full_eval_dataset)
             print("Final CV Metrics:\n", final_cv_metrics)
             final_test_metrics = trainer.evaluate(eval_dataset=test_dataset)
             print("Final Test Metrics:\n", final_test_metrics)

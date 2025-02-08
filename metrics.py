@@ -103,7 +103,6 @@ def compute_metrics_sentence_similarity_with_negatives(p: EvalPrediction):
     }
 
 
-
 def compute_metrics_benchmark(preds, labels):
     preds = torch.tensor(preds)
     labels = torch.tensor(labels)

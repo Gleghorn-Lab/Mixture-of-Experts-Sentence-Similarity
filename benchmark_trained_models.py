@@ -61,10 +61,56 @@ def main(args):
     max_length = args.max_length
 
     # Load evaluation documents. Each list must be aligned such that the i-th example in each list corresponds.
+    # Retrieve documents, domain tokens, labels, and expert assignments.
     all_a_documents, all_b_documents, all_domain_tokens, all_labels, all_expert_assignments = get_all_eval_documents(DATA_DICT, token_expert_dict)
+
+    # Trim the documents.
     all_a_documents = [doc[:max_length].strip() for doc in all_a_documents]
     all_b_documents = [doc[:max_length].strip() for doc in all_b_documents]
-    texts = list(set(all_a_documents + all_b_documents))
+
+    # a and b documents of the same index share a domain token and expert assignment.
+    # So, we combine them by duplicating the domain tokens and expert assignments.
+    docs_combined = all_a_documents + all_b_documents
+    domain_tokens_combined = all_domain_tokens + all_domain_tokens
+    expert_assignments_combined = all_expert_assignments + all_expert_assignments
+
+    # (Optional) Verify that the lengths match.
+    assert len(docs_combined) == len(domain_tokens_combined) == len(expert_assignments_combined), \
+        "Length mismatch between docs, domain tokens, or expert assignments!"
+
+    # Prepend the domain token to each document and append [SEP] at the end.
+    modified_docs = [
+        f"{domain_token}{doc}[SEP]"
+        for domain_token, doc in zip(domain_tokens_combined, docs_combined)
+    ]
+
+    modified_a_docs = [
+        f"{domain_token}{doc}[SEP]"
+        for domain_token, doc in zip(domain_tokens_combined, all_a_documents)
+    ]
+
+    modified_b_docs = [
+        f"{domain_token}{doc}[SEP]"
+        for domain_token, doc in zip(domain_tokens_combined, all_b_documents)
+    ]
+
+    # Deduplicate the modified documents while preserving the expert assignment.
+    # If the same modified document appears more than once, we check that the expert assignment is consistent.
+    doc_to_expert = {}
+    for text, expert in zip(modified_docs, expert_assignments_combined):
+        if text in doc_to_expert:
+            if doc_to_expert[text] != expert:
+                print(f"Warning: Duplicate document with differing expert assignments detected for:\n{text}")
+        else:
+            doc_to_expert[text] = expert
+
+    # Extract the unique texts and their corresponding expert assignments.
+    texts = list(doc_to_expert.keys())
+    expert_assignments = [doc_to_expert[text] for text in texts]
+
+    # Now, unique_texts contains the deduplicated, domain-token-enhanced texts,
+    # and unique_expert_assignments contains the matching expert assignments.
+
 
     # This list will collect summary metric records for all model/dataset combinations.
     summary_records = []
@@ -83,15 +129,6 @@ def main(args):
             print(f"Results for model {model_name} already exist. Skipping recalculation.")
             continue
 
-        if 'se' in model_name.lower():
-            domain = MODEL_DOMAIN_DICT[model_name]
-            current_domain_tokens = [domain] * len(all_a_documents)
-            current_expert_assignments = [0] * len(all_a_documents)
-        else:
-            current_domain_tokens = all_domain_tokens
-            current_expert_assignments = all_expert_assignments
-
-
         if test_mode:
             # Generate random embeddings dictionary
             embeddings_dict = {text: torch.randn(1, 128, dtype=torch.float32) for text in texts}
@@ -101,10 +138,13 @@ def main(args):
             embedder = MoeModernBertEmbedder(model_path, domains).to(DEVICE)
             embeddings_dict = embedder.embed_dataset(
                 texts,
-                assignments=current_expert_assignments,
+                assignments=expert_assignments,
                 tokenizer=embedder.tokenizer,
                 batch_size=2,
                 cls_pooling=False,
+                save=True,
+                save_path=os.path.join(model_dir, f"{model_name}_embeddings.pth"),
+                add_special_tokens=False
             )
 
         # Prepare dictionaries to hold results per domain and overall.
@@ -114,12 +154,11 @@ def main(args):
         aggregated_rows = []  # To record domain info with each prediction for later aggregation.
 
         # Iterate through each evaluation example.
-        for a, b, domain_token, label in zip(all_a_documents, all_b_documents, current_domain_tokens, all_labels):
+        for a, b, domain_token, label in zip(modified_a_docs, modified_b_docs, all_domain_tokens, all_labels):
             a_emb = embeddings_dict[a]
             b_emb = embeddings_dict[b]
             cosine_sim = F.cosine_similarity(a_emb, b_emb, dim=1)
             sim_value = cosine_sim.item()
-
 
             # Append per-domain results.
             result_dict[domain_token]['preds'].append(sim_value)

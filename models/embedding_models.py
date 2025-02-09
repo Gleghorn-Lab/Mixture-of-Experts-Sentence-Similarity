@@ -30,11 +30,11 @@ class SimpleTextDataset(Dataset):
         return self.texts[idx], self.assignments[idx]
 
 
-def build_collator(tokenizer) -> Callable[[list[str]], tuple[torch.Tensor, torch.Tensor]]:
+def build_collator(tokenizer, add_special_tokens: bool = True) -> Callable[[list[str]], tuple[torch.Tensor, torch.Tensor]]:
     def _collate_fn(batch: List[Tuple[str, int]]) -> tuple[torch.Tensor, torch.Tensor]:
         """Collate function for batching texts."""
         texts, assignments = zip(*batch)
-        return tokenizer(texts, return_tensors="pt", padding='longest', pad_to_multiple_of=8), torch.tensor(assignments, dtype=torch.long)
+        return tokenizer(texts, return_tensors="pt", padding='longest', pad_to_multiple_of=8, add_special_tokens=add_special_tokens), torch.tensor(assignments, dtype=torch.long)
     return _collate_fn
 
 
@@ -64,7 +64,7 @@ class EmbeddingMixin:
     def embed_dataset(
         self,
         texts: List[str],
-        assignments: List[int],
+        assignments: List[int], # TODO probably need dict of text and assignment instead
         tokenizer: PreTrainedTokenizerBase,
         batch_size: int = 2,
         embed_dtype: torch.dtype = torch.float32,
@@ -74,10 +74,12 @@ class EmbeddingMixin:
         save: bool = False,
         sql_db_path: str = 'embeddings.db',
         save_path: str = 'embeddings.pth',
+        add_special_tokens: bool = True,
     ) -> Optional[dict[str, torch.Tensor]]:
         #texts = list(set([text[:max_len] for text in texts])) # trim beforehand
         texts = sorted(texts, key=len, reverse=True)
-        collate_fn = build_collator(tokenizer)
+
+        collate_fn = build_collator(tokenizer, add_special_tokens)
         device = self.device
 
         if sql:

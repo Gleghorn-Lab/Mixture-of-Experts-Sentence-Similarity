@@ -102,7 +102,9 @@ def main(args):
                 assignments=all_expert_assignments, # not used
                 tokenizer=embedder.tokenizer,
                 batch_size=2,
-                cls_pooling=cls_pooling
+                cls_pooling=cls_pooling,
+                save=True,
+                save_path=os.path.join(model_dir, f"{model_name}_embeddings.pth")
             )
 
         # Prepare dictionaries to hold results per domain and overall.

@@ -49,14 +49,14 @@ def prepare_model(
         domains: List[str],
         lora: bool = False,
         moe: bool = True,
-        clip_loss: bool = True,
+        loss_type: str = 'mnr_plus_plus',
     ) -> Tuple[MoEBertForSentenceSimilarity, Any]:
     """
     Loads a pretrained model and adds new tokens
     """
     config = ModernBertConfig.from_pretrained(pretrained_path)
     config.lora = lora
-    config.loss_type = 'clip' if clip_loss else 'mnr_loss'
+    config.loss_type = loss_type
     if moe:
         config.num_experts = len(domains)
     else:

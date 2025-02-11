@@ -57,6 +57,7 @@ def parse_args():
     parser.add_argument("--save_every", type=int, default=10000, help="Save the model every n steps and evaluate every n steps")
     parser.add_argument("--bugfix", action="store_true", help="Use small batch size and max length for debugging")
     parser.add_argument("--fp16", action="store_true", help="Use fp16 training")
+    parser.add_argument("--loss_type", type=str, default='mnr_plus_plus', help="Loss type")
     args = parser.parse_args()
     return args
 
@@ -64,7 +65,7 @@ def parse_args():
 def main(args):
     model_path = 'answerdotai/ModernBERT-base'
     domains = list(DATA_DICT.keys())
-    lora, moe, add_tokens, clip_loss = False, True, True, True
+    lora, moe, add_tokens = False, True, True
 
     train_dataset = get_all_train_data(
         data_paths=list(DATA_DICT.values()),
@@ -80,7 +81,7 @@ def main(args):
         token_expert_dict=token_expert_dict,
     )
     
-    model, tokenizer = prepare_model(model_path, domains, lora, moe, clip_loss)
+    model, tokenizer = prepare_model(model_path, domains, lora, moe, args.loss_type)
     summary(model)
 
     data_collator = get_data_collator(tokenizer, domain_tokens=domains, max_length=args.max_length, add_tokens=add_tokens)

@@ -3,12 +3,9 @@ import torch.nn as nn
 from typing import Optional, Tuple, Union
 from transformers.modeling_outputs import BaseModelOutput
 from transformers.modeling_utils import PreTrainedModel
-from models.losses import clip_loss, MNR_loss
+from models.losses import mnr_loss, mnr_plus_loss, mnr_plus_plus_loss
 from models.outputs import SentenceSimilarityOutput
-from .modeling_modern_bert import (
-    ModernBertModel,
-    ModernBertConfig,
-)
+from .modeling_modern_bert import ModernBertModel, ModernBertConfig
 
 
 def mean_pooling(x: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
@@ -38,7 +35,14 @@ class MoEBertForSentenceSimilarity(PreTrainedModel):
         super().__init__(config)
         self.bert = base_model
         self.pooler = Pooler(config)
-        self.loss_fct = clip_loss if config.loss_type == "clip" else MNR_loss
+        if config.loss_type == 'mnr':
+            self.loss_fct = mnr_loss
+        elif config.loss_type == 'mnr_plus':
+            self.loss_fct = mnr_plus_loss
+        elif config.loss_type == 'mnr_plus_plus':
+            self.loss_fct = mnr_plus_plus_loss
+        else:
+            raise ValueError(f"Invalid loss type: {config.loss_type}")
 
     def get_input_embeddings(self):
         return self.embeddings.tok_embeddings

@@ -109,18 +109,13 @@ def mnr_plus_plus_loss(
     # Sum over the negatives dimension (axis=1) to obtain per-sample losses (shape: batch_size)
     loss1_per_sample = kl1.sum(dim=1)
     loss2_per_sample = kl2.sum(dim=1)
-
+    loss = (loss1_per_sample + loss2_per_sample) / 2.0
     # If weights are provided, apply them to the per-sample losses.
     if weights is not None:
         # Check that weights is a 1D tensor with the same length as the batch size.
         if weights.ndim != 1 or weights.shape[0] != batch1.shape[0]:
             raise ValueError("weights must be a 1D tensor with length equal to the batch size")
-        loss1 = (loss1_per_sample * weights).sum() / weights.sum()
-        loss2 = (loss2_per_sample * weights).sum() / weights.sum()
+        loss = (loss * weights).sum() / weights.sum()
     else:
-        loss1 = loss1_per_sample.mean()
-        loss2 = loss2_per_sample.mean()
-
-    # Average the two directional losses for the final loss.
-    loss = (loss1 + loss2) / 2.0
+        loss = loss.mean()
     return loss

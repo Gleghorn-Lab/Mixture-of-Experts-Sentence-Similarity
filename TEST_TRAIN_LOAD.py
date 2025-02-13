@@ -124,12 +124,12 @@ def main(args):
     )
     
     init_metrics = trainer.evaluate(eval_dataset=eval_dataset)
-    print(f"Initial Metrics for {domain}:\n", init_metrics)
+    print(f"Initial Metrics for {data_path}:\n", init_metrics)
     
     trainer.train()
     
     final_metrics = trainer.evaluate(eval_dataset=eval_dataset)
-    print(f"Final Metrics for {domain}:\n", final_metrics)
+    print(f"Final Metrics for {data_path}:\n", final_metrics)
     
     trainer.model.push_to_hub(args.save_path)
     tokenizer.push_to_hub(args.save_path)
@@ -144,7 +144,7 @@ def main(args):
     trainer.model = model
 
     loaded_metrics = trainer.evaluate(eval_dataset=eval_dataset)
-    print(f"Loaded Metrics for {domain}:\n", loaded_metrics)
+    print(f"Loaded Metrics for {data_path}:\n", loaded_metrics)
 
 
 if __name__ == "__main__":

@@ -1,10 +1,12 @@
 import torch
 import torch.nn as nn
+import copy
 from typing import Optional, Tuple, Union
 from transformers.modeling_outputs import BaseModelOutput
 from transformers.modeling_utils import PreTrainedModel
 from models.losses import mnr_loss, mnr_plus_loss
 from models.outputs import SentenceSimilarityOutput
+from .moe_blocks import SentenceEnforcedSwitchMoeBlock
 from .modeling_modern_bert import ModernBertModel, ModernBertConfig
 
 
@@ -30,17 +32,32 @@ class Pooler(nn.Module):
         return x
 
 
+def convert_to_moe_bert(config: ModernBertConfig, model: ModernBertModel) -> ModernBertModel:
+    """
+    Seeds all experts with the original weights from the pretrained model.
+    mlp (Expert) at ModernBertModel.layers[i].mlp
+    """
+    for layer in model.layers:
+        Expert = copy.deepcopy(layer.mlp)
+        layer.mlp = SentenceEnforcedSwitchMoeBlock(config, Expert, pretrained=True)
+    return model
+
+
 class MoEBertForSentenceSimilarity(PreTrainedModel):
-    def __init__(self, config: ModernBertConfig, base_model: ModernBertModel):
+    config_class = ModernBertConfig
+    def __init__(self, config: ModernBertConfig, base_model: Optional[ModernBertModel] = None):
         super().__init__(config)
-        self.bert = base_model
+        self.config = config
+        if base_model is None:
+            bert = ModernBertModel(config)
+            self.bert = convert_to_moe_bert(config, bert) if config.num_experts > 1 else bert
+        else:
+            self.bert = base_model
         self.pooler = Pooler(config)
         if config.loss_type == 'mnr':
             self.loss_fct = mnr_loss
-        elif config.loss_type == 'mnr_plus':
+        elif config.loss_type == 'mnr_plus' or config.loss_type == 'clip':
             self.loss_fct = mnr_plus_loss
-        #elif config.loss_type == 'mnr_plus_plus':
-        #    self.loss_fct = mnr_plus_plus_loss
         else:
             raise ValueError(f"Invalid loss type: {config.loss_type}")
 

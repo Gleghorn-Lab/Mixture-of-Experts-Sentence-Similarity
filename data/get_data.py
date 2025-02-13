@@ -1,6 +1,6 @@
 import random
 import torch
-from typing import Any, List, Dict, Union
+from typing import List, Dict, Union
 from torch.utils.data import Dataset as TorchDataset
 from datasets import load_dataset
 
@@ -77,7 +77,6 @@ def get_all_eval_data(data_paths: List[str], path_token_dict: Dict[str, str], to
     return SimDataset(all_a_documents, all_b_documents, all_expert_assignments, all_labels)
 
 
-
 def get_all_eval_documents(data_dict: Dict[str, str], token_expert_dict: Dict[str, int]):
     all_a_documents, all_b_documents, all_domain_tokens, all_labels, all_expert_assignments = [], [], [], [], []
     for domain, data_path in data_dict.items():
@@ -89,7 +88,6 @@ def get_all_eval_documents(data_dict: Dict[str, str], token_expert_dict: Dict[st
         expert_assignment = token_expert_dict[domain]
         all_expert_assignments.extend([expert_assignment] * len(data['a']))
     return all_a_documents, all_b_documents, all_domain_tokens, all_labels, all_expert_assignments
-
 
 
 def get_single_train_data(
@@ -139,7 +137,6 @@ def get_single_train_data(
             labels=data['label'],
         )
         return dataset
-
 
 
 def get_all_train_data(

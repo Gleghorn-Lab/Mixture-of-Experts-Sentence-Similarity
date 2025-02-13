@@ -45,11 +45,9 @@ def mnr_plus_loss(
     logits = batch1 @ batch2.T
     batch1_similarity = batch1 @ batch1.T
     batch2_similarity = batch2 @ batch2.T
-    target_sim = (batch1_similarity + batch2_similarity) / 2.0
-    targets = F.softmax(target_sim, dim=-1)
-    targets_T = F.softmax(target_sim.T, dim=-1)
+    targets = (batch1_similarity + batch2_similarity) / 2.0
     loss1 = F.cross_entropy(logits, targets.argmax(dim=1), reduction='none')
-    loss2 = F.cross_entropy(logits.T, targets_T.argmax(dim=1), reduction='none')
+    loss2 = F.cross_entropy(logits.T, targets.T.argmax(dim=1), reduction='none')
     loss = loss1 + loss2
     if weights is not None:
         if weights.ndim != 1 or weights.shape[0] != batch1.shape[0]:

@@ -6,7 +6,7 @@ from transformers import Trainer, TrainingArguments
 from huggingface_hub import login
 
 from data.data_collators import get_data_collator
-from data.get_data import get_single_train_data, get_single_eval_data
+from data.get_data import get_all_eval_data, get_all_train_data
 from models.utils import prepare_model
 from metrics import compute_metrics_sentence_similarity_with_negatives as compute_metrics
 
@@ -67,78 +67,76 @@ def main(args):
     domains = list(DATA_DICT.keys())
     lora, moe, add_tokens = False, False, True
 
-    for domain, data_path in DATA_DICT.items():
-        train_dataset = get_single_train_data(
-            data_path=data_path,
-            path_token_dict=path_token_dict,
-            token_expert_dict=token_expert_dict,
-            cross_validation=False,
-            cv=1,
-        )
+    train_dataset = get_all_train_data(
+        data_paths=list(DATA_DICT.values()),
+        path_token_dict=path_token_dict,
+        token_expert_dict=token_expert_dict,
+        cross_validation=False,
+        cv=1,
+    )
 
-        eval_dataset = get_single_eval_data(
-            data_path=data_path,
-            path_token_dict=path_token_dict,
-            token_expert_dict=token_expert_dict,
-        )
-        
-        model, tokenizer = prepare_model(model_path, domains, lora, moe, args.loss_type)
-        summary(model)
+    eval_dataset = get_all_eval_data(
+        data_paths=list(DATA_DICT.values()),
+        path_token_dict=path_token_dict,
+        token_expert_dict=token_expert_dict,
+    )
+    
+    model, tokenizer = prepare_model(model_path, domains, lora, moe, args.loss_type)
+    summary(model)
 
-        data_collator = get_data_collator(tokenizer, domain_tokens=domains, max_length=args.max_length, add_tokens=add_tokens)
+    data_collator = get_data_collator(tokenizer, domain_tokens=domains, max_length=args.max_length, add_tokens=add_tokens)
 
-        domain = domain.replace('[', '').replace(']', '')
-        run_name = f"se_train_run_{domain}"
-        unique_output_dir = os.path.join(args.save_path, run_name)
-        os.makedirs(unique_output_dir, exist_ok=True)
-        
-        if WANDB_AVAILABLE:
-            wandb.init(project=args.wandb_project, name=run_name, config=vars(args))
-        
-        training_args = TrainingArguments(
-            output_dir=unique_output_dir,
-            overwrite_output_dir=True,
-            per_device_train_batch_size=args.batch_size,
-            per_device_eval_batch_size=args.batch_size,
-            num_train_epochs=1,
-            logging_steps=100,
-            save_strategy="steps",
-            eval_strategy="steps", 
-            save_steps=args.save_every,
-            eval_steps=args.save_every,
-            logging_dir=os.path.join(unique_output_dir, "logs"),
-            learning_rate=args.lr,
-            fp16=args.fp16,
-            dataloader_num_workers=4 if not args.bugfix else 0,
-            report_to="wandb" if WANDB_AVAILABLE else 'none',
-            save_only_model=True,
-            save_total_limit=3,
-        )
-        
-        trainer = Trainer(
-            model=model,
-            args=training_args,
-            train_dataset=train_dataset,
-            eval_dataset=eval_dataset,
-            data_collator=data_collator,
-            compute_metrics=compute_metrics,
-        )
-        
-        init_metrics = trainer.evaluate(eval_dataset=eval_dataset)
-        print(f"Initial Metrics for {domain}:\n", init_metrics)
-        
-        trainer.train()
-        
-        final_metrics = trainer.evaluate(eval_dataset=eval_dataset)
-        print(f"Final Metrics for {domain}:\n", final_metrics)
-        
-        trainer.push_to_hub()
-        
-        if WANDB_AVAILABLE:
-            wandb.finish()
-        
-        trainer.accelerator.free_memory()
-        torch.cuda.empty_cache()
+    run_name = f"se_train_run_all"
+    unique_output_dir = os.path.join(args.save_path, run_name)
+    os.makedirs(unique_output_dir, exist_ok=True)
+    
+    if WANDB_AVAILABLE:
+        wandb.init(project=args.wandb_project, name=run_name, config=vars(args))
+    
+    training_args = TrainingArguments(
+        output_dir=unique_output_dir,
+        overwrite_output_dir=True,
+        per_device_train_batch_size=args.batch_size,
+        per_device_eval_batch_size=args.batch_size,
+        num_train_epochs=1,
+        logging_steps=100,
+        save_strategy="steps",
+        eval_strategy="steps", 
+        save_steps=args.save_every,
+        eval_steps=args.save_every,
+        logging_dir=os.path.join(unique_output_dir, "logs"),
+        learning_rate=args.lr,
+        fp16=args.fp16,
+        dataloader_num_workers=4 if not args.bugfix else 0,
+        report_to="wandb" if WANDB_AVAILABLE else 'none',
+        save_only_model=True,
+        save_total_limit=3,
+    )
+    
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=train_dataset,
+        eval_dataset=eval_dataset,
+        data_collator=data_collator,
+        compute_metrics=compute_metrics,
+    )
+    
+    init_metrics = trainer.evaluate(eval_dataset=eval_dataset)
+    print(f"Initial Metrics:\n", init_metrics)
+    
+    trainer.train()
+    
+    final_metrics = trainer.evaluate(eval_dataset=eval_dataset)
+    print(f"Final Metrics:\n", final_metrics)
+    
+    trainer.push_to_hub()
+    
+    if WANDB_AVAILABLE:
+        wandb.finish()
+    
+    trainer.accelerator.free_memory()
+    torch.cuda.empty_cache()
 
 
 if __name__ == "__main__":

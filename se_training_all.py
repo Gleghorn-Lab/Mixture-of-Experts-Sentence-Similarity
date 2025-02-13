@@ -81,6 +81,11 @@ def main(args):
         token_expert_dict=token_expert_dict,
     )
     
+    #from torch.utils.data import Subset
+    #import random
+    #indices = list(range(len(eval_dataset)))
+    #random.shuffle(indices)
+    #eval_dataset = Subset(eval_dataset, indices[:100])
     model, tokenizer = prepare_model(model_path, domains, lora, moe, args.loss_type)
     summary(model)
 

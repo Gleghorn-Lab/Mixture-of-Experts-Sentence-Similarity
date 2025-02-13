@@ -87,9 +87,7 @@ def main(args):
     summary(model)
 
     data_collator = get_data_collator(tokenizer, domain_tokens=domains, max_length=args.max_length, add_tokens=add_tokens)
-
-    domain = domain.replace('[', '').replace(']', '')
-    run_name = f"se_TEST_LOAD_run_{domain}"
+    run_name = f"se_TEST_LOAD_run_copd"
     unique_output_dir = os.path.join(args.save_path, run_name)
     os.makedirs(unique_output_dir, exist_ok=True)
     

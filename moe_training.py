@@ -57,7 +57,7 @@ def parse_args():
     parser.add_argument("--save_every", type=int, default=10000, help="Save the model every n steps and evaluate every n steps")
     parser.add_argument("--bugfix", action="store_true", help="Use small batch size and max length for debugging")
     parser.add_argument("--fp16", action="store_true", help="Use fp16 training")
-    parser.add_argument("--loss_type", type=str, default='mnr_plus_plus', help="Loss type")
+    parser.add_argument("--loss_type", type=str, default='mnr_plus', help="Loss type")
     args = parser.parse_args()
     return args
 

@@ -3,7 +3,7 @@ import torch.nn as nn
 from typing import Optional, Tuple, Union
 from transformers.modeling_outputs import BaseModelOutput
 from transformers.modeling_utils import PreTrainedModel
-from models.losses import mnr_loss, mnr_plus_loss, mnr_plus_plus_loss
+from models.losses import mnr_loss, mnr_plus_loss
 from models.outputs import SentenceSimilarityOutput
 from .modeling_modern_bert import ModernBertModel, ModernBertConfig
 
@@ -39,8 +39,8 @@ class MoEBertForSentenceSimilarity(PreTrainedModel):
             self.loss_fct = mnr_loss
         elif config.loss_type == 'mnr_plus':
             self.loss_fct = mnr_plus_loss
-        elif config.loss_type == 'mnr_plus_plus':
-            self.loss_fct = mnr_plus_plus_loss
+        #elif config.loss_type == 'mnr_plus_plus':
+        #    self.loss_fct = mnr_plus_plus_loss
         else:
             raise ValueError(f"Invalid loss type: {config.loss_type}")
 

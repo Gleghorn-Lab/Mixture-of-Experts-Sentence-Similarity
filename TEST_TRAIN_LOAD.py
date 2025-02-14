@@ -131,8 +131,9 @@ def main(args):
     final_metrics = trainer.evaluate(eval_dataset=eval_dataset)
     print(f"Final Metrics for {data_path}:\n", final_metrics)
     
-    trainer.model.push_to_hub(args.save_path)
-    tokenizer.push_to_hub(args.save_path)
+    save_path = 'lhallee/HF_se_TEST_LOAD_run_copd'
+    trainer.model.push_to_hub(save_path)
+    tokenizer.push_to_hub(save_path)
     
     if WANDB_AVAILABLE:
         wandb.finish()
@@ -140,7 +141,7 @@ def main(args):
     trainer.accelerator.free_memory()
     torch.cuda.empty_cache()
 
-    model = MoEBertForSentenceSimilarity.from_pretrained(args.save_path).cuda().eval()
+    model = MoEBertForSentenceSimilarity.from_pretrained(save_path).cuda().eval()
     trainer.model = model
 
     loaded_metrics = trainer.evaluate(eval_dataset=eval_dataset)

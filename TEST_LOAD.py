@@ -14,14 +14,6 @@ from metrics import compute_metrics_sentence_similarity_with_negatives as comput
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 
-### Check for wandb
-try:
-    import wandb
-    WANDB_AVAILABLE = True
-except ImportError:
-    wandb = None
-    WANDB_AVAILABLE = False
-
 DATA_DICT = {
     '[COPD]': 'GleghornLab/abstract_domain_copd',
     '[CVD]': 'GleghornLab/abstract_domain_cvd',
@@ -91,9 +83,6 @@ def main(args):
     unique_output_dir = os.path.join(args.save_path, run_name)
     os.makedirs(unique_output_dir, exist_ok=True)
     
-    if WANDB_AVAILABLE:
-        wandb.init(project=args.wandb_project, name=run_name, config=vars(args))
-    
     training_args = TrainingArguments(
         output_dir=unique_output_dir,
         overwrite_output_dir=True,
@@ -109,7 +98,6 @@ def main(args):
         learning_rate=args.lr,
         fp16=args.fp16,
         dataloader_num_workers=4 if not args.bugfix else 0,
-        report_to="wandb" if WANDB_AVAILABLE else 'none',
         save_only_model=True,
         save_total_limit=3,
     )
@@ -123,30 +111,13 @@ def main(args):
         compute_metrics=compute_metrics,
     )
     
-    init_metrics = trainer.evaluate(eval_dataset=eval_dataset)
-    print(f"Initial Metrics for {data_path}:\n", init_metrics)
-    
-    trainer.train()
-    
-    final_metrics = trainer.evaluate(eval_dataset=eval_dataset)
-    print(f"Final Metrics for {data_path}:\n", final_metrics)
-    
     save_path = 'lhallee/HF_se_TEST_LOAD_run_copd'
-    trainer.model.push_to_hub(save_path)
-    tokenizer.push_to_hub(save_path)
-    
-    trainer.accelerator.free_memory()
-    torch.cuda.empty_cache()
 
     model = MoEBertForSentenceSimilarity.from_pretrained(save_path).cuda().eval()
     trainer.model = model
 
     loaded_metrics = trainer.evaluate(eval_dataset=eval_dataset)
     print(f"Loaded Metrics for {data_path}:\n", loaded_metrics)
-
-    
-    if WANDB_AVAILABLE:
-        wandb.finish()
 
 
 if __name__ == "__main__":

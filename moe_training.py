@@ -8,6 +8,7 @@ from huggingface_hub import login
 from data.data_collators import get_data_collator
 from data.get_data import get_all_train_data, get_all_eval_data
 from models.utils import prepare_model
+from models.modeling_moe_bert import MoEBertForSentenceSimilarity
 from metrics import compute_metrics_sentence_similarity_with_negatives as compute_metrics
 
 import warnings
@@ -49,10 +50,10 @@ token_expert_dict = {
 def parse_args():
     parser = argparse.ArgumentParser(description="Synthyra Trainer")
     parser.add_argument("--token", type=str, default=None, help="Huggingface token")
-    parser.add_argument("--save_path", type=str, default="lhallee/moe_sim_test", help="Base path to save the model and report to wandb")
+    parser.add_argument("--save_path", type=str, default="GleghornLab/moe_all", help="Base path to save the model and report to wandb")
     parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
     parser.add_argument("--batch_size", type=int, default=16, help="Batch size")
-    parser.add_argument("--wandb_project", type=str, default="MOE_sentence_similarity", help="Wandb project name")
+    parser.add_argument("--wandb_project", type=str, default="MOE_FINAL", help="Wandb project name")
     parser.add_argument("--max_length", type=int, default=512, help="Maximum sequence length")
     parser.add_argument("--save_every", type=int, default=10000, help="Save the model every n steps and evaluate every n steps")
     parser.add_argument("--bugfix", action="store_true", help="Use small batch size and max length for debugging")
@@ -81,11 +82,6 @@ def main(args):
         token_expert_dict=token_expert_dict,
     )
 
-    #from torch.utils.data import Subset
-    #import random
-    #indices = list(range(len(eval_dataset)))
-    #random.shuffle(indices)
-    #eval_dataset = Subset(eval_dataset, indices[:100])
 
     model, tokenizer = prepare_model(model_path, domains, lora, moe, args.loss_type)
     summary(model)
@@ -136,13 +132,22 @@ def main(args):
     final_metrics = trainer.evaluate(eval_dataset=eval_dataset)
     print(f"Final Metrics:\n", final_metrics)
     
-    trainer.push_to_hub()
-    
-    if WANDB_AVAILABLE:
-        wandb.finish()
+    save_path = args.save_path + f'HF'
+    trainer.model.push_to_hub(save_path)
+    tokenizer.push_to_hub(save_path)
     
     trainer.accelerator.free_memory()
     torch.cuda.empty_cache()
+
+    # Add model loading and evaluation
+    model = MoEBertForSentenceSimilarity.from_pretrained(save_path).cuda().eval()
+    trainer.model = model
+
+    loaded_metrics = trainer.evaluate(eval_dataset=eval_dataset)
+    print(f"Loaded Metrics:\n", loaded_metrics)
+    
+    if WANDB_AVAILABLE:
+        wandb.finish()
 
 
 if __name__ == "__main__":

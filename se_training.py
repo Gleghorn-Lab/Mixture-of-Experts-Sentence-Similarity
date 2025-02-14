@@ -9,6 +9,7 @@ from data.data_collators import get_data_collator
 from data.get_data import get_single_train_data, get_single_eval_data
 from models.utils import prepare_model
 from metrics import compute_metrics_sentence_similarity_with_negatives as compute_metrics
+from models.moe_bert import MoEBertForSentenceSimilarity
 
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -49,10 +50,10 @@ token_expert_dict = {
 def parse_args():
     parser = argparse.ArgumentParser(description="Synthyra Trainer")
     parser.add_argument("--token", type=str, default=None, help="Huggingface token")
-    parser.add_argument("--save_path", type=str, default="lhallee/moe_sim_test", help="Base path to save the model and report to wandb")
+    parser.add_argument("--save_path", type=str, default="GleghornLab/se_domain", help="Base path to save the model and report to wandb")
     parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
     parser.add_argument("--batch_size", type=int, default=16, help="Batch size")
-    parser.add_argument("--wandb_project", type=str, default="MOE_sentence_similarity", help="Wandb project name")
+    parser.add_argument("--wandb_project", type=str, default="MOE_FINAL", help="Wandb project name")
     parser.add_argument("--max_length", type=int, default=512, help="Maximum sequence length")
     parser.add_argument("--save_every", type=int, default=5000, help="Save the model every n steps and evaluate every n steps")
     parser.add_argument("--bugfix", action="store_true", help="Use small batch size and max length for debugging")
@@ -132,13 +133,21 @@ def main(args):
         final_metrics = trainer.evaluate(eval_dataset=eval_dataset)
         print(f"Final Metrics for {domain}:\n", final_metrics)
         
-        trainer.push_to_hub()
+        save_path = args.save_path + f'HF_{domain}'
+        trainer.model.push_to_hub(save_path)
+        tokenizer.push_to_hub(save_path)
+
+        trainer.accelerator.free_memory()
+        torch.cuda.empty_cache()
+
+        model = MoEBertForSentenceSimilarity.from_pretrained(save_path).cuda().eval()
+        trainer.model = model
+
+        loaded_metrics = trainer.evaluate(eval_dataset=eval_dataset)
+        print(f"Loaded Metrics for {domain}:\n", loaded_metrics)
         
         if WANDB_AVAILABLE:
             wandb.finish()
-        
-        trainer.accelerator.free_memory()
-        torch.cuda.empty_cache()
 
 
 if __name__ == "__main__":

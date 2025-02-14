@@ -60,27 +60,6 @@ def prepare_model(
     return model, tokenizer
 
 
-def load_from_pretrained(
-        base_model_path: str,
-        model_path: str,
-        domains: List[str],
-        lora: bool = False,
-        moe: bool = True,
-        loss_type: str = 'mnr_plus_plus',
-    ) -> Tuple[MoEBertForSentenceSimilarity, Any]:
-    """
-    Loads a pretrained model and adds new tokens
-    """
-    base_model = ModernBertModel.from_pretrained(base_model_path)
-    #print('Pre MOE number of parameters:', sum(p.numel() for p in model.parameters()))
-    tokenizer = AutoTokenizer.from_pretrained(base_model_path)
-    _, tokenizer = add_new_tokens(base_model, tokenizer, domains)
-    #config.vocab_size = len(tokenizer)
-    model = MoEBertForSentenceSimilarity.from_pretrained(model_path)
-    #print('Post MOE number of parameters:', sum(p.numel() for p in model.parameters()))
-    return model, tokenizer
-
-
 if __name__ == "__main__":
     # py -m models.utils
     model_path = 'answerdotai/ModernBERT-base'

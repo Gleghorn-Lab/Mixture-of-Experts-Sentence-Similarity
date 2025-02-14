@@ -6,7 +6,7 @@ import torch.nn.functional as F
 def mnr_loss(
     batch1: torch.Tensor,
     batch2: torch.Tensor,
-    normalize: bool = False,
+    normalize: bool = True,
     weights: torch.Tensor = None
 ) -> torch.Tensor:
     """
@@ -17,6 +17,7 @@ def mnr_loss(
     if normalize:
         batch1 = F.normalize(batch1, p=2, dim=-1)
         batch2 = F.normalize(batch2, p=2, dim=-1)
+
     logits = batch1 @ batch2.T
     targets = torch.arange(len(batch1), device=batch1.device)
     loss = F.cross_entropy(logits, targets, reduction='none')
@@ -31,7 +32,7 @@ def mnr_loss(
 def mnr_plus_loss(
     batch1: torch.Tensor,
     batch2: torch.Tensor,
-    normalize: bool = False,
+    normalize: bool = True,
     weights: torch.Tensor = None
 ) -> float:
     """

@@ -62,7 +62,8 @@ def parse_args():
     parser.add_argument("--loss_type", type=str, default='mnr_plus', help="Loss type")
     parser.add_argument("--patience", type=int, default=5, help="Early stopping patience")
     parser.add_argument("--skip_domain", action="store_true", help="Skip domain-specific training")
-    parser.add_argument("--skip_joint", action="store_true", help="Skip joint training")
+    parser.add_argument("--skip_se_joint", action="store_true", help="Skip joint SE training")
+    parser.add_argument("--skip_moe_joint", action="store_true", help="Skip joint MoE training")
     args = parser.parse_args()
     return args
 
@@ -180,8 +181,8 @@ def run_domain_specific_training(args):
         torch.cuda.empty_cache()
 
 
-def run_joint_training(args):
-    print("\n=== Starting Joint Training ===")
+def run_se_joint_training(args):
+    print("\n=== Starting Joint SE Training ===")
     model_path = 'answerdotai/ModernBERT-base'
     domains = list(DATA_DICT.keys())
     
@@ -225,6 +226,26 @@ def run_joint_training(args):
     trainer.accelerator.free_memory()
     torch.cuda.empty_cache()
 
+
+def run_moe_joint_training(args):
+    print("\n=== Starting Joint MoE Training ===")
+    model_path = 'answerdotai/ModernBERT-base'
+    domains = list(DATA_DICT.keys())
+    
+    train_dataset = get_all_train_data(
+        data_paths=list(DATA_DICT.values()),
+        path_token_dict=path_token_dict,
+        token_expert_dict=token_expert_dict,
+        cross_validation=False,
+        cv=1,
+    )
+
+    eval_dataset = get_all_eval_data(
+        data_paths=list(DATA_DICT.values()),
+        path_token_dict=path_token_dict,
+        token_expert_dict=token_expert_dict,
+    )
+
     # MoE training with tokens
     model, tokenizer = prepare_model(model_path, domains, lora=False, moe=True, loss_type=args.loss_type)
     trainer = setup_trainer(
@@ -256,8 +277,11 @@ def main(args):
     if not args.skip_domain:
         run_domain_specific_training(args)
     
-    if not args.skip_joint:
-        run_joint_training(args)
+    if not args.skip_se_joint:
+        run_se_joint_training(args)
+
+    if not args.skip_moe_joint:
+        run_moe_joint_training(args)
 
 
 if __name__ == "__main__":

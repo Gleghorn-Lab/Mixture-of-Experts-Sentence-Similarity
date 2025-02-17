@@ -9,7 +9,7 @@ from huggingface_hub import login
 import pandas as pd
 
 from data.data_collators import get_data_collator
-from data.get_data import get_all_train_data, get_all_eval_data
+from data.get_data import get_all_train_data, get_all_test_data
 from models.utils import prepare_model
 from metrics import compute_metrics_sentence_similarity_positives as compute_metrics
 
@@ -95,7 +95,7 @@ def main(args):
             cv=CV,
         )
 
-        test_dataset = get_all_eval_data(
+        test_dataset = get_all_test_data(
             data_paths=list(DATA_DICT.values()),
             path_token_dict=path_token_dict,
             token_expert_dict=token_expert_dict,

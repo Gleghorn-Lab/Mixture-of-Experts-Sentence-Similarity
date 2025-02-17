@@ -6,7 +6,7 @@ from transformers import Trainer, TrainingArguments
 from huggingface_hub import login
 
 from data.data_collators import get_data_collator
-from data.get_data import get_all_train_data, get_all_eval_data
+from data.get_data import get_all_train_data, get_all_test_data
 from models.utils import prepare_model
 from models.modeling_moe_bert import MoEBertForSentenceSimilarity
 from metrics import compute_metrics_sentence_similarity_with_negatives as compute_metrics
@@ -76,7 +76,7 @@ def main(args):
         cv=1,
     )
 
-    eval_dataset = get_all_eval_data(
+    eval_dataset = get_all_test_data(
         data_paths=list(DATA_DICT.values()),
         path_token_dict=path_token_dict,
         token_expert_dict=token_expert_dict,

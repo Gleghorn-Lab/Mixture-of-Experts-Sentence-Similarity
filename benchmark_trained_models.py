@@ -6,7 +6,7 @@ import pandas as pd
 from transformers import Trainer, TrainingArguments, AutoTokenizer, EvalPrediction
 from huggingface_hub import login
 from data.data_collators import get_data_collator
-from data.get_data import get_single_eval_data
+from data.get_data import get_single_test_data
 from models.modeling_moe_bert import MoEBertForSentenceSimilarity
 from metrics import compute_metrics_sentence_similarity_with_negatives as compute_metrics
 import warnings
@@ -96,7 +96,7 @@ def main(args):
                 path_token_dict = PATH_TOKEN_DICT
 
             # Load evaluation dataset for the current domain.
-            eval_dataset = get_single_eval_data(
+            eval_dataset = get_single_test_data(
                 data_path=data_path,
                 path_token_dict=path_token_dict,
                 token_expert_dict=TOKEN_EXPERT_DICT,

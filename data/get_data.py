@@ -55,7 +55,16 @@ class SimDataset(TorchDataset):
         return a_doc, b_doc, expert_assignment, label
 
 
-def get_single_eval_data(data_path: str, path_token_dict: Dict[str, str], token_expert_dict: Dict[str, int]) -> SimDataset:
+def get_single_valid_data(data_path: str, path_token_dict: Dict[str, str], token_expert_dict: Dict[str, int]) -> SimDataset:
+    data = load_dataset(data_path, split='valid')
+    domain_token = path_token_dict[data_path]
+    expert_assignment = token_expert_dict[domain_token]
+    expert_assignments = [expert_assignment] * len(data['a'])
+    labels = torch.tensor(data['label'])
+    return SimDataset(data['a'], data['b'], expert_assignments, labels)
+
+
+def get_single_test_data(data_path: str, path_token_dict: Dict[str, str], token_expert_dict: Dict[str, int]) -> SimDataset:
     data = load_dataset(data_path, split='test')
     domain_token = path_token_dict[data_path]
     expert_assignment = token_expert_dict[domain_token]
@@ -64,7 +73,20 @@ def get_single_eval_data(data_path: str, path_token_dict: Dict[str, str], token_
     return SimDataset(data['a'], data['b'], expert_assignments, labels)
 
 
-def get_all_eval_data(data_paths: List[str], path_token_dict: Dict[str, str], token_expert_dict: Dict[str, int]) -> SimDataset:
+def get_all_valid_data(data_paths: List[str], path_token_dict: Dict[str, str], token_expert_dict: Dict[str, int]) -> SimDataset:
+    all_a_documents, all_b_documents, all_expert_assignments, all_labels = [], [], [], []
+    for path in data_paths:
+        domain_token = path_token_dict[path]
+        expert_assignment = token_expert_dict[domain_token]
+        data = load_dataset(path, split='valid')
+        all_a_documents.extend(data['a'])
+        all_b_documents.extend(data['b'])
+        all_expert_assignments.extend([expert_assignment] * len(data['a']))
+        all_labels.extend(data['label'])
+    return SimDataset(all_a_documents, all_b_documents, all_expert_assignments, all_labels)
+
+
+def get_all_test_data(data_paths: List[str], path_token_dict: Dict[str, str], token_expert_dict: Dict[str, int]) -> SimDataset:
     all_a_documents, all_b_documents, all_expert_assignments, all_labels = [], [], [], []
     for path in data_paths:
         domain_token = path_token_dict[path]

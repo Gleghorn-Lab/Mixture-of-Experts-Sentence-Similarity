@@ -6,7 +6,14 @@ from transformers import Trainer, TrainingArguments, EarlyStoppingCallback
 from huggingface_hub import login
 
 from data.data_collators import get_data_collator
-from data.get_data import get_all_test_data, get_all_train_data, get_single_train_data, get_single_test_data
+from data.get_data import (
+    get_single_train_data,
+    get_all_train_data,
+    get_single_test_data,
+    get_all_test_data,
+    get_single_valid_data,
+    get_all_valid_data,
+)
 from models.utils import prepare_model
 from models.modeling_moe_bert import MoEBertForSentenceSimilarity
 from metrics import compute_metrics_sentence_similarity_with_negatives as compute_metrics
@@ -53,7 +60,7 @@ def parse_args():
     parser.add_argument("--base_path", type=str, default="GleghornLab", help="Base path for saving models")
     parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
     parser.add_argument("--batch_size", type=int, default=16, help="Batch size")
-    parser.add_argument("--wandb_project", type=str, default="MOE_PUBLISH", help="Wandb project name")
+    parser.add_argument("--wandb_project", type=str, default="MOE_PUBLISH_LOSS", help="Wandb project name")
     parser.add_argument("--max_length", type=int, default=512, help="Maximum sequence length")
     parser.add_argument("--save_every", type=int, default=2500, help="Save/eval steps for joint training")
     parser.add_argument("--save_every_domain", type=int, default=1000, help="Save/eval steps for domain training")
@@ -84,14 +91,13 @@ def train_and_evaluate(trainer, eval_dataset, model_name, domain=None):
 def setup_trainer(model, tokenizer, train_dataset, eval_dataset, args, run_name, save_path, domains, add_tokens, save_steps):
     data_collator = get_data_collator(tokenizer, domain_tokens=domains, max_length=args.max_length, add_tokens=add_tokens)
     
-    unique_output_dir = os.path.join(save_path, run_name)
-    os.makedirs(unique_output_dir, exist_ok=True)
+    os.makedirs(save_path, exist_ok=True)
     
     if WANDB_AVAILABLE:
         wandb.init(project=args.wandb_project, name=run_name, config=vars(args))
     
     training_args = TrainingArguments(
-        output_dir=unique_output_dir,
+        output_dir=save_path,
         overwrite_output_dir=True,
         per_device_train_batch_size=args.batch_size,
         per_device_eval_batch_size=args.batch_size,
@@ -101,7 +107,7 @@ def setup_trainer(model, tokenizer, train_dataset, eval_dataset, args, run_name,
         eval_strategy="steps", 
         save_steps=save_steps,
         eval_steps=save_steps,
-        logging_dir=os.path.join(unique_output_dir, "logs"),
+        logging_dir=os.path.join(save_path, "logs"),
         learning_rate=args.lr,
         fp16=args.fp16,
         dataloader_num_workers=4 if not args.bugfix else 0,
@@ -109,8 +115,8 @@ def setup_trainer(model, tokenizer, train_dataset, eval_dataset, args, run_name,
         save_only_model=True,
         save_total_limit=3,
         load_best_model_at_end=True,
-        metric_for_best_model="eval_f1",
-        greater_is_better=True,
+        metric_for_best_model="eval_loss",
+        greater_is_better=False,
     )
     
     return Trainer(
@@ -152,7 +158,13 @@ def run_domain_specific_training(args):
             cv=1,
         )
 
-        eval_dataset = get_single_test_data(
+        valid_dataset = get_single_valid_data(
+            data_path=data_path,
+            path_token_dict=path_token_dict,
+            token_expert_dict=token_expert_dict,
+        )
+
+        test_dataset = get_single_test_data(
             data_path=data_path,
             path_token_dict=path_token_dict,
             token_expert_dict=token_expert_dict,
@@ -161,19 +173,19 @@ def run_domain_specific_training(args):
         model, tokenizer = prepare_model(model_path, domains, lora=False, moe=False, loss_type=args.loss_type)
         summary(model)
 
-        domain_clean = domain.replace('[', '').replace(']', '')
-        run_name = f"se_domain_{domain_clean}"
-        save_path = os.path.join(args.base_path, "se_domain")
+        domain_clean = domain.replace('[', '').replace(']', '').lower()
+        run_name = f"domain_se_{domain_clean}_{args.loss_type}"
+        save_path = os.path.join(args.base_path, f"domain_se_{args.loss_type}")
         
         trainer = setup_trainer(
-            model, tokenizer, train_dataset, eval_dataset, args, 
+            model, tokenizer, train_dataset, valid_dataset, args, 
             run_name, save_path, domains, add_tokens=True, 
             save_steps=args.save_every_domain
         )
         
-        _ = train_and_evaluate(trainer, eval_dataset, "SE Domain", domain_clean)
-        save_path = f"{save_path}HF_{domain_clean}"
-        save_model(trainer, tokenizer, f"{save_path}HF_{domain_clean}", eval_dataset)
+        _ = train_and_evaluate(trainer, test_dataset, "SE Domain", domain_clean)
+        hub_path = f"{args.base_path}/domain_se_{domain_clean}_{args.loss_type}"
+        save_model(trainer, tokenizer, hub_path, test_dataset)
         
         if WANDB_AVAILABLE:
             wandb.finish()
@@ -194,7 +206,13 @@ def run_se_joint_training(args):
         cv=1,
     )
 
-    eval_dataset = get_all_test_data(
+    valid_dataset = get_all_valid_data(
+        data_paths=list(DATA_DICT.values()),
+        path_token_dict=path_token_dict,
+        token_expert_dict=token_expert_dict,
+    )   
+
+    test_dataset = get_all_test_data(
         data_paths=list(DATA_DICT.values()),
         path_token_dict=path_token_dict,
         token_expert_dict=token_expert_dict,
@@ -202,26 +220,30 @@ def run_se_joint_training(args):
 
     # SE training with tokens
     model, tokenizer = prepare_model(model_path, domains, lora=False, moe=False, loss_type=args.loss_type)
+    save_path = os.path.join(args.base_path, f"joint_se_tokens_{args.loss_type}")
     trainer = setup_trainer(
-        model, tokenizer, train_dataset, eval_dataset, args,
-        "se_all_with_tokens", os.path.join(args.base_path, "se_all_tokens"),
+        model, tokenizer, train_dataset, valid_dataset, args,
+        f"joint_se_tokens_{args.loss_type}", save_path,
         domains, add_tokens=True, save_steps=args.save_every
     )
-    _ = train_and_evaluate(trainer, eval_dataset, "SE All (with tokens)")
-    save_model(trainer, tokenizer, f"{args.base_path}/se_all_tokensHF", eval_dataset)
+    _ = train_and_evaluate(trainer, test_dataset, "SE Joint (with tokens)")
+    hub_path = f"{args.base_path}/joint_se_tokens_{args.loss_type}"
+    save_model(trainer, tokenizer, hub_path, test_dataset)
     if WANDB_AVAILABLE: wandb.finish()
     trainer.accelerator.free_memory()
     torch.cuda.empty_cache()
 
     # SE training without tokens
     model, tokenizer = prepare_model(model_path, domains, lora=False, moe=False, loss_type=args.loss_type)
+    save_path = os.path.join(args.base_path, f"joint_se_no_tokens_{args.loss_type}")
     trainer = setup_trainer(
-        model, tokenizer, train_dataset, eval_dataset, args,
-        "se_all_no_tokens", os.path.join(args.base_path, "se_all_no_tokens"),
+        model, tokenizer, train_dataset, valid_dataset, args,
+        f"joint_se_no_tokens_{args.loss_type}", save_path,
         domains, add_tokens=False, save_steps=args.save_every
     )
-    _ = train_and_evaluate(trainer, eval_dataset, "SE All (no tokens)")
-    save_model(trainer, tokenizer, f"{args.base_path}/se_all_no_tokensHF", eval_dataset)
+    _ = train_and_evaluate(trainer, test_dataset, "SE Joint (no tokens)")
+    hub_path = f"{args.base_path}/joint_se_no_tokens_{args.loss_type}"
+    save_model(trainer, tokenizer, hub_path, test_dataset)
     if WANDB_AVAILABLE: wandb.finish()
     trainer.accelerator.free_memory()
     torch.cuda.empty_cache()
@@ -240,7 +262,13 @@ def run_moe_joint_training(args):
         cv=1,
     )
 
-    eval_dataset = get_all_test_data(
+    valid_dataset = get_all_valid_data(
+        data_paths=list(DATA_DICT.values()),
+        path_token_dict=path_token_dict,
+        token_expert_dict=token_expert_dict,
+    )
+
+    test_dataset = get_all_test_data(
         data_paths=list(DATA_DICT.values()),
         path_token_dict=path_token_dict,
         token_expert_dict=token_expert_dict,
@@ -248,26 +276,30 @@ def run_moe_joint_training(args):
 
     # MoE training with tokens
     model, tokenizer = prepare_model(model_path, domains, lora=False, moe=True, loss_type=args.loss_type)
+    save_path = os.path.join(args.base_path, f"joint_moe_tokens_{args.loss_type}")
     trainer = setup_trainer(
-        model, tokenizer, train_dataset, eval_dataset, args,
-        "moe_with_tokens", os.path.join(args.base_path, "moe_tokens"),
+        model, tokenizer, train_dataset, valid_dataset, args,
+        f"joint_moe_tokens_{args.loss_type}", save_path,
         domains, add_tokens=True, save_steps=args.save_every
     )
-    _ = train_and_evaluate(trainer, eval_dataset, "MoE (with tokens)")
-    save_model(trainer, tokenizer, f"{args.base_path}/moe_tokensHF", eval_dataset)
+    _ = train_and_evaluate(trainer, test_dataset, "MoE Joint (with tokens)")
+    hub_path = f"{args.base_path}/joint_moe_tokens_{args.loss_type}"
+    save_model(trainer, tokenizer, hub_path, test_dataset)
     if WANDB_AVAILABLE: wandb.finish()
     trainer.accelerator.free_memory()
     torch.cuda.empty_cache()
 
     # MoE training without tokens
     model, tokenizer = prepare_model(model_path, domains, lora=False, moe=True, loss_type=args.loss_type)
+    save_path = os.path.join(args.base_path, f"joint_moe_no_tokens_{args.loss_type}")
     trainer = setup_trainer(
-        model, tokenizer, train_dataset, eval_dataset, args,
-        "moe_no_tokens", os.path.join(args.base_path, "moe_no_tokens"),
+        model, tokenizer, train_dataset, valid_dataset, args,
+        f"joint_moe_no_tokens_{args.loss_type}", save_path,
         domains, add_tokens=False, save_steps=args.save_every
     )
-    _ = train_and_evaluate(trainer, eval_dataset, "MoE (no tokens)")
-    save_model(trainer, tokenizer, f"{args.base_path}/moe_no_tokensHF", eval_dataset)
+    _ = train_and_evaluate(trainer, test_dataset, "MoE Joint (no tokens)")
+    hub_path = f"{args.base_path}/joint_moe_no_tokens_{args.loss_type}"
+    save_model(trainer, tokenizer, hub_path, test_dataset)
     if WANDB_AVAILABLE: wandb.finish()
     trainer.accelerator.free_memory()
     torch.cuda.empty_cache()

@@ -86,6 +86,9 @@ def compute_metrics_sentence_similarity_positives(p: EvalPrediction):
 def compute_metrics_sentence_similarity_with_negatives(p: EvalPrediction):
     preds = p.predictions
     labels = torch.tensor(p.label_ids)
+    # if labels are only 1s, process like compute_metrics_sentence_similarity_positives
+    if torch.all(labels == 1):
+        return compute_metrics_sentence_similarity_positives(p)
     emb_a, emb_b = torch.chunk(torch.tensor(preds), 2, dim=1)
     preds = F.cosine_similarity(emb_a, emb_b, dim=1)
     f1, prec, recall, thres = max_metrics(preds, labels)

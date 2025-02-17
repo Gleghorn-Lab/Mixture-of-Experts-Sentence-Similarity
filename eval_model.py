@@ -40,29 +40,22 @@ TOKEN_EXPERT_DICT = {
 
 # List of model paths to evaluate.
 MODELS_TO_EVALUATE = [
-    'lhallee/se_train_run_COPD',
-    'lhallee/moe_train_run',
-    'lhallee/se_train_run_PARASITIC',
-    'lhallee/se_train_run_AUTOIMMUNE',
-    'lhallee/se_train_run_CVD',
-    'lhallee/se_train_run_CANCER',
+    'GleghornLab/moe_tokensHF',
+    'GleghornLab/se_all_tokensHF',
+    'GleghornLab/se_domainHF_CVDHF_CVD',
+    'GleghornLab/se_domainHF_AUTOIMMUNEHF_AUTOIMMUNE',
+    'GleghornLab/se_domainHF_CANCERHF_CANCER',
+    'GleghornLab/se_domainHF_PARASITICHF_PARASITIC',
+    'GleghornLab/se_domainHF_COPDHF_COPD',
 ]
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="MOE Sentence Similarity Evaluator")
     parser.add_argument("--token", type=str, default=None, help="Huggingface token")
-    parser.add_argument("--save_path", type=str, default="lhallee/moe_sim_test", 
-                        help="Base path to save CSV results and model output")
-    parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
     parser.add_argument("--batch_size", type=int, default=16, help="Batch size")
-    parser.add_argument("--wandb_project", type=str, default="MOE_sentence_similarity", 
-                        help="Wandb project name")
     parser.add_argument("--max_length", type=int, default=512, help="Maximum sequence length")
-    parser.add_argument("--save_every", type=int, default=5000, help="Save the model every n steps and evaluate every n steps")
     parser.add_argument("--bugfix", action="store_true", help="Use small batch size and max length for debugging")
-    parser.add_argument("--fp16", action="store_true", help="Use fp16 training")
-    parser.add_argument("--loss_type", type=str, default='mnr_plus', help="Loss type")
     args = parser.parse_args()
     return args
 
@@ -79,7 +72,7 @@ def main(args):
         model_name = model_path.split('/')[-1]
 
         # Create a directory to hold all CSV outputs for the current model.
-        model_dir = os.path.join(args.save_path, model_name)
+        model_dir = os.path.join("results", "trained_models", model_name)
         os.makedirs(model_dir, exist_ok=True)
 
         # Initialize aggregated lists to record predictions across domains.
@@ -90,7 +83,7 @@ def main(args):
         # Evaluate on each domain.
         for domain, data_path in DATA_DICT.items():
             # If the model is not MOE, override tokens using the model name.
-            if 'moe' not in model_path.lower():
+            if 'moe' not in model_path.lower() and 'all' not in model_path.lower():
                 token = '[' + model_path.split('_')[-1] + ']'
                 path_token_dict = {
                     'GleghornLab/abstract_domain_copd': token,
@@ -115,22 +108,14 @@ def main(args):
             domain_clean = domain.strip("[]")
             run_name = f"{model_name}_{domain_clean}"
             print(f"Evaluating {run_name}")
-            # Create a temporary output directory for Trainer (not used for CSVs below)
-            unique_output_dir = os.path.join(model_dir, run_name)
-            os.makedirs(unique_output_dir, exist_ok=True)
             
             training_args = TrainingArguments(
-                output_dir=unique_output_dir,
+                output_dir='holder',
                 overwrite_output_dir=True,
                 per_device_train_batch_size=args.batch_size,
                 per_device_eval_batch_size=args.batch_size,
                 num_train_epochs=1,
-                logging_steps=100,
-                save_strategy="steps",
-                save_steps=args.save_every,
-                logging_dir=os.path.join(unique_output_dir, "logs"),
-                learning_rate=args.lr,
-                dataloader_num_workers=4 if not args.bugfix else 0,
+                learning_rate=1e-4,
             )
             
             trainer = Trainer(
@@ -142,31 +127,28 @@ def main(args):
             )
             
             # Run prediction on the evaluation set.
-            embeddings, labels, _ = trainer.predict(test_dataset=eval_dataset)
+            embeddings, labels, domain_metrics = trainer.predict(test_dataset=eval_dataset)
             # Split the returned embeddings into the two sentence parts.
-            emb_a, emb_b = torch.chunk(embeddings, 2, dim=1)
+            emb_a, emb_b = torch.chunk(torch.tensor(embeddings), 2, dim=1)
             preds = torch.cosine_similarity(emb_a, emb_b, dim=-1)
+            preds = preds.tolist()
+            labels = labels.tolist()
             
             # Save per-example predictions (and true labels) to CSV.
             df_preds = pd.DataFrame({
-                "prediction": preds.tolist(),
-                "label": labels.tolist()
+                "prediction": preds,
+                "label": labels
             })
             preds_file = os.path.join(model_dir, f"{model_name}_{domain_clean}_predictions.csv")
             df_preds.to_csv(preds_file, index=False)
-            
-            # Compute metrics on the current domain.
-            # (Here we call compute_metrics with a dict similar to what Trainer does.
-            # Adjust if your metric function expects different inputs.)
-            domain_metrics = compute_metrics({"predictions": preds.numpy(), "label_ids": labels.numpy()})
             df_metrics = pd.DataFrame([domain_metrics])
             metrics_file = os.path.join(model_dir, f"{model_name}_{domain_clean}_metrics.csv")
             df_metrics.to_csv(metrics_file, index=False)
             
             # Record aggregated predictions (with domain info) for later aggregation.
-            aggregated_preds.extend(preds.tolist())
-            aggregated_labels.extend(labels.tolist())
-            for p, l in zip(preds.tolist(), labels.tolist()):
+            aggregated_preds.extend(preds)
+            aggregated_labels.extend(labels)
+            for p, l in zip(preds, labels):
                 aggregated_rows.append({
                     "domain": domain_clean,
                     "prediction": p,
@@ -199,7 +181,7 @@ def main(args):
         summary_records.append(summary_record)
     
     # Save overall summary CSV (aggregated across models and domains).
-    summary_csv_file = os.path.join(args.save_path, "summary.csv")
+    summary_csv_file = os.path.join("results", "trained_models", "summary.csv")
     df_summary = pd.DataFrame(summary_records)
     df_summary.to_csv(summary_csv_file, index=False)
     print(f"Summary saved to {summary_csv_file}")

@@ -1,12 +1,12 @@
 import argparse
 import torch
 from old.load_model import load_models
-from utils import get_yaml
+from old.utils import get_yaml
 from metrics import compute_metrics_sentence_similarity, compute_metrics_sentence_similarity_test
 from old.evaluate import evaluate_contrastive_model
 from data.data_collators import data_collator
 from data.get_data import get_datasets_test_sentence_sim
-from train import train_sim_model
+from old.train import train_sim_model
 
 
 def get_args():

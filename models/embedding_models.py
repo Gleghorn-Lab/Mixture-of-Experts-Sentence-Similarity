@@ -291,3 +291,15 @@ model_to_class_dict = {
     'Llama-3.2-1B': LlamaEmbedder,
     'TF-IDF': TfidfEmbedder,
 }
+
+
+if __name__ == "__main__":
+    # py -m models.embedding_models
+    from transformers import AutoModel
+    for name, path in relevant_paths.items():
+        if path is None:
+            continue
+        model = AutoModel.from_pretrained(path)
+        # print number of parameters in millions
+        num_params = sum(p.numel() for p in model.parameters())
+        print(f"{name}: {num_params / 1e6:.2f}M parameters")

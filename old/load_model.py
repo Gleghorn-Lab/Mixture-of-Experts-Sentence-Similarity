@@ -4,7 +4,7 @@ import torch
 from transformers import BertModel, BertTokenizer
 from models.modeling_moebert import MoEBertModel
 from models.modeling_moe_bert import MoEBertForSentenceSimilarity, BertForSentenceSimilarity
-from utils import add_new_tokens, load_from_weight_path
+from old.utils import add_new_tokens, load_from_weight_path
 
 
 def load_models(args):

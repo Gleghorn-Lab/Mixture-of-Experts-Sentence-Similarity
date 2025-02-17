@@ -1,5 +1,5 @@
 from tqdm.auto import tqdm
-from utils import log_metrics
+from old.utils import log_metrics
 from trainer import HF_trainer
 from metrics import *
 

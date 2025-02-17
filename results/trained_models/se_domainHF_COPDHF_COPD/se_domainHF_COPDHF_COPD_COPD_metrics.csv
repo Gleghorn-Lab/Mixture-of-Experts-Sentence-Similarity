@@ -1,0 +1,2 @@
+test_loss,test_model_preparation_time,test_f1,test_precision,test_recall,test_threshold,test_sim_ratio,test_pos_sim,test_neg_sim,test_runtime,test_samples_per_second,test_steps_per_second
+3.0329368114471436,0.0019,0.827,0.8215,0.8326,0.6844000220298767,1.4667,0.7986,0.5444,22.4388,119.258,7.487

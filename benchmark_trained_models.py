@@ -75,9 +75,9 @@ def main(args):
         model_dir = os.path.join("results", "trained_models", model_name)
         os.makedirs(model_dir, exist_ok=True)
 
-        # Initialize aggregated lists to record predictions across domains.
-        aggregated_preds = []
-        aggregated_labels = []
+        # Initialize lists to store domain metrics and sample counts
+        domain_metrics_list = []
+        domain_sample_counts = []
         aggregated_rows = []  # each row will contain domain, prediction, and label
 
         # Evaluate on each domain.
@@ -145,9 +145,7 @@ def main(args):
             metrics_file = os.path.join(model_dir, f"{model_name}_{domain_clean}_metrics.csv")
             df_metrics.to_csv(metrics_file, index=False)
             
-            # Record aggregated predictions (with domain info) for later aggregation.
-            aggregated_preds.extend(preds)
-            aggregated_labels.extend(labels)
+            # Store predictions with domain info
             for p, l in zip(preds, labels):
                 aggregated_rows.append({
                     "domain": domain_clean,
@@ -160,15 +158,27 @@ def main(args):
             summary_record.update(domain_metrics)
             summary_records.append(summary_record)
             
+            # Store domain metrics and sample count for weighted average
+            domain_metrics_list.append(domain_metrics)
+            domain_sample_counts.append(len(labels))
+            
             trainer.accelerator.free_memory()
             torch.cuda.empty_cache()
         
-        # Compute aggregated (across all domains) metrics for the current model.
-        aggregated_metrics = compute_metrics(EvalPrediction(predictions=np.array(aggregated_preds), label_ids=np.array(aggregated_labels)))
+        # Calculate weighted average of metrics across domains
+        total_samples = sum(domain_sample_counts)
+        aggregated_metrics = {}
+        for metric in domain_metrics_list[0].keys():
+            weighted_sum = sum(metrics[metric] * count for metrics, count 
+                             in zip(domain_metrics_list, domain_sample_counts))
+            aggregated_metrics[metric] = weighted_sum / total_samples
+        
+        # Save aggregated predictions
         df_agg_preds = pd.DataFrame(aggregated_rows)
         agg_preds_file = os.path.join(model_dir, f"{model_name}_all_predictions.csv")
         df_agg_preds.to_csv(agg_preds_file, index=False)
         
+        # Save aggregated metrics
         df_agg_metrics = pd.DataFrame([aggregated_metrics])
         agg_metrics_file = os.path.join(model_dir, f"{model_name}_all_metrics.csv")
         df_agg_metrics.to_csv(agg_metrics_file, index=False)

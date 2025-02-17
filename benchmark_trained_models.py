@@ -3,7 +3,7 @@ import os
 import torch
 import numpy as np
 import pandas as pd
-from transformers import Trainer, TrainingArguments, AutoTokenizer
+from transformers import Trainer, TrainingArguments, AutoTokenizer, EvalPrediction
 from huggingface_hub import login
 from data.data_collators import get_data_collator
 from data.get_data import get_single_eval_data
@@ -164,10 +164,7 @@ def main(args):
             torch.cuda.empty_cache()
         
         # Compute aggregated (across all domains) metrics for the current model.
-        aggregated_metrics = compute_metrics({
-            "predictions": np.array(aggregated_preds),
-            "label_ids": np.array(aggregated_labels)
-        })
+        aggregated_metrics = compute_metrics(EvalPrediction(predictions=np.array(aggregated_preds), label_ids=np.array(aggregated_labels)))
         df_agg_preds = pd.DataFrame(aggregated_rows)
         agg_preds_file = os.path.join(model_dir, f"{model_name}_all_predictions.csv")
         df_agg_preds.to_csv(agg_preds_file, index=False)
